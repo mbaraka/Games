@@ -29,6 +29,12 @@
             android:exported="false"
             android:label="Pixel Collector"
             android:theme="@style/Theme.Game" />
+            
+        <activity
+            android:name=".BaseDefenderGame"
+            android:exported="false"
+            android:label="Base Defender"
+            android:theme="@style/Theme.Game" />
     </application>
 
 </manifest>

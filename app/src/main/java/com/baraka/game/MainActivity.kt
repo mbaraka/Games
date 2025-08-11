@@ -31,7 +31,10 @@ class MainActivity : ComponentActivity() {
                                 val intent = Intent(this, PixelCollectorGame::class.java)
                                 startActivity(intent)
                             }
-                            // Add more games here in the future
+                            GameType.BASE_DEFENDER -> {
+                                val intent = Intent(this, BaseDefenderGame::class.java)
+                                startActivity(intent)
+                            }
                         }
                     }
                 )
@@ -41,7 +44,8 @@ class MainActivity : ComponentActivity() {
 }
 
 enum class GameType {
-    PIXEL_COLLECTOR
+    PIXEL_COLLECTOR,
+    BASE_DEFENDER
 }
 
 @Composable
@@ -76,6 +80,15 @@ fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
             description = "Collect green pixels while avoiding red obstacles!",
             color = Color(0xFF4CAF50),
             onClick = { onGameSelected(GameType.PIXEL_COLLECTOR) }
+        )
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        GameCard(
+            title = "Base Defender",
+            description = "Defend your base! Aim and shoot at incoming enemies!",
+            color = Color(0xFFFF5722),
+            onClick = { onGameSelected(GameType.BASE_DEFENDER) }
         )
         
         Spacer(modifier = Modifier.height(24.dp))
