@@ -159,6 +159,35 @@ fun BaseDefenderGameScreen() {
         
         Spacer(modifier = Modifier.height(16.dp))
         
+        // Weapon Selection
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            WeaponButton(
+                weaponType = WeaponType.BASIC,
+                isSelected = gameState.currentWeapon == WeaponType.BASIC,
+                onClick = { gameState = gameState.switchWeapon(WeaponType.BASIC) }
+            )
+            WeaponButton(
+                weaponType = WeaponType.FIRE,
+                isSelected = gameState.currentWeapon == WeaponType.FIRE,
+                onClick = { gameState = gameState.switchWeapon(WeaponType.FIRE) }
+            )
+            WeaponButton(
+                weaponType = WeaponType.ICE,
+                isSelected = gameState.currentWeapon == WeaponType.ICE,
+                onClick = { gameState = gameState.switchWeapon(WeaponType.ICE) }
+            )
+            WeaponButton(
+                weaponType = WeaponType.EXPLOSIVE,
+                isSelected = gameState.currentWeapon == WeaponType.EXPLOSIVE,
+                onClick = { gameState = gameState.switchWeapon(WeaponType.EXPLOSIVE) }
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
         // Controls
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -226,6 +255,7 @@ data class BaseDefenderGameState(
     val damageLevel: Int = 1,
     val fireRateLevel: Int = 1,
     val projectileSpeedLevel: Int = 1,
+    val currentWeapon: WeaponType = WeaponType.BASIC,
     val waveAnnouncement: String = "",
     val announcementTimer: Int = 0
 ) {
@@ -295,9 +325,13 @@ data class BaseDefenderGameState(
     fun handleTap(offset: Offset): BaseDefenderGameState {
         if (lives <= 0) return this
         
-        // Create projectile from player position
-        val newProjectile = player.shoot(offset, damageLevel, projectileSpeedLevel)
+        // Create projectile from player position with selected weapon
+        val newProjectile = player.shoot(offset, damageLevel, projectileSpeedLevel, currentWeapon)
         return copy(projectiles = projectiles + newProjectile)
+    }
+    
+    fun switchWeapon(weaponType: WeaponType): BaseDefenderGameState {
+        return copy(currentWeapon = weaponType)
     }
     
     fun draw(drawScope: DrawScope) {
@@ -348,7 +382,7 @@ data class BaseDefenderGameState(
             enemies.forEach { enemy ->
                 if (!projectileHit && projectile.bounds.overlaps(enemy.bounds)) {
                     projectileHit = true
-                    val damagedEnemy = enemy.takeDamage(projectile.damage)
+                    val damagedEnemy = enemy.takeDamage(projectile.damage, projectile.weaponType)
                     if (damagedEnemy.health <= 0) {
                         newScore += 10
                         newMoney += enemy.moneyReward
@@ -385,18 +419,28 @@ data class Defender(
     val position: Offset = Offset(200f, 380f), // Moved lower for better aiming
     val size: Float = 40f
 ) {
-    fun shoot(target: Offset, damageLevel: Int, projectileSpeedLevel: Int): Projectile {
+    fun shoot(target: Offset, damageLevel: Int, projectileSpeedLevel: Int, weaponType: WeaponType): Projectile {
         val direction = (target - position).normalized()
         val baseDamage = 25
         val baseSpeed = 8f
-        val damage = baseDamage + ((damageLevel - 1) * 10)
-        val speed = baseSpeed + ((projectileSpeedLevel - 1) * 2f)
+        
+        // Adjust damage and speed based on weapon type
+        val (weaponDamage, weaponSpeed) = when (weaponType) {
+            WeaponType.BASIC -> Pair(1.0f, 1.0f)
+            WeaponType.FIRE -> Pair(0.8f, 1.2f) // Lower damage but faster
+            WeaponType.ICE -> Pair(0.6f, 1.5f) // Lower damage but much faster
+            WeaponType.EXPLOSIVE -> Pair(1.5f, 0.7f) // Higher damage but slower
+        }
+        
+        val damage = ((baseDamage + ((damageLevel - 1) * 10)) * weaponDamage).toInt()
+        val speed = (baseSpeed + ((projectileSpeedLevel - 1) * 2f)) * weaponSpeed
         
         return Projectile(
             position = position.copy(y = position.y - 20f),
             direction = direction,
             damage = damage,
-            speed = speed
+            speed = speed,
+            weaponType = weaponType
         )
     }
     
@@ -420,16 +464,59 @@ data class Enemy(
     val speed: Float,
     val moneyReward: Int,
     val enemyType: EnemyType = EnemyType.BASIC,
-    val size: Float = 30f
+    val size: Float = 30f,
+    val isOnFire: Boolean = false,
+    val isFrozen: Boolean = false,
+    val fireTimer: Int = 0,
+    val freezeTimer: Int = 0
 ) {
     val bounds: Rect get() = Rect(position, Size(size, size))
     
     fun update(): Enemy {
-        return copy(position = position.copy(y = position.y + speed))
+        val newPosition = position.copy(y = position.y + speed)
+        
+        // Handle status effects
+        val newFireTimer = if (fireTimer > 0) fireTimer - 1 else 0
+        val newFreezeTimer = if (freezeTimer > 0) freezeTimer - 1 else 0
+        
+        // Fire damage over time
+        val fireDamage = if (isOnFire && newFireTimer > 0 && newFireTimer % 30 == 0) 5 else 0
+        val newHealth = health - fireDamage
+        
+        // Freeze effect (slows movement)
+        val effectiveSpeed = if (isFrozen && newFreezeTimer > 0) speed * 0.3f else speed
+        
+        return copy(
+            position = newPosition,
+            health = newHealth,
+            isOnFire = newFireTimer > 0,
+            isFrozen = newFreezeTimer > 0,
+            fireTimer = newFireTimer,
+            freezeTimer = newFreezeTimer
+        )
     }
     
-    fun takeDamage(damage: Int): Enemy {
-        return copy(health = health - damage)
+    fun takeDamage(damage: Int, weaponType: WeaponType = WeaponType.BASIC): Enemy {
+        val newHealth = health - damage
+        
+        // Apply weapon-specific effects
+        val (newIsOnFire, newFireTimer) = when (weaponType) {
+            WeaponType.FIRE -> Pair(true, 120) // 2 seconds of fire
+            else -> Pair(isOnFire, fireTimer)
+        }
+        
+        val (newIsFrozen, newFreezeTimer) = when (weaponType) {
+            WeaponType.ICE -> Pair(true, 90) // 1.5 seconds of freeze
+            else -> Pair(isFrozen, freezeTimer)
+        }
+        
+        return copy(
+            health = newHealth,
+            isOnFire = newIsOnFire,
+            isFrozen = newIsFrozen,
+            fireTimer = newFireTimer,
+            freezeTimer = newFreezeTimer
+        )
     }
     
     fun draw(drawScope: DrawScope) {
@@ -500,6 +587,25 @@ data class Enemy(
                 size = Size(8f, 8f)
             )
         }
+        
+        // Status effect indicators
+        if (isOnFire) {
+            // Fire effect
+            drawScope.drawRect(
+                color = Color.Red.copy(alpha = 0.7f),
+                topLeft = position.copy(x = position.x - 2f, y = position.y - 2f),
+                size = Size(drawSize + 4f, drawSize + 4f)
+            )
+        }
+        
+        if (isFrozen) {
+            // Ice effect
+            drawScope.drawRect(
+                color = Color.Cyan.copy(alpha = 0.5f),
+                topLeft = position.copy(x = position.x - 1f, y = position.y - 1f),
+                size = Size(drawSize + 2f, drawSize + 2f)
+            )
+        }
     }
     
     companion object {
@@ -566,22 +672,61 @@ data class Projectile(
     val direction: Offset,
     val damage: Int,
     val speed: Float = 8f,
-    val size: Float = 8f
+    val size: Float = 8f,
+    val weaponType: WeaponType = WeaponType.BASIC,
+    val effectTimer: Int = 0
 ) {
     val bounds: Rect get() = Rect(position, Size(size, size))
     
     fun update(): Projectile {
         return copy(
-            position = position + (direction * speed)
+            position = position + (direction * speed),
+            effectTimer = if (effectTimer > 0) effectTimer - 1 else 0
         )
     }
     
     fun draw(drawScope: DrawScope) {
+        val color = when (weaponType) {
+            WeaponType.BASIC -> Color.Yellow
+            WeaponType.FIRE -> Color.Red
+            WeaponType.ICE -> Color.Cyan
+            WeaponType.EXPLOSIVE -> Color(0xFFFF9800)
+        }
+        
         drawScope.drawRect(
-            color = Color.Yellow,
+            color = color,
             topLeft = position,
             size = Size(size, size)
         )
+        
+        // Add visual effects for special weapons
+        when (weaponType) {
+            WeaponType.FIRE -> {
+                // Fire trail effect
+                drawScope.drawRect(
+                    color = Color(0xFFFF5722).copy(alpha = 0.6f),
+                    topLeft = position.copy(x = position.x - 2f, y = position.y - 2f),
+                    size = Size(size + 4f, size + 4f)
+                )
+            }
+            WeaponType.ICE -> {
+                // Ice sparkle effect
+                drawScope.drawRect(
+                    color = Color.White.copy(alpha = 0.8f),
+                    topLeft = position.copy(x = position.x + 2f, y = position.y + 2f),
+                    size = Size(4f, 4f)
+                )
+            }
+            WeaponType.EXPLOSIVE -> {
+                // Explosive glow effect
+                drawScope.drawRect(
+                    color = Color(0xFFFF9800).copy(alpha = 0.4f),
+                    topLeft = position.copy(x = position.x - 1f, y = position.y - 1f),
+                    size = Size(size + 2f, size + 2f)
+                )
+            }
+            else -> {}
+        }
     }
 }
 
@@ -727,6 +872,38 @@ fun UpgradeOption(
 
 enum class UpgradeType {
     DAMAGE, FIRE_RATE, PROJECTILE_SPEED
+}
+
+enum class WeaponType {
+    BASIC, FIRE, ICE, EXPLOSIVE
+}
+
+@Composable
+fun WeaponButton(
+    weaponType: WeaponType,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val (text, color) = when (weaponType) {
+        WeaponType.BASIC -> Pair("Basic", Color.Yellow)
+        WeaponType.FIRE -> Pair("Fire", Color.Red)
+        WeaponType.ICE -> Pair("Ice", Color.Cyan)
+        WeaponType.EXPLOSIVE -> Pair("Expl", Color(0xFFFF9800))
+    }
+    
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isSelected) color else Color.Gray
+        ),
+        modifier = Modifier.size(60.dp)
+    ) {
+        Text(
+            text = text,
+            fontSize = 10.sp,
+            color = if (isSelected) Color.White else Color.Black
+        )
+    }
 }
 
 // Note: Rect class is defined in PixelCollectorGame.kt
