@@ -247,6 +247,7 @@ data class BaseDefenderGameState(
     val player: Defender = Defender(),
     val enemies: List<Enemy> = emptyList(),
     val projectiles: List<Projectile> = emptyList(),
+    val powerUps: List<PowerUp> = emptyList(),
     val score: Int = 0,
     val money: Int = 100,
     val lives: Int = 3,
@@ -257,14 +258,25 @@ data class BaseDefenderGameState(
     val projectileSpeedLevel: Int = 1,
     val currentWeapon: WeaponType = WeaponType.BASIC,
     val waveAnnouncement: String = "",
-    val announcementTimer: Int = 0
+    val announcementTimer: Int = 0,
+    // Power-up effects
+    val rapidFireActive: Boolean = false,
+    val rapidFireTimer: Int = 0,
+    val shieldActive: Boolean = false,
+    val shieldTimer: Int = 0,
+    val timeSlowActive: Boolean = false,
+    val timeSlowTimer: Int = 0,
+    val megaShotAvailable: Boolean = false
 ) {
     fun update(): BaseDefenderGameState {
         if (lives <= 0) return this
         
         val newGameTime = gameTime + 1
-        val newEnemies = enemies.map { it.update() }.filter { it.position.y < 400f }
+        val newEnemies = enemies.map { it.update(timeSlowActive) }.filter { it.position.y < 400f }
         val newProjectiles = projectiles.map { it.update() }.filter { it.position.y > 0f }
+        
+        // Update power-ups (remove ones that are off-screen)
+        val newPowerUps = powerUps.filter { it.position.y < 400f }
         
         // Spawn new enemies
         val updatedEnemies = if (newGameTime % 120L == 0L) {
@@ -273,9 +285,16 @@ data class BaseDefenderGameState(
             newEnemies
         }
         
+        // Spawn power-ups randomly (every 10 seconds)
+        val updatedPowerUps = if (newGameTime % 600L == 0L && Random.nextFloat() < 0.3f) {
+            newPowerUps + PowerUp.spawnRandom()
+        } else {
+            newPowerUps
+        }
+        
         // Check collisions
-        val (newScore, newMoney, newLives, finalEnemies, finalProjectiles) = checkCollisions(
-            updatedEnemies, newProjectiles, score, money, lives
+        val (newScore, newMoney, newLives, finalEnemies, finalProjectiles, finalPowerUps, powerUpEffects) = checkCollisions(
+            updatedEnemies, newProjectiles, updatedPowerUps, score, money, lives
         )
         
         // Check if enemies reached base
@@ -309,25 +328,60 @@ data class BaseDefenderGameState(
             }
         }
         
+        // Update power-up timers and effects
+        val newRapidFireTimer = if (powerUpEffects.rapidFireActive) 600 else if (rapidFireTimer > 0) rapidFireTimer - 1 else 0
+        val newShieldTimer = if (powerUpEffects.shieldActive) 480 else if (shieldTimer > 0) shieldTimer - 1 else 0
+        val newTimeSlowTimer = if (powerUpEffects.timeSlowActive) 720 else if (timeSlowTimer > 0) timeSlowTimer - 1 else 0
+        
         return copy(
             enemies = finalEnemiesAfterBase,
             projectiles = finalProjectiles,
+            powerUps = finalPowerUps,
             score = newScore,
             money = newMoney,
             lives = finalLives,
             currentWave = newWave,
             gameTime = newGameTime,
             waveAnnouncement = newAnnouncement,
-            announcementTimer = newAnnouncementTimer
+            announcementTimer = newAnnouncementTimer,
+            rapidFireActive = newRapidFireTimer > 0,
+            rapidFireTimer = newRapidFireTimer,
+            shieldActive = newShieldTimer > 0,
+            shieldTimer = newShieldTimer,
+            timeSlowActive = newTimeSlowTimer > 0,
+            timeSlowTimer = newTimeSlowTimer,
+            megaShotAvailable = powerUpEffects.megaShotAvailable
         )
     }
     
     fun handleTap(offset: Offset): BaseDefenderGameState {
         if (lives <= 0) return this
         
-        // Create projectile from player position with selected weapon
-        val newProjectile = player.shoot(offset, damageLevel, projectileSpeedLevel, currentWeapon)
-        return copy(projectiles = projectiles + newProjectile)
+        val newProjectiles = mutableListOf<Projectile>()
+        
+        if (megaShotAvailable) {
+            // Mega shot: one powerful projectile
+            val megaProjectile = player.shoot(offset, damageLevel * 3, projectileSpeedLevel, currentWeapon)
+            newProjectiles.add(megaProjectile)
+            return copy(
+                projectiles = projectiles + newProjectiles,
+                megaShotAvailable = false
+            )
+        } else if (rapidFireActive) {
+            // Rapid fire: shoot 3 projectiles
+            repeat(3) { index ->
+                val spread = (index - 1) * 0.1f // Small spread
+                val spreadOffset = offset.copy(x = offset.x + (spread * 50f))
+                val projectile = player.shoot(spreadOffset, damageLevel, projectileSpeedLevel, currentWeapon)
+                newProjectiles.add(projectile)
+            }
+        } else {
+            // Normal shot
+            val newProjectile = player.shoot(offset, damageLevel, projectileSpeedLevel, currentWeapon)
+            newProjectiles.add(newProjectile)
+        }
+        
+        return copy(projectiles = projectiles + newProjectiles)
     }
     
     fun switchWeapon(weaponType: WeaponType): BaseDefenderGameState {
@@ -338,6 +392,40 @@ data class BaseDefenderGameState(
         player.draw(drawScope)
         enemies.forEach { it.draw(drawScope) }
         projectiles.forEach { it.draw(drawScope) }
+        powerUps.forEach { it.draw(drawScope) }
+        
+        // Draw power-up status indicators
+        drawPowerUpStatus(drawScope)
+    }
+    
+    private fun drawPowerUpStatus(drawScope: DrawScope) {
+        var yOffset = 50f
+        
+        if (rapidFireActive) {
+            drawScope.drawRect(
+                color = Color.Blue.copy(alpha = 0.7f),
+                topLeft = Offset(10f, yOffset),
+                size = Size(100f, 20f)
+            )
+            yOffset += 25f
+        }
+        
+        if (shieldActive) {
+            drawScope.drawRect(
+                color = Color.Green.copy(alpha = 0.7f),
+                topLeft = Offset(10f, yOffset),
+                size = Size(100f, 20f)
+            )
+            yOffset += 25f
+        }
+        
+        if (timeSlowActive) {
+            drawScope.drawRect(
+                color = Color(0xFF9C27B0).copy(alpha = 0.7f),
+                topLeft = Offset(10f, yOffset),
+                size = Size(100f, 20f)
+            )
+        }
     }
     
     fun applyUpgrade(upgradeType: UpgradeType): BaseDefenderGameState {
@@ -366,6 +454,7 @@ data class BaseDefenderGameState(
     private fun checkCollisions(
         enemies: List<Enemy>,
         projectiles: List<Projectile>,
+        powerUps: List<PowerUp>,
         currentScore: Int,
         currentMoney: Int,
         currentLives: Int
@@ -403,7 +492,47 @@ data class BaseDefenderGameState(
             }
         }
         
-        return CollisionResult(newScore, newMoney, newLives, remainingEnemies, remainingProjectiles)
+        // Check power-up collection (simplified - player always collects power-ups)
+        val remainingPowerUps = mutableListOf<PowerUp>()
+        var powerUpEffects = PowerUpEffects()
+        
+        powerUps.forEach { powerUp ->
+            // Check if power-up is near player (simplified collision)
+            val playerBounds = Rect(player.position, Size(40f, 40f))
+            if (powerUp.bounds.overlaps(playerBounds)) {
+                // Apply power-up effect
+                powerUpEffects = when (powerUp.powerUpType) {
+                    PowerUpType.RAPID_FIRE -> PowerUpEffects(
+                        rapidFireActive = true,
+                        shieldActive = false,
+                        timeSlowActive = false,
+                        megaShotAvailable = false
+                    )
+                    PowerUpType.SHIELD -> PowerUpEffects(
+                        rapidFireActive = false,
+                        shieldActive = true,
+                        timeSlowActive = false,
+                        megaShotAvailable = false
+                    )
+                    PowerUpType.TIME_SLOW -> PowerUpEffects(
+                        rapidFireActive = false,
+                        shieldActive = false,
+                        timeSlowActive = true,
+                        megaShotAvailable = false
+                    )
+                    PowerUpType.MEGA_SHOT -> PowerUpEffects(
+                        rapidFireActive = false,
+                        shieldActive = false,
+                        timeSlowActive = false,
+                        megaShotAvailable = true
+                    )
+                }
+            } else {
+                remainingPowerUps.add(powerUp)
+            }
+        }
+        
+        return CollisionResult(newScore, newMoney, newLives, remainingEnemies, remainingProjectiles, remainingPowerUps, powerUpEffects)
     }
 }
 
@@ -412,7 +541,16 @@ data class CollisionResult(
     val money: Int,
     val lives: Int,
     val enemies: List<Enemy>,
-    val projectiles: List<Projectile>
+    val projectiles: List<Projectile>,
+    val powerUps: List<PowerUp>,
+    val powerUpEffects: PowerUpEffects
+)
+
+data class PowerUpEffects(
+    val rapidFireActive: Boolean = false,
+    val shieldActive: Boolean = false,
+    val timeSlowActive: Boolean = false,
+    val megaShotAvailable: Boolean = false
 )
 
 data class Defender(
@@ -472,8 +610,14 @@ data class Enemy(
 ) {
     val bounds: Rect get() = Rect(position, Size(size, size))
     
-    fun update(): Enemy {
-        val newPosition = position.copy(y = position.y + speed)
+    fun update(timeSlowActive: Boolean = false): Enemy {
+        val effectiveSpeed = when {
+            timeSlowActive -> speed * 0.3f
+            isFrozen -> speed * 0.3f
+            else -> speed
+        }
+        
+        val newPosition = position.copy(y = position.y + effectiveSpeed)
         
         // Handle status effects
         val newFireTimer = if (fireTimer > 0) fireTimer - 1 else 0
@@ -482,9 +626,6 @@ data class Enemy(
         // Fire damage over time
         val fireDamage = if (isOnFire && newFireTimer > 0 && newFireTimer % 30 == 0) 5 else 0
         val newHealth = health - fireDamage
-        
-        // Freeze effect (slows movement)
-        val effectiveSpeed = if (isFrozen && newFreezeTimer > 0) speed * 0.3f else speed
         
         return copy(
             position = newPosition,
@@ -876,6 +1017,70 @@ enum class UpgradeType {
 
 enum class WeaponType {
     BASIC, FIRE, ICE, EXPLOSIVE
+}
+
+enum class PowerUpType {
+    RAPID_FIRE, SHIELD, TIME_SLOW, MEGA_SHOT
+}
+
+data class PowerUp(
+    val position: Offset,
+    val powerUpType: PowerUpType,
+    val size: Float = 20f
+) {
+    val bounds: Rect get() = Rect(position, Size(size, size))
+    
+    fun draw(drawScope: DrawScope) {
+        val color = when (powerUpType) {
+            PowerUpType.RAPID_FIRE -> Color.Blue
+            PowerUpType.SHIELD -> Color.Green
+            PowerUpType.TIME_SLOW -> Color(0xFF9C27B0) // Purple
+            PowerUpType.MEGA_SHOT -> Color.Red
+        }
+        
+        // Draw power-up with pulsing effect
+        drawScope.drawRect(
+            color = color,
+            topLeft = position,
+            size = Size(size, size)
+        )
+        
+        // Add a border to make it stand out
+        drawScope.drawRect(
+            color = Color.White,
+            topLeft = position.copy(x = position.x - 1f, y = position.y - 1f),
+            size = Size(size + 2f, size + 2f),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
+        )
+        
+        // Add power-up type indicator
+        val symbol = when (powerUpType) {
+            PowerUpType.RAPID_FIRE -> "R"
+            PowerUpType.SHIELD -> "S"
+            PowerUpType.TIME_SLOW -> "T"
+            PowerUpType.MEGA_SHOT -> "M"
+        }
+        
+        // Draw symbol in center (simplified as a small rectangle)
+        drawScope.drawRect(
+            color = Color.White,
+            topLeft = position.copy(x = position.x + size * 0.3f, y = position.y + size * 0.3f),
+            size = Size(size * 0.4f, size * 0.4f)
+        )
+    }
+    
+    companion object {
+        fun spawnRandom(): PowerUp {
+            val powerUpType = PowerUpType.values().random()
+            return PowerUp(
+                position = Offset(
+                    x = (Random.nextFloat() * 300f + 50f).toFloat(),
+                    y = -30f
+                ),
+                powerUpType = powerUpType
+            )
+        }
+    }
 }
 
 @Composable
