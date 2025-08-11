@@ -1,0 +1,57 @@
+# Cursor Rules for Android Game Hub Project
+
+## Project Overview
+This is an Android game hub built with Jetpack Compose. The project contains:
+- MainActivity: Game selection menu
+- PixelCollectorGame: A 2D pixel collection game
+- Future games can be added as separate activities
+
+## Code Style & Standards
+- Use Kotlin for all Android code
+- Follow Android development best practices
+- Use Jetpack Compose for UI components
+- Maintain clean architecture principles
+- Use descriptive variable and function names
+- Add proper comments for complex logic
+
+## Game Development Rules
+- Each game should be a separate Activity
+- Use data classes for game state management
+- Implement proper collision detection
+- Maintain 60 FPS for smooth gameplay
+- Use immutable state patterns where possible
+- Handle lifecycle events properly
+
+## File Organization
+- Keep game logic separate from UI components
+- Use proper package structure (com.baraka.game)
+- Place new games in the main package
+- Update AndroidManifest.xml for new activities
+- Update MainActivity game selection when adding games
+
+## Performance Guidelines
+- Minimize object creation in game loops
+- Use efficient data structures for game entities
+- Avoid unnecessary recompositions in Compose
+- Handle memory management for game objects
+- Use appropriate coroutine scopes
+
+## Testing & Quality
+- Write unit tests for game logic
+- Test on different screen sizes
+- Ensure proper error handling
+- Validate user input and game state
+- Test game performance on target devices
+
+## Future Game Ideas
+- Platformer games
+- Puzzle games
+- Arcade-style games
+- Card games
+- Physics-based games
+
+## Dependencies
+- Use latest stable versions of Compose
+- Follow Material 3 design guidelines
+- Implement proper navigation between games
+- Use appropriate Android lifecycle components
