@@ -110,7 +110,7 @@ fun BaseDefenderGameScreen() {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(500.dp)  // Increased from 400dp to 500dp for better game field
+                .height(400.dp)  // Reduced from 500dp to 400dp for better proportions
                 .background(Color(0xFF2D2D2D))
                 .pointerInput(Unit) {
                     detectTapGestures { offset ->
@@ -291,11 +291,11 @@ data class BaseDefenderGameState(
         if (gameStatus != GameStatus.PLAYING) return this
 
         val newGameTime = gameTime + 1
-        val newEnemies = enemies.map { it.update(timeSlowActive) }.filter { it.position.y < 500f }  // Updated from 400f to 500f
+        val newEnemies = enemies.map { it.update(timeSlowActive) }.filter { it.position.y < 400f }  // Updated from 500f to 400f
         val newProjectiles = projectiles.map { it.update() }.filter { it.position.y > 0f }
 
         // Update power-ups (remove ones that are off-screen)
-        val newPowerUps = powerUps.filter { it.position.y < 500f }  // Updated from 400f to 500f
+        val newPowerUps = powerUps.filter { it.position.y < 400f }  // Updated from 500f to 400f
 
         // Update particles and effects
         val updatedParticles = particles.mapNotNull { it.update() }
@@ -321,9 +321,9 @@ data class BaseDefenderGameState(
         )
 
         // Check if enemies reached base
-        val enemiesAtBase = finalEnemies.count { it.position.y >= 430f }  // Updated from 480f to 430f to match new base position
+        val enemiesAtBase = finalEnemies.count { it.position.y >= 330f }  // Updated from 430f to 330f to match new base position
         val finalLives = newLives - enemiesAtBase
-        val finalEnemiesAfterBase = finalEnemies.filter { it.position.y < 430f }  // Updated from 480f to 430f
+        val finalEnemiesAfterBase = finalEnemies.filter { it.position.y < 330f }  // Updated from 430f to 330f
 
         // Add screen shake when enemies reach base
         val baseShake = if (enemiesAtBase > 0) 3f * enemiesAtBase else 0f
@@ -745,7 +745,7 @@ data class PowerUpEffects(
 )
 
 data class Defender(
-    val position: Offset = Offset(200f, 450f), // Moved lower for better strategic positioning (was 400f)
+    val position: Offset = Offset(200f, 350f), // Moved much lower for better positioning in 400dp canvas (was 450f)
     val size: Float = 40f
 ) {
     fun shoot(
