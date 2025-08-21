@@ -8,6 +8,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,14 +44,14 @@ fun BaseDefenderGameScreen() {
     var gameState by remember { mutableStateOf(BaseDefenderGameState()) }
     var isGameRunning by remember { mutableStateOf(false) }
     var showUpgradeShop by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(isGameRunning) {
         while (isGameRunning) {
             delay(16) // ~60 FPS
             gameState = gameState.update()
         }
     }
-    
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -66,7 +67,7 @@ fun BaseDefenderGameScreen() {
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
         )
-        
+
         // Game stats
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -91,7 +92,7 @@ fun BaseDefenderGameScreen() {
                 fontWeight = FontWeight.Bold
             )
         }
-        
+
         // Wave progress bar
         Spacer(modifier = Modifier.height(8.dp))
         LinearProgressIndicator(
@@ -102,9 +103,9 @@ fun BaseDefenderGameScreen() {
             color = Color.Cyan,
             trackColor = Color.Gray.copy(alpha = 0.3f)
         )
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         // Game canvas
         Box(
             modifier = Modifier
@@ -121,11 +122,11 @@ fun BaseDefenderGameScreen() {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 drawBackgroundPattern(this)
             }
-            
+
             Canvas(modifier = Modifier.fillMaxSize()) {
                 gameState.draw(this)
             }
-            
+
             // Wave announcement overlay
             if (gameState.waveAnnouncement.isNotEmpty()) {
                 Box(
@@ -142,20 +143,20 @@ fun BaseDefenderGameScreen() {
                     )
                 }
             }
-            
+
             // Game over overlay
             if (gameState.gameStatus == GameStatus.GAME_OVER) {
                 GameOverOverlay(gameState = gameState)
             }
-            
+
             // Victory overlay
             if (gameState.gameStatus == GameStatus.VICTORY) {
                 VictoryOverlay(gameState = gameState)
             }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         // Weapon Selection
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -182,21 +183,22 @@ fun BaseDefenderGameScreen() {
                 onClick = { gameState = gameState.switchWeapon(WeaponType.EXPLOSIVE) }
             )
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         // Controls
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             Button(
-                onClick = { 
+                onClick = {
                     when (gameState.gameStatus) {
                         GameStatus.GAME_OVER, GameStatus.VICTORY -> {
                             gameState = gameState.startNewGame()
                             isGameRunning = true
                         }
+
                         else -> {
                             isGameRunning = !isGameRunning
                         }
@@ -216,7 +218,7 @@ fun BaseDefenderGameScreen() {
                     }
                 )
             }
-            
+
             Button(
                 onClick = { showUpgradeShop = true },
                 enabled = gameState.money >= 100
@@ -224,9 +226,9 @@ fun BaseDefenderGameScreen() {
                 Text("Upgrade Shop")
             }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         // Instructions
         Text(
             text = "Tap to aim and shoot! Defend your base from incoming enemies!",
@@ -234,7 +236,7 @@ fun BaseDefenderGameScreen() {
             fontSize = 14.sp,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
-        
+
         // Upgrade Shop Overlay
         if (showUpgradeShop) {
             UpgradeShopOverlay(
@@ -287,62 +289,62 @@ data class BaseDefenderGameState(
 ) {
     fun update(): BaseDefenderGameState {
         if (gameStatus != GameStatus.PLAYING) return this
-        
+
         val newGameTime = gameTime + 1
         val newEnemies = enemies.map { it.update(timeSlowActive) }.filter { it.position.y < 400f }
         val newProjectiles = projectiles.map { it.update() }.filter { it.position.y > 0f }
-        
+
         // Update power-ups (remove ones that are off-screen)
         val newPowerUps = powerUps.filter { it.position.y < 400f }
-        
+
         // Update particles and effects
         val updatedParticles = particles.mapNotNull { it.update() }
         val updatedHitEffects = hitEffects.mapNotNull { it.update() }
-        
+
         // Spawn new enemies
         val updatedEnemies = if (newGameTime % 120L == 0L) {
             newEnemies + Enemy.spawnRandom(currentWave)
         } else {
             newEnemies
         }
-        
+
         // Spawn power-ups randomly (every 10 seconds)
         val updatedPowerUps = if (newGameTime % 600L == 0L && Random.nextFloat() < 0.3f) {
             newPowerUps + PowerUp.spawnRandom()
         } else {
             newPowerUps
         }
-        
+
         // Check collisions
         val (newScore, newMoney, newLives, finalEnemies, finalProjectiles, finalPowerUps, powerUpEffects, collisionParticles, collisionHitEffects) = checkCollisions(
             updatedEnemies, newProjectiles, updatedPowerUps, score, money, lives
         )
-        
+
         // Check if enemies reached base
         val enemiesAtBase = finalEnemies.count { it.position.y >= 380f }
         val finalLives = newLives - enemiesAtBase
         val finalEnemiesAfterBase = finalEnemies.filter { it.position.y < 380f }
-        
+
         // Add screen shake when enemies reach base
         val baseShake = if (enemiesAtBase > 0) 3f * enemiesAtBase else 0f
-        
+
         // Update screen shake
         val newScreenShake = ((screenShake + baseShake) * 0.9f).coerceAtLeast(0f)
-        
+
         // Check wave completion
         val newWave = if (finalEnemiesAfterBase.isEmpty() && updatedEnemies.isNotEmpty()) {
             currentWave + 1
         } else {
             currentWave
         }
-        
+
         // Check victory condition (complete 20 waves)
         val newGameStatus = when {
             finalLives <= 0 -> GameStatus.GAME_OVER
             newWave > 20 -> GameStatus.VICTORY
             else -> GameStatus.PLAYING
         }
-        
+
         // Handle wave announcements
         val (newAnnouncement, newAnnouncementTimer) = when {
             newWave > currentWave -> {
@@ -354,19 +356,24 @@ data class BaseDefenderGameState(
                 }
                 Pair(announcement, 120) // Show for 2 seconds at 60 FPS
             }
+
             announcementTimer > 0 -> {
                 Pair(waveAnnouncement, announcementTimer - 1)
             }
+
             else -> {
                 Pair("", 0)
             }
         }
-        
+
         // Update power-up timers and effects
-        val newRapidFireTimer = if (powerUpEffects.rapidFireActive) 600 else if (rapidFireTimer > 0) rapidFireTimer - 1 else 0
-        val newShieldTimer = if (powerUpEffects.shieldActive) 480 else if (shieldTimer > 0) shieldTimer - 1 else 0
-        val newTimeSlowTimer = if (powerUpEffects.timeSlowActive) 720 else if (timeSlowTimer > 0) timeSlowTimer - 1 else 0
-        
+        val newRapidFireTimer =
+            if (powerUpEffects.rapidFireActive) 600 else if (rapidFireTimer > 0) rapidFireTimer - 1 else 0
+        val newShieldTimer =
+            if (powerUpEffects.shieldActive) 480 else if (shieldTimer > 0) shieldTimer - 1 else 0
+        val newTimeSlowTimer =
+            if (powerUpEffects.timeSlowActive) 720 else if (timeSlowTimer > 0) timeSlowTimer - 1 else 0
+
         return copy(
             enemies = finalEnemiesAfterBase,
             projectiles = finalProjectiles,
@@ -394,15 +401,16 @@ data class BaseDefenderGameState(
             hitEffects = updatedHitEffects + collisionHitEffects
         )
     }
-    
+
     fun handleTap(offset: Offset): BaseDefenderGameState {
         if (gameStatus != GameStatus.PLAYING) return this
-        
+
         val newProjectiles = mutableListOf<Projectile>()
-        
+
         if (megaShotAvailable) {
             // Mega shot: one powerful projectile
-            val megaProjectile = player.shoot(offset, damageLevel * 3, projectileSpeedLevel, currentWeapon)
+            val megaProjectile =
+                player.shoot(offset, damageLevel * 3, projectileSpeedLevel, currentWeapon)
             newProjectiles.add(megaProjectile)
             return copy(
                 projectiles = projectiles + newProjectiles,
@@ -414,7 +422,8 @@ data class BaseDefenderGameState(
             repeat(3) { index ->
                 val spread = (index - 1) * 0.1f // Small spread
                 val spreadOffset = offset.copy(x = offset.x + (spread * 50f))
-                val projectile = player.shoot(spreadOffset, damageLevel, projectileSpeedLevel, currentWeapon)
+                val projectile =
+                    player.shoot(spreadOffset, damageLevel, projectileSpeedLevel, currentWeapon)
                 newProjectiles.add(projectile)
             }
             return copy(
@@ -423,7 +432,8 @@ data class BaseDefenderGameState(
             )
         } else {
             // Normal shot
-            val newProjectile = player.shoot(offset, damageLevel, projectileSpeedLevel, currentWeapon)
+            val newProjectile =
+                player.shoot(offset, damageLevel, projectileSpeedLevel, currentWeapon)
             newProjectiles.add(newProjectile)
             return copy(
                 projectiles = projectiles + newProjectiles,
@@ -431,11 +441,11 @@ data class BaseDefenderGameState(
             )
         }
     }
-    
+
     fun switchWeapon(weaponType: WeaponType): BaseDefenderGameState {
         return copy(currentWeapon = weaponType)
     }
-    
+
     fun startNewGame(): BaseDefenderGameState {
         return copy(
             player = Defender(),
@@ -470,15 +480,15 @@ data class BaseDefenderGameState(
             hitEffects = emptyList()
         )
     }
-    
+
     fun addScreenShake(intensity: Float): BaseDefenderGameState {
         return copy(screenShake = (screenShake + intensity).coerceAtMost(10f))
     }
-    
+
     fun addParticles(newParticles: List<Particle>): BaseDefenderGameState {
         return copy(particles = particles + newParticles)
     }
-    
+
     fun addHitEffect(position: Offset, color: Color): BaseDefenderGameState {
         val hitEffect = HitEffect(
             position = position,
@@ -489,7 +499,7 @@ data class BaseDefenderGameState(
         )
         return copy(hitEffects = hitEffects + hitEffect)
     }
-    
+
     fun createExplosionParticles(position: Offset, color: Color): List<Particle> {
         return List(8) { index ->
             val angle = (index * 45f) * (Math.PI / 180f)
@@ -498,7 +508,7 @@ data class BaseDefenderGameState(
                 x = (kotlin.math.cos(angle) * speed).toFloat(),
                 y = (kotlin.math.sin(angle) * speed).toFloat()
             )
-            
+
             Particle(
                 position = position,
                 velocity = velocity,
@@ -509,14 +519,14 @@ data class BaseDefenderGameState(
             )
         }
     }
-    
+
     fun draw(drawScope: DrawScope) {
         // Apply screen shake offset
         val shakeOffset = Offset(
             x = (Random.nextFloat() - 0.5f) * screenShake,
             y = (Random.nextFloat() - 0.5f) * screenShake
         )
-        
+
         // Draw game elements with shake offset
         drawScope.withTransform({
             translate(shakeOffset.x, shakeOffset.y)
@@ -526,18 +536,18 @@ data class BaseDefenderGameState(
             projectiles.forEach { it.draw(drawScope) }
             powerUps.forEach { it.draw(drawScope) }
         }
-        
+
         // Draw particles and effects (not affected by screen shake)
         particles.forEach { it.draw(drawScope) }
         hitEffects.forEach { it.draw(drawScope) }
-        
+
         // Draw power-up status indicators
         drawPowerUpStatus(drawScope)
     }
-    
+
     private fun drawPowerUpStatus(drawScope: DrawScope) {
         var yOffset = 50f
-        
+
         if (rapidFireActive) {
             drawScope.drawRect(
                 color = Color.Blue.copy(alpha = 0.7f),
@@ -546,7 +556,7 @@ data class BaseDefenderGameState(
             )
             yOffset += 25f
         }
-        
+
         if (shieldActive) {
             drawScope.drawRect(
                 color = Color.Green.copy(alpha = 0.7f),
@@ -555,7 +565,7 @@ data class BaseDefenderGameState(
             )
             yOffset += 25f
         }
-        
+
         if (timeSlowActive) {
             drawScope.drawRect(
                 color = Color(0xFF9C27B0).copy(alpha = 0.7f),
@@ -564,7 +574,7 @@ data class BaseDefenderGameState(
             )
         }
     }
-    
+
     fun applyUpgrade(upgradeType: UpgradeType): BaseDefenderGameState {
         return when (upgradeType) {
             UpgradeType.DAMAGE -> {
@@ -573,12 +583,14 @@ data class BaseDefenderGameState(
                     money = money - 100
                 ) else this
             }
+
             UpgradeType.FIRE_RATE -> {
                 if (money >= 150) copy(
                     fireRateLevel = fireRateLevel + 1,
                     money = money - 150
                 ) else this
             }
+
             UpgradeType.PROJECTILE_SPEED -> {
                 if (money >= 120) copy(
                     projectileSpeedLevel = projectileSpeedLevel + 1,
@@ -587,7 +599,7 @@ data class BaseDefenderGameState(
             }
         }
     }
-    
+
     private fun checkCollisions(
         enemies: List<Enemy>,
         projectiles: List<Projectile>,
@@ -603,7 +615,7 @@ data class BaseDefenderGameState(
         var newLives = currentLives
         val remainingEnemies = mutableListOf<Enemy>()
         val remainingProjectiles = mutableListOf<Projectile>()
-        
+
         // Check projectile-enemy collisions
         projectiles.forEach { projectile ->
             var projectileHit = false
@@ -611,7 +623,7 @@ data class BaseDefenderGameState(
                 if (!projectileHit && projectile.bounds.overlaps(enemy.bounds)) {
                     projectileHit = true
                     val damagedEnemy = enemy.takeDamage(projectile.damage, projectile.weaponType)
-                    
+
                     // Add hit effect
                     newHitEffects = newHitEffects + HitEffect(
                         position = enemy.position,
@@ -625,11 +637,11 @@ data class BaseDefenderGameState(
                         life = 30,
                         maxLife = 30
                     )
-                    
+
                     if (damagedEnemy.health <= 0) {
                         newScore += 10
                         newMoney += enemy.moneyReward
-                        
+
                         // Add explosion particles
                         val explosionColor = when (enemy.enemyType) {
                             EnemyType.BOSS -> Color(0xFFFF5722)
@@ -637,7 +649,8 @@ data class BaseDefenderGameState(
                             EnemyType.FAST -> Color.Cyan
                             else -> Color.Red
                         }
-                        newParticles = newParticles + createExplosionParticles(enemy.position, explosionColor)
+                        newParticles =
+                            newParticles + createExplosionParticles(enemy.position, explosionColor)
                     } else {
                         remainingEnemies.add(damagedEnemy)
                     }
@@ -647,18 +660,18 @@ data class BaseDefenderGameState(
                 remainingProjectiles.add(projectile)
             }
         }
-        
+
         // Add enemies that weren't hit
         enemies.forEach { enemy ->
             if (!projectiles.any { it.bounds.overlaps(enemy.bounds) }) {
                 remainingEnemies.add(enemy)
             }
         }
-        
+
         // Check power-up collection (simplified - player always collects power-ups)
         val remainingPowerUps = mutableListOf<PowerUp>()
         var powerUpEffects = PowerUpEffects()
-        
+
         powerUps.forEach { powerUp ->
             // Check if power-up is near player (simplified collision)
             val playerBounds = Rect(player.position, Size(40f, 40f))
@@ -671,18 +684,21 @@ data class BaseDefenderGameState(
                         timeSlowActive = false,
                         megaShotAvailable = false
                     )
+
                     PowerUpType.SHIELD -> PowerUpEffects(
                         rapidFireActive = false,
                         shieldActive = true,
                         timeSlowActive = false,
                         megaShotAvailable = false
                     )
+
                     PowerUpType.TIME_SLOW -> PowerUpEffects(
                         rapidFireActive = false,
                         shieldActive = false,
                         timeSlowActive = true,
                         megaShotAvailable = false
                     )
+
                     PowerUpType.MEGA_SHOT -> PowerUpEffects(
                         rapidFireActive = false,
                         shieldActive = false,
@@ -694,8 +710,18 @@ data class BaseDefenderGameState(
                 remainingPowerUps.add(powerUp)
             }
         }
-        
-        return CollisionResult(newScore, newMoney, newLives, remainingEnemies, remainingProjectiles, remainingPowerUps, powerUpEffects, newParticles, newHitEffects)
+
+        return CollisionResult(
+            newScore,
+            newMoney,
+            newLives,
+            remainingEnemies,
+            remainingProjectiles,
+            remainingPowerUps,
+            powerUpEffects,
+            newParticles,
+            newHitEffects
+        )
     }
 }
 
@@ -722,11 +748,16 @@ data class Defender(
     val position: Offset = Offset(200f, 380f), // Moved lower for better aiming
     val size: Float = 40f
 ) {
-    fun shoot(target: Offset, damageLevel: Int, projectileSpeedLevel: Int, weaponType: WeaponType): Projectile {
+    fun shoot(
+        target: Offset,
+        damageLevel: Int,
+        projectileSpeedLevel: Int,
+        weaponType: WeaponType
+    ): Projectile {
         val direction = (target - position).normalized()
         val baseDamage = 25
         val baseSpeed = 8f
-        
+
         // Adjust damage and speed based on weapon type
         val (weaponDamage, weaponSpeed) = when (weaponType) {
             WeaponType.BASIC -> Pair(1.0f, 1.0f)
@@ -734,10 +765,10 @@ data class Defender(
             WeaponType.ICE -> Pair(0.6f, 1.5f) // Lower damage but much faster
             WeaponType.EXPLOSIVE -> Pair(1.5f, 0.7f) // Higher damage but slower
         }
-        
+
         val damage = ((baseDamage + ((damageLevel - 1) * 10)) * weaponDamage).toInt()
         val speed = (baseSpeed + ((projectileSpeedLevel - 1) * 2f)) * weaponSpeed
-        
+
         return Projectile(
             position = position.copy(y = position.y - 20f),
             direction = direction,
@@ -746,7 +777,7 @@ data class Defender(
             weaponType = weaponType
         )
     }
-    
+
     fun draw(drawScope: DrawScope) {
         // Draw base/body
         drawScope.drawRect(
@@ -754,7 +785,7 @@ data class Defender(
             topLeft = position,
             size = Size(size, size)
         )
-        
+
         // Draw border
         drawScope.drawRect(
             color = Color.White,
@@ -762,14 +793,14 @@ data class Defender(
             size = Size(size, size),
             style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
         )
-        
+
         // Draw turret (smaller rectangle on top)
         drawScope.drawRect(
             color = Color(0xFF2196F3), // Darker blue
             topLeft = position.copy(x = position.x + size * 0.25f, y = position.y - size * 0.25f),
             size = Size(size * 0.5f, size * 0.5f)
         )
-        
+
         // Draw turret border
         drawScope.drawRect(
             color = Color.White,
@@ -798,24 +829,24 @@ data class Enemy(
     val freezeTimer: Int = 0
 ) {
     val bounds: Rect get() = Rect(position, Size(size, size))
-    
+
     fun update(timeSlowActive: Boolean = false): Enemy {
         val effectiveSpeed = when {
             timeSlowActive -> speed * 0.3f
             isFrozen -> speed * 0.3f
             else -> speed
         }
-        
+
         val newPosition = position.copy(y = position.y + effectiveSpeed)
-        
+
         // Handle status effects
         val newFireTimer = if (fireTimer > 0) fireTimer - 1 else 0
         val newFreezeTimer = if (freezeTimer > 0) freezeTimer - 1 else 0
-        
+
         // Fire damage over time
         val fireDamage = if (isOnFire && newFireTimer > 0 && newFireTimer % 30 == 0) 5 else 0
         val newHealth = health - fireDamage
-        
+
         return copy(
             position = newPosition,
             health = newHealth,
@@ -825,21 +856,21 @@ data class Enemy(
             freezeTimer = newFreezeTimer
         )
     }
-    
+
     fun takeDamage(damage: Int, weaponType: WeaponType = WeaponType.BASIC): Enemy {
         val newHealth = health - damage
-        
+
         // Apply weapon-specific effects
         val (newIsOnFire, newFireTimer) = when (weaponType) {
             WeaponType.FIRE -> Pair(true, 120) // 2 seconds of fire
             else -> Pair(isOnFire, fireTimer)
         }
-        
+
         val (newIsFrozen, newFreezeTimer) = when (weaponType) {
             WeaponType.ICE -> Pair(true, 90) // 1.5 seconds of freeze
             else -> Pair(isFrozen, freezeTimer)
         }
-        
+
         return copy(
             health = newHealth,
             isOnFire = newIsOnFire,
@@ -848,10 +879,10 @@ data class Enemy(
             freezeTimer = newFreezeTimer
         )
     }
-    
+
     fun draw(drawScope: DrawScope) {
         val healthPercentage = health.toFloat() / maxHealth.toFloat()
-        
+
         // Different colors and sizes based on enemy type
         val (color, drawSize) = when (enemyType) {
             EnemyType.BASIC -> {
@@ -862,6 +893,7 @@ data class Enemy(
                 }
                 Pair(baseColor, size)
             }
+
             EnemyType.FAST -> {
                 val baseColor = when {
                     healthPercentage > 0.6f -> Color.Cyan
@@ -870,6 +902,7 @@ data class Enemy(
                 }
                 Pair(baseColor, size * 0.8f) // Smaller size
             }
+
             EnemyType.ARMORED -> {
                 val baseColor = when {
                     healthPercentage > 0.6f -> Color(0xFF9C27B0) // Purple
@@ -878,6 +911,7 @@ data class Enemy(
                 }
                 Pair(baseColor, size * 1.2f) // Larger size
             }
+
             EnemyType.BOSS -> {
                 val baseColor = when {
                     healthPercentage > 0.6f -> Color(0xFFFF5722) // Deep Orange
@@ -887,20 +921,20 @@ data class Enemy(
                 Pair(baseColor, size * 1.5f) // Much larger size
             }
         }
-        
+
         drawScope.drawRect(
             color = color,
             topLeft = position,
             size = Size(drawSize, drawSize)
         )
-        
+
         // Health bar
         drawScope.drawRect(
             color = Color.Green,
             topLeft = position.copy(y = position.y - 10f),
             size = Size(drawSize * healthPercentage, 5f)
         )
-        
+
         // Enemy type indicator
         val typeText = when (enemyType) {
             EnemyType.BASIC -> ""
@@ -908,16 +942,19 @@ data class Enemy(
             EnemyType.ARMORED -> "A"
             EnemyType.BOSS -> "B"
         }
-        
+
         if (typeText.isNotEmpty()) {
             // Draw a small indicator for special enemy types
             drawScope.drawRect(
                 color = Color.White,
-                topLeft = position.copy(x = position.x + drawSize - 8f, y = position.y + drawSize - 8f),
+                topLeft = position.copy(
+                    x = position.x + drawSize - 8f,
+                    y = position.y + drawSize - 8f
+                ),
                 size = Size(8f, 8f)
             )
         }
-        
+
         // Status effect indicators
         if (isOnFire) {
             // Fire effect
@@ -927,7 +964,7 @@ data class Enemy(
                 size = Size(drawSize + 4f, drawSize + 4f)
             )
         }
-        
+
         if (isFrozen) {
             // Ice effect
             drawScope.drawRect(
@@ -937,13 +974,13 @@ data class Enemy(
             )
         }
     }
-    
+
     companion object {
         fun spawnRandom(wave: Int): Enemy {
             val baseHealth = 20 + (wave * 10)
             val baseSpeed = 1f + (wave * 0.2f)
             val baseReward = 5 + (wave * 2)
-            
+
             // Determine enemy type based on wave and random chance
             val enemyType = when {
                 wave >= 10 && Random.nextFloat() < 0.1f -> EnemyType.BOSS
@@ -951,7 +988,7 @@ data class Enemy(
                 wave >= 3 && Random.nextFloat() < 0.4f -> EnemyType.FAST
                 else -> EnemyType.BASIC
             }
-            
+
             // Adjust stats based on enemy type
             val finalHealth = when (enemyType) {
                 EnemyType.BASIC -> baseHealth
@@ -959,28 +996,28 @@ data class Enemy(
                 EnemyType.ARMORED -> (baseHealth * 2.5f).toInt()
                 EnemyType.BOSS -> (baseHealth * 4f).toInt()
             }
-            
+
             val finalSpeed = when (enemyType) {
                 EnemyType.BASIC -> baseSpeed
                 EnemyType.FAST -> baseSpeed * 1.8f
                 EnemyType.ARMORED -> baseSpeed * 0.6f
                 EnemyType.BOSS -> baseSpeed * 0.4f
             }
-            
+
             val finalReward = when (enemyType) {
                 EnemyType.BASIC -> baseReward
                 EnemyType.FAST -> (baseReward * 1.2f).toInt()
                 EnemyType.ARMORED -> (baseReward * 1.8f).toInt()
                 EnemyType.BOSS -> (baseReward * 3f).toInt()
             }
-            
+
             val finalSize = when (enemyType) {
                 EnemyType.BASIC -> 30f
                 EnemyType.FAST -> 24f
                 EnemyType.ARMORED -> 36f
                 EnemyType.BOSS -> 45f
             }
-            
+
             return Enemy(
                 position = Offset(
                     x = (Random.nextFloat() * 300f + 50f).toFloat(),
@@ -1007,14 +1044,14 @@ data class Projectile(
     val effectTimer: Int = 0
 ) {
     val bounds: Rect get() = Rect(position, Size(size, size))
-    
+
     fun update(): Projectile {
         return copy(
             position = position + (direction * speed),
             effectTimer = if (effectTimer > 0) effectTimer - 1 else 0
         )
     }
-    
+
     fun draw(drawScope: DrawScope) {
         val color = when (weaponType) {
             WeaponType.BASIC -> Color.Yellow
@@ -1022,27 +1059,27 @@ data class Projectile(
             WeaponType.ICE -> Color.Cyan
             WeaponType.EXPLOSIVE -> Color(0xFFFF9800)
         }
-        
+
         // Draw projectile with glow effect
         drawScope.drawCircle(
             color = color.copy(alpha = 0.3f),
             radius = size * 1.5f,
             center = position
         )
-        
+
         drawScope.drawCircle(
             color = color,
             radius = size,
             center = position
         )
-        
+
         // Draw center core
         drawScope.drawCircle(
             color = Color.White,
             radius = size * 0.5f,
             center = position
         )
-        
+
         // Add weapon-specific effects
         when (weaponType) {
             WeaponType.FIRE -> {
@@ -1053,6 +1090,7 @@ data class Projectile(
                     center = position.copy(x = position.x - 3f, y = position.y - 3f)
                 )
             }
+
             WeaponType.ICE -> {
                 // Ice sparkle effect
                 drawScope.drawCircle(
@@ -1061,6 +1099,7 @@ data class Projectile(
                     center = position.copy(x = position.x + 3f, y = position.y + 3f)
                 )
             }
+
             WeaponType.EXPLOSIVE -> {
                 // Explosive glow effect
                 drawScope.drawCircle(
@@ -1069,6 +1108,7 @@ data class Projectile(
                     center = position
                 )
             }
+
             else -> {}
         }
     }
@@ -1086,68 +1126,80 @@ fun UpgradeShopOverlay(
             .background(Color.Black.copy(alpha = 0.8f)),
         contentAlignment = Alignment.Center
     ) {
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight(0.9f)
                 .padding(24.dp)
                 .background(Color(0xFF2D2D2D), RoundedCornerShape(16.dp)),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Upgrade Shop",
-                color = Color.White,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(16.dp)
-            )
-            
-            Text(
-                text = "Money: $${gameState.money}",
-                color = Color.Yellow,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-            
-            // Upgrade options
-            UpgradeOption(
-                title = "Damage +10",
-                description = "Increase projectile damage",
-                cost = 100,
-                currentLevel = gameState.damageLevel,
-                onUpgrade = { onUpgrade(UpgradeType.DAMAGE) },
-                enabled = gameState.money >= 100
-            )
-            
-            UpgradeOption(
-                title = "Fire Rate +20%",
-                description = "Shoot faster",
-                cost = 150,
-                currentLevel = gameState.fireRateLevel,
-                onUpgrade = { onUpgrade(UpgradeType.FIRE_RATE) },
-                enabled = gameState.money >= 150
-            )
-            
-            UpgradeOption(
-                title = "Projectile Speed +25%",
-                description = "Faster projectiles",
-                cost = 120,
-                currentLevel = gameState.projectileSpeedLevel,
-                onUpgrade = { onUpgrade(UpgradeType.PROJECTILE_SPEED) },
-                enabled = gameState.money >= 120
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Button(
-                onClick = onClose,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
-            ) {
-                Text("Close")
+            item {
+                Text(
+                    text = "Upgrade Shop",
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(16.dp)
+                )
             }
-            
-            Spacer(modifier = Modifier.height(16.dp))
+
+            item {
+                Text(
+                    text = "Money: $${gameState.money}",
+                    color = Color.Yellow,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
+
+            item {
+                UpgradeOption(
+                    title = "Damage +10",
+                    description = "Increase projectile damage",
+                    cost = 100,
+                    currentLevel = gameState.damageLevel,
+                    onUpgrade = { onUpgrade(UpgradeType.DAMAGE) },
+                    enabled = gameState.money >= 100
+                )
+            }
+
+            item {
+                UpgradeOption(
+                    title = "Fire Rate +20%",
+                    description = "Shoot faster",
+                    cost = 150,
+                    currentLevel = gameState.fireRateLevel,
+                    onUpgrade = { onUpgrade(UpgradeType.FIRE_RATE) },
+                    enabled = gameState.money >= 150
+                )
+            }
+
+            item {
+                UpgradeOption(
+                    title = "Projectile Speed +25%",
+                    description = "Faster projectiles",
+                    cost = 120,
+                    currentLevel = gameState.projectileSpeedLevel,
+                    onUpgrade = { onUpgrade(UpgradeType.PROJECTILE_SPEED) },
+                    enabled = gameState.money >= 120
+                )
+            }
+
+            item {
+                Button(
+                    onClick = onClose,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
+                ) {
+                    Text("Close")
+                }
+            }
+
+
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -1192,7 +1244,7 @@ fun UpgradeOption(
                     fontSize = 12.sp
                 )
             }
-            
+
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = "$$cost",
@@ -1248,7 +1300,7 @@ data class Particle(
             )
         } else null
     }
-    
+
     fun draw(drawScope: DrawScope) {
         val alpha = (life.toFloat() / maxLife.toFloat()).coerceIn(0f, 1f)
         drawScope.drawCircle(
@@ -1272,17 +1324,17 @@ data class HitEffect(
             copy(life = newLife)
         } else null
     }
-    
+
     fun draw(drawScope: DrawScope) {
         val alpha = (life.toFloat() / maxLife.toFloat()).coerceIn(0f, 1f)
         val currentSize = size * (1f + (1f - alpha) * 2f)
-        
+
         drawScope.drawCircle(
             color = color.copy(alpha = alpha * 0.7f),
             radius = currentSize,
             center = position
         )
-        
+
         drawScope.drawCircle(
             color = color.copy(alpha = alpha * 0.3f),
             radius = currentSize * 0.5f,
@@ -1297,7 +1349,7 @@ data class PowerUp(
     val size: Float = 20f
 ) {
     val bounds: Rect get() = Rect(position, Size(size, size))
-    
+
     fun draw(drawScope: DrawScope) {
         val color = when (powerUpType) {
             PowerUpType.RAPID_FIRE -> Color.Blue
@@ -1305,14 +1357,14 @@ data class PowerUp(
             PowerUpType.TIME_SLOW -> Color(0xFF9C27B0) // Purple
             PowerUpType.MEGA_SHOT -> Color.Red
         }
-        
+
         // Draw power-up with pulsing effect
         drawScope.drawRect(
             color = color,
             topLeft = position,
             size = Size(size, size)
         )
-        
+
         // Add a border to make it stand out
         drawScope.drawRect(
             color = Color.White,
@@ -1320,7 +1372,7 @@ data class PowerUp(
             size = Size(size + 2f, size + 2f),
             style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
         )
-        
+
         // Add power-up type indicator
         val symbol = when (powerUpType) {
             PowerUpType.RAPID_FIRE -> "R"
@@ -1328,7 +1380,7 @@ data class PowerUp(
             PowerUpType.TIME_SLOW -> "T"
             PowerUpType.MEGA_SHOT -> "M"
         }
-        
+
         // Draw symbol in center (simplified as a small rectangle)
         drawScope.drawRect(
             color = Color.White,
@@ -1336,7 +1388,7 @@ data class PowerUp(
             size = Size(size * 0.4f, size * 0.4f)
         )
     }
-    
+
     companion object {
         fun spawnRandom(): PowerUp {
             val powerUpType = PowerUpType.values().random()
@@ -1363,7 +1415,7 @@ fun WeaponButton(
         WeaponType.ICE -> Pair("Ice", Color.Cyan)
         WeaponType.EXPLOSIVE -> Pair("Expl", Color(0xFFFF9800))
     }
-    
+
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(
@@ -1411,38 +1463,38 @@ fun GameOverOverlay(gameState: BaseDefenderGameState) {
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(16.dp)
             )
-            
+
             // Game statistics
             GameStatsCard(
                 title = "Final Score",
                 value = "${gameState.score}",
                 color = Color.Yellow
             )
-            
+
             GameStatsCard(
                 title = "Waves Survived",
                 value = "${gameState.currentWave}",
                 color = Color.Cyan
             )
-            
+
             GameStatsCard(
                 title = "Enemies Killed",
                 value = "${gameState.totalEnemiesKilled}",
                 color = Color.Green
             )
-            
+
             GameStatsCard(
                 title = "Money Earned",
                 value = "$${gameState.totalMoneyEarned}",
                 color = Color(0xFFFF9800)
             )
-            
+
             GameStatsCard(
                 title = "Projectiles Fired",
                 value = "${gameState.totalProjectilesFired}",
                 color = Color.Magenta
             )
-            
+
             if (gameState.score > gameState.highScore) {
                 Text(
                     text = "🎉 NEW HIGH SCORE! 🎉",
@@ -1452,7 +1504,7 @@ fun GameOverOverlay(gameState: BaseDefenderGameState) {
                     modifier = Modifier.padding(16.dp)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
@@ -1480,7 +1532,7 @@ fun VictoryOverlay(gameState: BaseDefenderGameState) {
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(16.dp)
             )
-            
+
             Text(
                 text = "You've defended your base through all 20 waves!",
                 color = Color.White,
@@ -1488,32 +1540,32 @@ fun VictoryOverlay(gameState: BaseDefenderGameState) {
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.padding(16.dp)
             )
-            
+
             // Victory statistics
             GameStatsCard(
                 title = "Final Score",
                 value = "${gameState.score}",
                 color = Color.Yellow
             )
-            
+
             GameStatsCard(
                 title = "Waves Completed",
                 value = "20",
                 color = Color.Cyan
             )
-            
+
             GameStatsCard(
                 title = "Enemies Defeated",
                 value = "${gameState.totalEnemiesKilled}",
                 color = Color.Green
             )
-            
+
             GameStatsCard(
                 title = "Total Money",
                 value = "$${gameState.totalMoneyEarned}",
                 color = Color(0xFFFF9800)
             )
-            
+
             if (gameState.score > gameState.highScore) {
                 Text(
                     text = "🏆 NEW HIGH SCORE! 🏆",
@@ -1523,7 +1575,7 @@ fun VictoryOverlay(gameState: BaseDefenderGameState) {
                     modifier = Modifier.padding(16.dp)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
@@ -1532,7 +1584,7 @@ fun VictoryOverlay(gameState: BaseDefenderGameState) {
 private fun drawBackgroundPattern(drawScope: DrawScope) {
     val gridSize = 40f
     val alpha = 0.1f
-    
+
     // Draw vertical grid lines
     for (x in 0..(400 / gridSize).toInt()) {
         drawScope.drawLine(
@@ -1542,7 +1594,7 @@ private fun drawBackgroundPattern(drawScope: DrawScope) {
             strokeWidth = 1f
         )
     }
-    
+
     // Draw horizontal grid lines
     for (y in 0..(400 / gridSize).toInt()) {
         drawScope.drawLine(
@@ -1552,7 +1604,7 @@ private fun drawBackgroundPattern(drawScope: DrawScope) {
             strokeWidth = 1f
         )
     }
-    
+
     // Draw some subtle dots at intersections
     for (x in 0..(400 / gridSize).toInt()) {
         for (y in 0..(400 / gridSize).toInt()) {
@@ -1591,7 +1643,7 @@ fun GameStatsCard(
                 color = Color.Gray,
                 fontSize = 16.sp
             )
-            
+
             Text(
                 text = value,
                 color = color,
