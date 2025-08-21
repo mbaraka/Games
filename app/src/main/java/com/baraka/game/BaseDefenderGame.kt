@@ -321,9 +321,9 @@ data class BaseDefenderGameState(
         )
 
         // Check if enemies reached base
-        val enemiesAtBase = finalEnemies.count { it.position.y >= 480f }  // Updated from 380f to 480f
+        val enemiesAtBase = finalEnemies.count { it.position.y >= 430f }  // Updated from 480f to 430f to match new base position
         val finalLives = newLives - enemiesAtBase
-        val finalEnemiesAfterBase = finalEnemies.filter { it.position.y < 480f }  // Updated from 380f to 480f
+        val finalEnemiesAfterBase = finalEnemies.filter { it.position.y < 430f }  // Updated from 480f to 430f
 
         // Add screen shake when enemies reach base
         val baseShake = if (enemiesAtBase > 0) 3f * enemiesAtBase else 0f
@@ -745,7 +745,7 @@ data class PowerUpEffects(
 )
 
 data class Defender(
-    val position: Offset = Offset(200f, 400f), // Centered in game field (was 380f)
+    val position: Offset = Offset(200f, 450f), // Moved lower for better strategic positioning (was 400f)
     val size: Float = 40f
 ) {
     fun shoot(
@@ -1589,7 +1589,7 @@ private fun drawBackgroundPattern(drawScope: DrawScope) {
     
     // Get the actual canvas dimensions from the drawScope
     val canvasWidth = drawScope.size.width
-    val canvasHeight = drawScope.size.height
+    val canvasHeight = drawScope.size.height * 0.8f  // Reduce grid height to 80% to leave space for UI
 
     // Draw vertical grid lines
     for (x in 0..(canvasWidth / gridSize).toInt()) {
