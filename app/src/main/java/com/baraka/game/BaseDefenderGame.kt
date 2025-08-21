@@ -1586,21 +1586,23 @@ fun VictoryOverlay(gameState: BaseDefenderGameState) {
 private fun drawBackgroundPattern(drawScope: DrawScope) {
     val gridSize = 40f
     val alpha = 0.1f
-    val canvasWidth = 400f  // This will be the full width of the canvas
-    val canvasHeight = 500f  // Updated from 400f to 500f
+    
+    // Get the actual canvas dimensions from the drawScope
+    val canvasWidth = drawScope.size.width
+    val canvasHeight = drawScope.size.height
 
     // Draw vertical grid lines
     for (x in 0..(canvasWidth / gridSize).toInt()) {
         drawScope.drawLine(
             color = Color.White.copy(alpha = alpha),
             start = Offset(x * gridSize, 0f),
-            end = Offset(x * gridSize, canvasHeight),  // Updated from 400f to 500f
+            end = Offset(x * gridSize, canvasHeight),
             strokeWidth = 1f
         )
     }
 
     // Draw horizontal grid lines
-    for (y in 0..(canvasHeight / gridSize).toInt()) {  // Updated from 400f to 500f
+    for (y in 0..(canvasHeight / gridSize).toInt()) {
         drawScope.drawLine(
             color = Color.White.copy(alpha = alpha),
             start = Offset(0f, y * gridSize),
@@ -1611,7 +1613,7 @@ private fun drawBackgroundPattern(drawScope: DrawScope) {
 
     // Draw some subtle dots at intersections
     for (x in 0..(canvasWidth / gridSize).toInt()) {
-        for (y in 0..(canvasHeight / gridSize).toInt()) {  // Updated from 400f to 500f
+        for (y in 0..(canvasHeight / gridSize).toInt()) {
             drawScope.drawCircle(
                 color = Color.White.copy(alpha = alpha * 0.5f),
                 radius = 1f,
