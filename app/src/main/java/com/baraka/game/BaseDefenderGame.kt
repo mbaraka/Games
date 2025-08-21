@@ -110,7 +110,7 @@ fun BaseDefenderGameScreen() {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(400.dp)
+                .height(500.dp)  // Increased from 400dp to 500dp for better game field
                 .background(Color(0xFF2D2D2D))
                 .pointerInput(Unit) {
                     detectTapGestures { offset ->
@@ -291,11 +291,11 @@ data class BaseDefenderGameState(
         if (gameStatus != GameStatus.PLAYING) return this
 
         val newGameTime = gameTime + 1
-        val newEnemies = enemies.map { it.update(timeSlowActive) }.filter { it.position.y < 400f }
+        val newEnemies = enemies.map { it.update(timeSlowActive) }.filter { it.position.y < 500f }  // Updated from 400f to 500f
         val newProjectiles = projectiles.map { it.update() }.filter { it.position.y > 0f }
 
         // Update power-ups (remove ones that are off-screen)
-        val newPowerUps = powerUps.filter { it.position.y < 400f }
+        val newPowerUps = powerUps.filter { it.position.y < 500f }  // Updated from 400f to 500f
 
         // Update particles and effects
         val updatedParticles = particles.mapNotNull { it.update() }
@@ -321,9 +321,9 @@ data class BaseDefenderGameState(
         )
 
         // Check if enemies reached base
-        val enemiesAtBase = finalEnemies.count { it.position.y >= 380f }
+        val enemiesAtBase = finalEnemies.count { it.position.y >= 480f }  // Updated from 380f to 480f
         val finalLives = newLives - enemiesAtBase
-        val finalEnemiesAfterBase = finalEnemies.filter { it.position.y < 380f }
+        val finalEnemiesAfterBase = finalEnemies.filter { it.position.y < 480f }  // Updated from 380f to 480f
 
         // Add screen shake when enemies reach base
         val baseShake = if (enemiesAtBase > 0) 3f * enemiesAtBase else 0f
@@ -745,7 +745,7 @@ data class PowerUpEffects(
 )
 
 data class Defender(
-    val position: Offset = Offset(200f, 380f), // Moved lower for better aiming
+    val position: Offset = Offset(200f, 400f), // Centered in game field (was 380f)
     val size: Float = 40f
 ) {
     fun shoot(
@@ -1020,8 +1020,8 @@ data class Enemy(
 
             return Enemy(
                 position = Offset(
-                    x = (Random.nextFloat() * 300f + 50f).toFloat(),
-                    y = -50f
+                    x = (Random.nextFloat() * 350f + 25f).toFloat(),  // Updated to use full canvas width
+                    y = -50f  // Keep spawning above screen
                 ),
                 health = finalHealth,
                 maxHealth = finalHealth,
@@ -1082,6 +1082,10 @@ data class Projectile(
 
         // Add weapon-specific effects
         when (weaponType) {
+            WeaponType.BASIC -> {
+
+            }
+
             WeaponType.FIRE -> {
                 // Fire trail effect
                 drawScope.drawCircle(
@@ -1108,8 +1112,6 @@ data class Projectile(
                     center = position
                 )
             }
-
-            else -> {}
         }
     }
 }
@@ -1394,8 +1396,8 @@ data class PowerUp(
             val powerUpType = PowerUpType.values().random()
             return PowerUp(
                 position = Offset(
-                    x = (Random.nextFloat() * 300f + 50f).toFloat(),
-                    y = -30f
+                    x = (Random.nextFloat() * 350f + 25f).toFloat(),  // Updated to use full canvas width
+                    y = -30f  // Keep spawning above screen
                 ),
                 powerUpType = powerUpType
             )
@@ -1584,30 +1586,32 @@ fun VictoryOverlay(gameState: BaseDefenderGameState) {
 private fun drawBackgroundPattern(drawScope: DrawScope) {
     val gridSize = 40f
     val alpha = 0.1f
+    val canvasWidth = 400f  // This will be the full width of the canvas
+    val canvasHeight = 500f  // Updated from 400f to 500f
 
     // Draw vertical grid lines
-    for (x in 0..(400 / gridSize).toInt()) {
+    for (x in 0..(canvasWidth / gridSize).toInt()) {
         drawScope.drawLine(
             color = Color.White.copy(alpha = alpha),
             start = Offset(x * gridSize, 0f),
-            end = Offset(x * gridSize, 400f),
+            end = Offset(x * gridSize, canvasHeight),  // Updated from 400f to 500f
             strokeWidth = 1f
         )
     }
 
     // Draw horizontal grid lines
-    for (y in 0..(400 / gridSize).toInt()) {
+    for (y in 0..(canvasHeight / gridSize).toInt()) {  // Updated from 400f to 500f
         drawScope.drawLine(
             color = Color.White.copy(alpha = alpha),
             start = Offset(0f, y * gridSize),
-            end = Offset(400f, y * gridSize),
+            end = Offset(canvasWidth, y * gridSize),
             strokeWidth = 1f
         )
     }
 
     // Draw some subtle dots at intersections
-    for (x in 0..(400 / gridSize).toInt()) {
-        for (y in 0..(400 / gridSize).toInt()) {
+    for (x in 0..(canvasWidth / gridSize).toInt()) {
+        for (y in 0..(canvasHeight / gridSize).toInt()) {  // Updated from 400f to 500f
             drawScope.drawCircle(
                 color = Color.White.copy(alpha = alpha * 0.5f),
                 radius = 1f,
