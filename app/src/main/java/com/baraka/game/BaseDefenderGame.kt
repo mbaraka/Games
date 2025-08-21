@@ -112,18 +112,22 @@ fun BaseDefenderGameScreen() {
                 .fillMaxWidth()
                 .height(400.dp)  // Reduced from 500dp to 400dp for better proportions
                 .background(Color(0xFF2D2D2D))
-                .pointerInput(Unit) {
-                    detectTapGestures { offset ->
-                        gameState = gameState.handleTap(offset)
-                    }
-                }
         ) {
             // Background pattern
             Canvas(modifier = Modifier.fillMaxSize()) {
                 drawBackgroundPattern(this)
             }
 
-            Canvas(modifier = Modifier.fillMaxSize()) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures { offset ->
+                            // Pass the actual canvas height to handleTap
+                            gameState = gameState.handleTap(offset, size.height.toFloat())
+                        }
+                    }
+            ) {
                 gameState.draw(this)
             }
 
@@ -285,17 +289,19 @@ data class BaseDefenderGameState(
     // Visual effects
     val screenShake: Float = 0f,
     val particles: List<Particle> = emptyList(),
-    val hitEffects: List<HitEffect> = emptyList()
+    val hitEffects: List<HitEffect> = emptyList(),
+    // Canvas dimensions
+    val canvasHeight: Float = 400f
 ) {
     fun update(): BaseDefenderGameState {
         if (gameStatus != GameStatus.PLAYING) return this
 
         val newGameTime = gameTime + 1
-        val newEnemies = enemies.map { it.update(timeSlowActive) }.filter { it.position.y < 400f }  // Updated from 500f to 400f
+        val newEnemies = enemies.map { it.update(timeSlowActive) }.filter { it.position.y < canvasHeight }
         val newProjectiles = projectiles.map { it.update() }.filter { it.position.y > 0f }
 
         // Update power-ups (remove ones that are off-screen)
-        val newPowerUps = powerUps.filter { it.position.y < 400f }  // Updated from 500f to 400f
+        val newPowerUps = powerUps.filter { it.position.y < canvasHeight }
 
         // Update particles and effects
         val updatedParticles = particles.mapNotNull { it.update() }
@@ -320,10 +326,11 @@ data class BaseDefenderGameState(
             updatedEnemies, newProjectiles, updatedPowerUps, score, money, lives
         )
 
-        // Check if enemies reached base
-        val enemiesAtBase = finalEnemies.count { it.position.y >= 340f }  // Updated from 300f to 340f to match new bottom base position
+        // Check if enemies reached base using dynamic positioning
+        val baseY = canvasHeight - player.size - 10f // Calculate base Y position dynamically
+        val enemiesAtBase = finalEnemies.count { it.position.y >= baseY }
         val finalLives = newLives - enemiesAtBase
-        val finalEnemiesAfterBase = finalEnemies.filter { it.position.y < 340f }  // Updated from 300f to 340f
+        val finalEnemiesAfterBase = finalEnemies.filter { it.position.y < baseY }
 
         // Add screen shake when enemies reach base
         val baseShake = if (enemiesAtBase > 0) 3f * enemiesAtBase else 0f
@@ -402,15 +409,18 @@ data class BaseDefenderGameState(
         )
     }
 
-    fun handleTap(offset: Offset): BaseDefenderGameState {
+    fun handleTap(offset: Offset, canvasHeight: Float): BaseDefenderGameState {
         if (gameStatus != GameStatus.PLAYING) return this
+
+        // Calculate dynamic base position for shooting using actual canvas height
+        val basePosition = player.getPosition(canvasHeight)
 
         val newProjectiles = mutableListOf<Projectile>()
 
         if (megaShotAvailable) {
             // Mega shot: one powerful projectile
             val megaProjectile =
-                player.shoot(offset, damageLevel * 3, projectileSpeedLevel, currentWeapon)
+                player.copy(position = basePosition).shoot(offset, damageLevel * 3, projectileSpeedLevel, currentWeapon)
             newProjectiles.add(megaProjectile)
             return copy(
                 projectiles = projectiles + newProjectiles,
@@ -423,7 +433,7 @@ data class BaseDefenderGameState(
                 val spread = (index - 1) * 0.1f // Small spread
                 val spreadOffset = offset.copy(x = offset.x + (spread * 50f))
                 val projectile =
-                    player.shoot(spreadOffset, damageLevel, projectileSpeedLevel, currentWeapon)
+                    player.copy(position = basePosition).shoot(spreadOffset, damageLevel, projectileSpeedLevel, currentWeapon)
                 newProjectiles.add(projectile)
             }
             return copy(
@@ -433,7 +443,7 @@ data class BaseDefenderGameState(
         } else {
             // Normal shot
             val newProjectile =
-                player.shoot(offset, damageLevel, projectileSpeedLevel, currentWeapon)
+                player.copy(position = basePosition).shoot(offset, damageLevel, projectileSpeedLevel, currentWeapon)
             newProjectiles.add(newProjectile)
             return copy(
                 projectiles = projectiles + newProjectiles,
@@ -521,6 +531,10 @@ data class BaseDefenderGameState(
     }
 
     fun draw(drawScope: DrawScope) {
+        // Get dynamic base position based on canvas height
+        val canvasHeight = drawScope.size.height
+        val dynamicPlayer = player.copy(position = player.getPosition(canvasHeight))
+        
         // Apply screen shake offset
         val shakeOffset = Offset(
             x = (Random.nextFloat() - 0.5f) * screenShake,
@@ -531,7 +545,7 @@ data class BaseDefenderGameState(
         drawScope.withTransform({
             translate(shakeOffset.x, shakeOffset.y)
         }) {
-            player.draw(drawScope)
+            dynamicPlayer.draw(drawScope)
             enemies.forEach { it.draw(drawScope) }
             projectiles.forEach { it.draw(drawScope) }
             powerUps.forEach { it.draw(drawScope) }
@@ -745,9 +759,14 @@ data class PowerUpEffects(
 )
 
 data class Defender(
-    val position: Offset = Offset(200f, 360f), // Positioned at bottom of 400dp canvas for maximum play area above
+    val position: Offset = Offset(200f, 0f), // Will be calculated dynamically based on canvas height
     val size: Float = 40f
 ) {
+    fun getPosition(canvasHeight: Float): Offset {
+        // Position base at bottom of canvas with small margin
+        return Offset(200f, canvasHeight - size - 10f)
+    }
+
     fun shoot(
         target: Offset,
         damageLevel: Int,
