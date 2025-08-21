@@ -321,9 +321,9 @@ data class BaseDefenderGameState(
         )
 
         // Check if enemies reached base
-        val enemiesAtBase = finalEnemies.count { it.position.y >= 300f }  // Updated from 330f to 300f to match new base position
+        val enemiesAtBase = finalEnemies.count { it.position.y >= 340f }  // Updated from 300f to 340f to match new bottom base position
         val finalLives = newLives - enemiesAtBase
-        val finalEnemiesAfterBase = finalEnemies.filter { it.position.y < 300f }  // Updated from 330f to 300f
+        val finalEnemiesAfterBase = finalEnemies.filter { it.position.y < 340f }  // Updated from 300f to 340f
 
         // Add screen shake when enemies reach base
         val baseShake = if (enemiesAtBase > 0) 3f * enemiesAtBase else 0f
@@ -745,7 +745,7 @@ data class PowerUpEffects(
 )
 
 data class Defender(
-    val position: Offset = Offset(200f, 320f), // Moved much lower for better positioning in 400dp canvas (was 350f)
+    val position: Offset = Offset(200f, 360f), // Positioned at bottom of 400dp canvas for maximum play area above
     val size: Float = 40f
 ) {
     fun shoot(
