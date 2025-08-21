@@ -17,6 +17,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -72,7 +73,7 @@ fun BaseDefenderGameScreen() {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "Wave: ${gameState.currentWave}",
+                text = "Wave: ${gameState.currentWave}/20",
                 color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
@@ -91,6 +92,17 @@ fun BaseDefenderGameScreen() {
             )
         }
         
+        // Wave progress bar
+        Spacer(modifier = Modifier.height(8.dp))
+        LinearProgressIndicator(
+            progress = { gameState.currentWave.toFloat() / 20f },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp),
+            color = Color.Cyan,
+            trackColor = Color.Gray.copy(alpha = 0.3f)
+        )
+        
         Spacer(modifier = Modifier.height(16.dp))
         
         // Game canvas
@@ -105,6 +117,11 @@ fun BaseDefenderGameScreen() {
                     }
                 }
         ) {
+            // Background pattern
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawBackgroundPattern(this)
+            }
+            
             Canvas(modifier = Modifier.fillMaxSize()) {
                 gameState.draw(this)
             }
@@ -127,33 +144,13 @@ fun BaseDefenderGameScreen() {
             }
             
             // Game over overlay
-            if (gameState.lives <= 0) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.7f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "GAME OVER",
-                            color = Color.Red,
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Final Score: ${gameState.score}",
-                            color = Color.White,
-                            fontSize = 20.sp
-                        )
-                        Text(
-                            text = "Waves Survived: ${gameState.currentWave}",
-                            color = Color.White,
-                            fontSize = 20.sp
-                        )
-                    }
-                }
+            if (gameState.gameStatus == GameStatus.GAME_OVER) {
+                GameOverOverlay(gameState = gameState)
+            }
+            
+            // Victory overlay
+            if (gameState.gameStatus == GameStatus.VICTORY) {
+                VictoryOverlay(gameState = gameState)
             }
         }
         
@@ -195,19 +192,28 @@ fun BaseDefenderGameScreen() {
         ) {
             Button(
                 onClick = { 
-                    if (gameState.lives <= 0) {
-                        gameState = BaseDefenderGameState()
-                        isGameRunning = true
-                    } else {
-                        isGameRunning = !isGameRunning
+                    when (gameState.gameStatus) {
+                        GameStatus.GAME_OVER, GameStatus.VICTORY -> {
+                            gameState = gameState.startNewGame()
+                            isGameRunning = true
+                        }
+                        else -> {
+                            isGameRunning = !isGameRunning
+                        }
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (gameState.lives <= 0) Color.Green else if (isGameRunning) Color.Red else Color.Green
+                    containerColor = when (gameState.gameStatus) {
+                        GameStatus.GAME_OVER, GameStatus.VICTORY -> Color.Green
+                        else -> if (isGameRunning) Color.Red else Color.Green
+                    }
                 )
             ) {
                 Text(
-                    text = if (gameState.lives <= 0) "Restart" else if (isGameRunning) "Pause" else "Start"
+                    text = when (gameState.gameStatus) {
+                        GameStatus.GAME_OVER, GameStatus.VICTORY -> "New Game"
+                        else -> if (isGameRunning) "Pause" else "Start"
+                    }
                 )
             }
             
@@ -266,10 +272,21 @@ data class BaseDefenderGameState(
     val shieldTimer: Int = 0,
     val timeSlowActive: Boolean = false,
     val timeSlowTimer: Int = 0,
-    val megaShotAvailable: Boolean = false
+    val megaShotAvailable: Boolean = false,
+    // Game state
+    val gameStatus: GameStatus = GameStatus.PLAYING,
+    val highScore: Int = 0,
+    val totalEnemiesKilled: Int = 0,
+    val totalMoneyEarned: Int = 0,
+    val totalProjectilesFired: Int = 0,
+    val gameStartTime: Long = 0L,
+    // Visual effects
+    val screenShake: Float = 0f,
+    val particles: List<Particle> = emptyList(),
+    val hitEffects: List<HitEffect> = emptyList()
 ) {
     fun update(): BaseDefenderGameState {
-        if (lives <= 0) return this
+        if (gameStatus != GameStatus.PLAYING) return this
         
         val newGameTime = gameTime + 1
         val newEnemies = enemies.map { it.update(timeSlowActive) }.filter { it.position.y < 400f }
@@ -277,6 +294,10 @@ data class BaseDefenderGameState(
         
         // Update power-ups (remove ones that are off-screen)
         val newPowerUps = powerUps.filter { it.position.y < 400f }
+        
+        // Update particles and effects
+        val updatedParticles = particles.mapNotNull { it.update() }
+        val updatedHitEffects = hitEffects.mapNotNull { it.update() }
         
         // Spawn new enemies
         val updatedEnemies = if (newGameTime % 120L == 0L) {
@@ -293,7 +314,7 @@ data class BaseDefenderGameState(
         }
         
         // Check collisions
-        val (newScore, newMoney, newLives, finalEnemies, finalProjectiles, finalPowerUps, powerUpEffects) = checkCollisions(
+        val (newScore, newMoney, newLives, finalEnemies, finalProjectiles, finalPowerUps, powerUpEffects, collisionParticles, collisionHitEffects) = checkCollisions(
             updatedEnemies, newProjectiles, updatedPowerUps, score, money, lives
         )
         
@@ -302,11 +323,24 @@ data class BaseDefenderGameState(
         val finalLives = newLives - enemiesAtBase
         val finalEnemiesAfterBase = finalEnemies.filter { it.position.y < 380f }
         
+        // Add screen shake when enemies reach base
+        val baseShake = if (enemiesAtBase > 0) 3f * enemiesAtBase else 0f
+        
+        // Update screen shake
+        val newScreenShake = ((screenShake + baseShake) * 0.9f).coerceAtLeast(0f)
+        
         // Check wave completion
         val newWave = if (finalEnemiesAfterBase.isEmpty() && updatedEnemies.isNotEmpty()) {
             currentWave + 1
         } else {
             currentWave
+        }
+        
+        // Check victory condition (complete 20 waves)
+        val newGameStatus = when {
+            finalLives <= 0 -> GameStatus.GAME_OVER
+            newWave > 20 -> GameStatus.VICTORY
+            else -> GameStatus.PLAYING
         }
         
         // Handle wave announcements
@@ -350,12 +384,19 @@ data class BaseDefenderGameState(
             shieldTimer = newShieldTimer,
             timeSlowActive = newTimeSlowTimer > 0,
             timeSlowTimer = newTimeSlowTimer,
-            megaShotAvailable = powerUpEffects.megaShotAvailable
+            megaShotAvailable = powerUpEffects.megaShotAvailable,
+            gameStatus = newGameStatus,
+            highScore = maxOf(highScore, newScore),
+            totalEnemiesKilled = totalEnemiesKilled + (if (newScore > score) (newScore - score) / 10 else 0),
+            totalMoneyEarned = totalMoneyEarned + (if (newMoney > money) newMoney - money else 0),
+            screenShake = newScreenShake,
+            particles = updatedParticles + collisionParticles,
+            hitEffects = updatedHitEffects + collisionHitEffects
         )
     }
     
     fun handleTap(offset: Offset): BaseDefenderGameState {
-        if (lives <= 0) return this
+        if (gameStatus != GameStatus.PLAYING) return this
         
         val newProjectiles = mutableListOf<Projectile>()
         
@@ -365,7 +406,8 @@ data class BaseDefenderGameState(
             newProjectiles.add(megaProjectile)
             return copy(
                 projectiles = projectiles + newProjectiles,
-                megaShotAvailable = false
+                megaShotAvailable = false,
+                totalProjectilesFired = totalProjectilesFired + 1
             )
         } else if (rapidFireActive) {
             // Rapid fire: shoot 3 projectiles
@@ -375,24 +417,119 @@ data class BaseDefenderGameState(
                 val projectile = player.shoot(spreadOffset, damageLevel, projectileSpeedLevel, currentWeapon)
                 newProjectiles.add(projectile)
             }
+            return copy(
+                projectiles = projectiles + newProjectiles,
+                totalProjectilesFired = totalProjectilesFired + 3
+            )
         } else {
             // Normal shot
             val newProjectile = player.shoot(offset, damageLevel, projectileSpeedLevel, currentWeapon)
             newProjectiles.add(newProjectile)
+            return copy(
+                projectiles = projectiles + newProjectiles,
+                totalProjectilesFired = totalProjectilesFired + 1
+            )
         }
-        
-        return copy(projectiles = projectiles + newProjectiles)
     }
     
     fun switchWeapon(weaponType: WeaponType): BaseDefenderGameState {
         return copy(currentWeapon = weaponType)
     }
     
+    fun startNewGame(): BaseDefenderGameState {
+        return copy(
+            player = Defender(),
+            enemies = emptyList(),
+            projectiles = emptyList(),
+            powerUps = emptyList(),
+            score = 0,
+            money = 100,
+            lives = 3,
+            currentWave = 1,
+            gameTime = 0,
+            damageLevel = 1,
+            fireRateLevel = 1,
+            projectileSpeedLevel = 1,
+            currentWeapon = WeaponType.BASIC,
+            waveAnnouncement = "",
+            announcementTimer = 0,
+            rapidFireActive = false,
+            rapidFireTimer = 0,
+            shieldActive = false,
+            shieldTimer = 0,
+            timeSlowActive = false,
+            timeSlowTimer = 0,
+            megaShotAvailable = false,
+            gameStatus = GameStatus.PLAYING,
+            totalEnemiesKilled = 0,
+            totalMoneyEarned = 0,
+            totalProjectilesFired = 0,
+            gameStartTime = System.currentTimeMillis(),
+            screenShake = 0f,
+            particles = emptyList(),
+            hitEffects = emptyList()
+        )
+    }
+    
+    fun addScreenShake(intensity: Float): BaseDefenderGameState {
+        return copy(screenShake = (screenShake + intensity).coerceAtMost(10f))
+    }
+    
+    fun addParticles(newParticles: List<Particle>): BaseDefenderGameState {
+        return copy(particles = particles + newParticles)
+    }
+    
+    fun addHitEffect(position: Offset, color: Color): BaseDefenderGameState {
+        val hitEffect = HitEffect(
+            position = position,
+            color = color,
+            size = 15f,
+            life = 30,
+            maxLife = 30
+        )
+        return copy(hitEffects = hitEffects + hitEffect)
+    }
+    
+    fun createExplosionParticles(position: Offset, color: Color): List<Particle> {
+        return List(8) { index ->
+            val angle = (index * 45f) * (Math.PI / 180f)
+            val speed = 2f + Random.nextFloat() * 3f
+            val velocity = Offset(
+                x = (kotlin.math.cos(angle) * speed).toFloat(),
+                y = (kotlin.math.sin(angle) * speed).toFloat()
+            )
+            
+            Particle(
+                position = position,
+                velocity = velocity,
+                color = color,
+                size = 3f + Random.nextFloat() * 4f,
+                life = 60 + Random.nextInt(30),
+                maxLife = 90
+            )
+        }
+    }
+    
     fun draw(drawScope: DrawScope) {
-        player.draw(drawScope)
-        enemies.forEach { it.draw(drawScope) }
-        projectiles.forEach { it.draw(drawScope) }
-        powerUps.forEach { it.draw(drawScope) }
+        // Apply screen shake offset
+        val shakeOffset = Offset(
+            x = (Random.nextFloat() - 0.5f) * screenShake,
+            y = (Random.nextFloat() - 0.5f) * screenShake
+        )
+        
+        // Draw game elements with shake offset
+        drawScope.withTransform({
+            translate(shakeOffset.x, shakeOffset.y)
+        }) {
+            player.draw(drawScope)
+            enemies.forEach { it.draw(drawScope) }
+            projectiles.forEach { it.draw(drawScope) }
+            powerUps.forEach { it.draw(drawScope) }
+        }
+        
+        // Draw particles and effects (not affected by screen shake)
+        particles.forEach { it.draw(drawScope) }
+        hitEffects.forEach { it.draw(drawScope) }
         
         // Draw power-up status indicators
         drawPowerUpStatus(drawScope)
@@ -459,6 +596,8 @@ data class BaseDefenderGameState(
         currentMoney: Int,
         currentLives: Int
     ): CollisionResult {
+        var newParticles = emptyList<Particle>()
+        var newHitEffects = emptyList<HitEffect>()
         var newScore = currentScore
         var newMoney = currentMoney
         var newLives = currentLives
@@ -472,9 +611,33 @@ data class BaseDefenderGameState(
                 if (!projectileHit && projectile.bounds.overlaps(enemy.bounds)) {
                     projectileHit = true
                     val damagedEnemy = enemy.takeDamage(projectile.damage, projectile.weaponType)
+                    
+                    // Add hit effect
+                    newHitEffects = newHitEffects + HitEffect(
+                        position = enemy.position,
+                        color = when (projectile.weaponType) {
+                            WeaponType.FIRE -> Color.Red
+                            WeaponType.ICE -> Color.Cyan
+                            WeaponType.EXPLOSIVE -> Color(0xFFFF9800)
+                            else -> Color.Yellow
+                        },
+                        size = 15f,
+                        life = 30,
+                        maxLife = 30
+                    )
+                    
                     if (damagedEnemy.health <= 0) {
                         newScore += 10
                         newMoney += enemy.moneyReward
+                        
+                        // Add explosion particles
+                        val explosionColor = when (enemy.enemyType) {
+                            EnemyType.BOSS -> Color(0xFFFF5722)
+                            EnemyType.ARMORED -> Color(0xFF9C27B0)
+                            EnemyType.FAST -> Color.Cyan
+                            else -> Color.Red
+                        }
+                        newParticles = newParticles + createExplosionParticles(enemy.position, explosionColor)
                     } else {
                         remainingEnemies.add(damagedEnemy)
                     }
@@ -532,7 +695,7 @@ data class BaseDefenderGameState(
             }
         }
         
-        return CollisionResult(newScore, newMoney, newLives, remainingEnemies, remainingProjectiles, remainingPowerUps, powerUpEffects)
+        return CollisionResult(newScore, newMoney, newLives, remainingEnemies, remainingProjectiles, remainingPowerUps, powerUpEffects, newParticles, newHitEffects)
     }
 }
 
@@ -543,7 +706,9 @@ data class CollisionResult(
     val enemies: List<Enemy>,
     val projectiles: List<Projectile>,
     val powerUps: List<PowerUp>,
-    val powerUpEffects: PowerUpEffects
+    val powerUpEffects: PowerUpEffects,
+    val particles: List<Particle>,
+    val hitEffects: List<HitEffect>
 )
 
 data class PowerUpEffects(
@@ -583,10 +748,34 @@ data class Defender(
     }
     
     fun draw(drawScope: DrawScope) {
+        // Draw base/body
         drawScope.drawRect(
             color = Color.Blue,
             topLeft = position,
             size = Size(size, size)
+        )
+        
+        // Draw border
+        drawScope.drawRect(
+            color = Color.White,
+            topLeft = position,
+            size = Size(size, size),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
+        )
+        
+        // Draw turret (smaller rectangle on top)
+        drawScope.drawRect(
+            color = Color(0xFF2196F3), // Darker blue
+            topLeft = position.copy(x = position.x + size * 0.25f, y = position.y - size * 0.25f),
+            size = Size(size * 0.5f, size * 0.5f)
+        )
+        
+        // Draw turret border
+        drawScope.drawRect(
+            color = Color.White,
+            topLeft = position.copy(x = position.x + size * 0.25f, y = position.y - size * 0.25f),
+            size = Size(size * 0.5f, size * 0.5f),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1f)
         )
     }
 }
@@ -834,36 +1023,50 @@ data class Projectile(
             WeaponType.EXPLOSIVE -> Color(0xFFFF9800)
         }
         
-        drawScope.drawRect(
-            color = color,
-            topLeft = position,
-            size = Size(size, size)
+        // Draw projectile with glow effect
+        drawScope.drawCircle(
+            color = color.copy(alpha = 0.3f),
+            radius = size * 1.5f,
+            center = position
         )
         
-        // Add visual effects for special weapons
+        drawScope.drawCircle(
+            color = color,
+            radius = size,
+            center = position
+        )
+        
+        // Draw center core
+        drawScope.drawCircle(
+            color = Color.White,
+            radius = size * 0.5f,
+            center = position
+        )
+        
+        // Add weapon-specific effects
         when (weaponType) {
             WeaponType.FIRE -> {
                 // Fire trail effect
-                drawScope.drawRect(
+                drawScope.drawCircle(
                     color = Color(0xFFFF5722).copy(alpha = 0.6f),
-                    topLeft = position.copy(x = position.x - 2f, y = position.y - 2f),
-                    size = Size(size + 4f, size + 4f)
+                    radius = size * 0.8f,
+                    center = position.copy(x = position.x - 3f, y = position.y - 3f)
                 )
             }
             WeaponType.ICE -> {
                 // Ice sparkle effect
-                drawScope.drawRect(
+                drawScope.drawCircle(
                     color = Color.White.copy(alpha = 0.8f),
-                    topLeft = position.copy(x = position.x + 2f, y = position.y + 2f),
-                    size = Size(4f, 4f)
+                    radius = 2f,
+                    center = position.copy(x = position.x + 3f, y = position.y + 3f)
                 )
             }
             WeaponType.EXPLOSIVE -> {
                 // Explosive glow effect
-                drawScope.drawRect(
+                drawScope.drawCircle(
                     color = Color(0xFFFF9800).copy(alpha = 0.4f),
-                    topLeft = position.copy(x = position.x - 1f, y = position.y - 1f),
-                    size = Size(size + 2f, size + 2f)
+                    radius = size * 1.2f,
+                    center = position
                 )
             }
             else -> {}
@@ -1023,6 +1226,71 @@ enum class PowerUpType {
     RAPID_FIRE, SHIELD, TIME_SLOW, MEGA_SHOT
 }
 
+enum class GameStatus {
+    PLAYING, GAME_OVER, VICTORY, PAUSED
+}
+
+data class Particle(
+    val position: Offset,
+    val velocity: Offset,
+    val color: Color,
+    val size: Float,
+    val life: Int,
+    val maxLife: Int
+) {
+    fun update(): Particle? {
+        val newPosition = position + velocity
+        val newLife = life - 1
+        return if (newLife > 0) {
+            copy(
+                position = newPosition,
+                life = newLife
+            )
+        } else null
+    }
+    
+    fun draw(drawScope: DrawScope) {
+        val alpha = (life.toFloat() / maxLife.toFloat()).coerceIn(0f, 1f)
+        drawScope.drawCircle(
+            color = color.copy(alpha = alpha),
+            radius = size * alpha,
+            center = position
+        )
+    }
+}
+
+data class HitEffect(
+    val position: Offset,
+    val color: Color,
+    val size: Float,
+    val life: Int,
+    val maxLife: Int
+) {
+    fun update(): HitEffect? {
+        val newLife = life - 1
+        return if (newLife > 0) {
+            copy(life = newLife)
+        } else null
+    }
+    
+    fun draw(drawScope: DrawScope) {
+        val alpha = (life.toFloat() / maxLife.toFloat()).coerceIn(0f, 1f)
+        val currentSize = size * (1f + (1f - alpha) * 2f)
+        
+        drawScope.drawCircle(
+            color = color.copy(alpha = alpha * 0.7f),
+            radius = currentSize,
+            center = position
+        )
+        
+        drawScope.drawCircle(
+            color = color.copy(alpha = alpha * 0.3f),
+            radius = currentSize * 0.5f,
+            center = position
+        )
+    }
+}
+
 data class PowerUp(
     val position: Offset,
     val powerUpType: PowerUpType,
@@ -1120,3 +1388,216 @@ fun Offset.normalized(): Offset {
 
 operator fun Offset.plus(other: Offset): Offset = Offset(x + other.x, y + other.y)
 operator fun Offset.times(scalar: Float): Offset = Offset(x * scalar, y * scalar)
+
+@Composable
+fun GameOverOverlay(gameState: BaseDefenderGameState) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.8f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+                .background(Color(0xFF2D2D2D), RoundedCornerShape(16.dp)),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "GAME OVER",
+                color = Color.Red,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(16.dp)
+            )
+            
+            // Game statistics
+            GameStatsCard(
+                title = "Final Score",
+                value = "${gameState.score}",
+                color = Color.Yellow
+            )
+            
+            GameStatsCard(
+                title = "Waves Survived",
+                value = "${gameState.currentWave}",
+                color = Color.Cyan
+            )
+            
+            GameStatsCard(
+                title = "Enemies Killed",
+                value = "${gameState.totalEnemiesKilled}",
+                color = Color.Green
+            )
+            
+            GameStatsCard(
+                title = "Money Earned",
+                value = "$${gameState.totalMoneyEarned}",
+                color = Color(0xFFFF9800)
+            )
+            
+            GameStatsCard(
+                title = "Projectiles Fired",
+                value = "${gameState.totalProjectilesFired}",
+                color = Color.Magenta
+            )
+            
+            if (gameState.score > gameState.highScore) {
+                Text(
+                    text = "🎉 NEW HIGH SCORE! 🎉",
+                    color = Color.Yellow,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+fun VictoryOverlay(gameState: BaseDefenderGameState) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.8f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+                .background(Color(0xFF2D2D2D), RoundedCornerShape(16.dp)),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "🎉 VICTORY! 🎉",
+                color = Color.Green,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(16.dp)
+            )
+            
+            Text(
+                text = "You've defended your base through all 20 waves!",
+                color = Color.White,
+                fontSize = 18.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.padding(16.dp)
+            )
+            
+            // Victory statistics
+            GameStatsCard(
+                title = "Final Score",
+                value = "${gameState.score}",
+                color = Color.Yellow
+            )
+            
+            GameStatsCard(
+                title = "Waves Completed",
+                value = "20",
+                color = Color.Cyan
+            )
+            
+            GameStatsCard(
+                title = "Enemies Defeated",
+                value = "${gameState.totalEnemiesKilled}",
+                color = Color.Green
+            )
+            
+            GameStatsCard(
+                title = "Total Money",
+                value = "$${gameState.totalMoneyEarned}",
+                color = Color(0xFFFF9800)
+            )
+            
+            if (gameState.score > gameState.highScore) {
+                Text(
+                    text = "🏆 NEW HIGH SCORE! 🏆",
+                    color = Color.Yellow,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+private fun drawBackgroundPattern(drawScope: DrawScope) {
+    val gridSize = 40f
+    val alpha = 0.1f
+    
+    // Draw vertical grid lines
+    for (x in 0..(400 / gridSize).toInt()) {
+        drawScope.drawLine(
+            color = Color.White.copy(alpha = alpha),
+            start = Offset(x * gridSize, 0f),
+            end = Offset(x * gridSize, 400f),
+            strokeWidth = 1f
+        )
+    }
+    
+    // Draw horizontal grid lines
+    for (y in 0..(400 / gridSize).toInt()) {
+        drawScope.drawLine(
+            color = Color.White.copy(alpha = alpha),
+            start = Offset(0f, y * gridSize),
+            end = Offset(400f, y * gridSize),
+            strokeWidth = 1f
+        )
+    }
+    
+    // Draw some subtle dots at intersections
+    for (x in 0..(400 / gridSize).toInt()) {
+        for (y in 0..(400 / gridSize).toInt()) {
+            drawScope.drawCircle(
+                color = Color.White.copy(alpha = alpha * 0.5f),
+                radius = 1f,
+                center = Offset(x * gridSize, y * gridSize)
+            )
+        }
+    }
+}
+
+@Composable
+fun GameStatsCard(
+    title: String,
+    value: String,
+    color: Color
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF3D3D3D)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = title,
+                color = Color.Gray,
+                fontSize = 16.sp
+            )
+            
+            Text(
+                text = value,
+                color = color,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
