@@ -395,11 +395,18 @@ data class BaseDefenderGameState(
         // Check if enemies reached base using dynamic positioning
         val baseY = canvasHeight - player.size - 10f // Calculate base Y position dynamically
         val enemiesAtBase = finalEnemies.count { it.position.y >= baseY }
-        val finalLives = newLives - enemiesAtBase
+        
+        // Apply shield protection if active
+        val finalLives = if (shieldActive) {
+            newLives // Shield protects against damage
+        } else {
+            newLives - enemiesAtBase
+        }
+        
         val finalEnemiesAfterBase = finalEnemies.filter { it.position.y < baseY }
 
-        // Add screen shake when enemies reach base
-        val baseShake = if (enemiesAtBase > 0) 3f * enemiesAtBase else 0f
+        // Add screen shake when enemies reach base (only if shield is not active)
+        val baseShake = if (enemiesAtBase > 0 && !shieldActive) 3f * enemiesAtBase else 0f
 
         // Update screen shake
         val newScreenShake = ((screenShake + baseShake) * 0.9f).coerceAtLeast(0f)
@@ -648,6 +655,11 @@ data class BaseDefenderGameState(
             basePositions.forEach { position ->
                 val dynamicPlayer = player.copy(position = position)
                 dynamicPlayer.draw(drawScope)
+                
+                // Draw shield effect if active
+                if (shieldActive) {
+                    drawShieldEffect(drawScope, position)
+                }
             }
             
             enemies.forEach { it.draw(drawScope) }
@@ -658,6 +670,73 @@ data class BaseDefenderGameState(
         // Draw particles and effects (not affected by screen shake)
         particles.forEach { it.draw(drawScope) }
         hitEffects.forEach { it.draw(drawScope) }
+        
+        // Draw time slow effect indicator
+        if (timeSlowActive) {
+            drawTimeSlowEffect(drawScope)
+        }
+    }
+
+    private fun drawTimeSlowEffect(drawScope: DrawScope) {
+        // Draw time slow visual effect across the screen
+        val alpha = 0.1f + (0.05f * kotlin.math.sin(gameTime * 0.15f)).toFloat()
+        
+        // Draw subtle purple overlay
+        drawScope.drawRect(
+            color = Color(0xFF9C27B0).copy(alpha = alpha),
+            topLeft = Offset(0f, 0f),
+            size = Size(drawScope.size.width, drawScope.size.height)
+        )
+        
+        // Draw time slow particles
+        repeat(5) { index ->
+            val x = (index * drawScope.size.width / 5f) + (gameTime * 0.5f) % (drawScope.size.width / 5f)
+            val y = (gameTime * 0.3f + index * 50f) % drawScope.size.height
+            
+            drawScope.drawCircle(
+                color = Color(0xFF9C27B0).copy(alpha = 0.3f),
+                radius = 3f,
+                center = Offset(x, y)
+            )
+        }
+    }
+
+    private fun drawShieldEffect(drawScope: DrawScope, basePosition: Offset) {
+        // Draw shield bubble around base
+        val shieldRadius = player.size * 1.5f
+        val shieldAlpha = 0.3f + (0.2f * kotlin.math.sin(gameTime * 0.1f)).toFloat()
+        
+        // Outer glow
+        drawScope.drawCircle(
+            color = Color.Cyan.copy(alpha = shieldAlpha * 0.5f),
+            radius = shieldRadius + 5f,
+            center = basePosition.copy(
+                x = basePosition.x + player.size / 2f,
+                y = basePosition.y + player.size / 2f
+            )
+        )
+        
+        // Main shield
+        drawScope.drawCircle(
+            color = Color.Cyan.copy(alpha = shieldAlpha),
+            radius = shieldRadius,
+            center = basePosition.copy(
+                x = basePosition.x + player.size / 2f,
+                y = basePosition.y + player.size / 2f
+            ),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f)
+        )
+        
+        // Inner shield
+        drawScope.drawCircle(
+            color = Color.Cyan.copy(alpha = shieldAlpha * 0.7f),
+            radius = shieldRadius * 0.7f,
+            center = basePosition.copy(
+                x = basePosition.x + player.size / 2f,
+                y = basePosition.y + player.size / 2f
+            ),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
+        )
     }
 
     private fun drawPowerUpStatus(drawScope: DrawScope) {
