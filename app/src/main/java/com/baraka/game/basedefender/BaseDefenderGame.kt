@@ -109,6 +109,12 @@ fun BaseDefenderGameScreen() {
                 fontWeight = FontWeight.Bold
             )
             Text(
+                text = "Bases: ${gameState.multiBaseLevel}",
+                color = Color.Cyan,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
                 text = "Lives: ${gameState.lives}",
                 color = Color.Red,
                 fontSize = 18.sp,
@@ -652,6 +658,14 @@ data class BaseDefenderGameState(
         // Get dynamic base positions based on canvas height
         val canvasHeight = drawScope.size.height
         val basePositions = getBasePositions(canvasHeight)
+        
+        // Debug: Draw base count indicator
+        drawScope.drawRect(
+            color = Color.Red.copy(alpha = 0.7f),
+            topLeft = Offset(10f, 10f),
+            size = Size(100f, 30f)
+        )
+        // Note: We can't draw text directly in DrawScope, so we'll use the UI text above
         
         // Apply screen shake offset
         val shakeOffset = Offset(
