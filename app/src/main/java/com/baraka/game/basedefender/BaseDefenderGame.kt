@@ -197,129 +197,135 @@ fun BaseDefenderGameScreen() {
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Weapon Selection
-        Row(
+        // Scrollable UI elements below the grid
+        LazyColumn(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            WeaponButton(
-                weaponType = WeaponType.BASIC,
-                isSelected = gameState.currentWeapon == WeaponType.BASIC,
-                onClick = { gameState = gameState.switchWeapon(WeaponType.BASIC) }
-            )
-            WeaponButton(
-                weaponType = WeaponType.FIRE,
-                isSelected = gameState.currentWeapon == WeaponType.FIRE,
-                onClick = { gameState = gameState.switchWeapon(WeaponType.FIRE) }
-            )
-            WeaponButton(
-                weaponType = WeaponType.ICE,
-                isSelected = gameState.currentWeapon == WeaponType.ICE,
-                onClick = { gameState = gameState.switchWeapon(WeaponType.ICE) }
-            )
-            WeaponButton(
-                weaponType = WeaponType.EXPLOSIVE,
-                isSelected = gameState.currentWeapon == WeaponType.EXPLOSIVE,
-                onClick = { gameState = gameState.switchWeapon(WeaponType.EXPLOSIVE) }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Power-up Status
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                PowerUpStatusButton(
-                    text = "Rapid Fire",
-                    isActive = gameState.rapidFireActive,
-                    color = Color.Blue,
-                    onClick = { /* Can't manually activate */ }
-                )
+                // Weapon Selection
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    WeaponButton(
+                        weaponType = WeaponType.BASIC,
+                        isSelected = gameState.currentWeapon == WeaponType.BASIC,
+                        onClick = { gameState = gameState.switchWeapon(WeaponType.BASIC) }
+                    )
+                    WeaponButton(
+                        weaponType = WeaponType.FIRE,
+                        isSelected = gameState.currentWeapon == WeaponType.FIRE,
+                        onClick = { gameState = gameState.switchWeapon(WeaponType.FIRE) }
+                    )
+                    WeaponButton(
+                        weaponType = WeaponType.ICE,
+                        isSelected = gameState.currentWeapon == WeaponType.ICE,
+                        onClick = { gameState = gameState.switchWeapon(WeaponType.ICE) }
+                    )
+                    WeaponButton(
+                        weaponType = WeaponType.EXPLOSIVE,
+                        isSelected = gameState.currentWeapon == WeaponType.EXPLOSIVE,
+                        onClick = { gameState = gameState.switchWeapon(WeaponType.EXPLOSIVE) }
+                    )
+                }
             }
-            item {
-                PowerUpStatusButton(
-                    text = "Shield",
-                    isActive = gameState.shieldActive,
-                    color = Color.Green,
-                    onClick = { /* Can't manually activate */ }
-                )
-            }
-            item {
-                PowerUpStatusButton(
-                    text = "Time Slow",
-                    isActive = gameState.timeSlowActive,
-                    color = Color(0xFF9C27B0),
-                    onClick = { /* Can't manually activate */ }
-                )
-            }
-            item {
-                PowerUpStatusButton(
-                    text = "Mega Shot",
-                    isActive = gameState.megaShotAvailable,
-                    color = Color.Red,
-                    onClick = { /* Can't manually activate */ }
-                )
-            }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Controls
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            Button(
-                onClick = {
-                    when (gameState.gameStatus) {
-                        GameStatus.GAME_OVER, GameStatus.VICTORY -> {
-                            gameState = gameState.startNewGame()
-                            isGameRunning = true
-                        }
-
-                        else -> {
-                            isGameRunning = !isGameRunning
-                        }
+            item {
+                // Power-up Status
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp)
+                ) {
+                    item {
+                        PowerUpStatusButton(
+                            text = "Rapid Fire",
+                            isActive = gameState.rapidFireActive,
+                            color = Color.Blue,
+                            onClick = { /* Can't manually activate */ }
+                        )
                     }
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = when (gameState.gameStatus) {
-                        GameStatus.GAME_OVER, GameStatus.VICTORY -> Color.Green
-                        else -> if (isGameRunning) Color.Red else Color.Green
+                    item {
+                        PowerUpStatusButton(
+                            text = "Shield",
+                            isActive = gameState.shieldActive,
+                            color = Color.Green,
+                            onClick = { /* Can't manually activate */ }
+                        )
                     }
-                )
-            ) {
+                    item {
+                        PowerUpStatusButton(
+                            text = "Time Slow",
+                            isActive = gameState.timeSlowActive,
+                            color = Color(0xFF9C27B0),
+                            onClick = { /* Can't manually activate */ }
+                        )
+                    }
+                    item {
+                        PowerUpStatusButton(
+                            text = "Mega Shot",
+                            isActive = gameState.megaShotAvailable,
+                            color = Color.Red,
+                            onClick = { /* Can't manually activate */ }
+                        )
+                    }
+                }
+            }
+
+            item {
+                // Controls
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Button(
+                        onClick = {
+                            when (gameState.gameStatus) {
+                                GameStatus.GAME_OVER, GameStatus.VICTORY -> {
+                                    gameState = gameState.startNewGame()
+                                    isGameRunning = true
+                                }
+
+                                else -> {
+                                    isGameRunning = !isGameRunning
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = when (gameState.gameStatus) {
+                                GameStatus.GAME_OVER, GameStatus.VICTORY -> Color.Green
+                                else -> if (isGameRunning) Color.Red else Color.Green
+                            }
+                        )
+                    ) {
+                        Text(
+                            text = when (gameState.gameStatus) {
+                                GameStatus.GAME_OVER, GameStatus.VICTORY -> "New Game"
+                                else -> if (isGameRunning) "Pause" else "Start"
+                            }
+                        )
+                    }
+
+                    Button(
+                        onClick = { showUpgradeShop = true },
+                        enabled = gameState.money >= 100
+                    ) {
+                        Text("Upgrade Shop")
+                    }
+                }
+            }
+
+            item {
+                // Instructions
                 Text(
-                    text = when (gameState.gameStatus) {
-                        GameStatus.GAME_OVER, GameStatus.VICTORY -> "New Game"
-                        else -> if (isGameRunning) "Pause" else "Start"
-                    }
+                    text = "Tap to aim and shoot! Defend your base from incoming enemies!",
+                    color = Color.Gray,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
-
-            Button(
-                onClick = { showUpgradeShop = true },
-                enabled = gameState.money >= 100
-            ) {
-                Text("Upgrade Shop")
-            }
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Instructions
-        Text(
-            text = "Tap to aim and shoot! Defend your base from incoming enemies!",
-            color = Color.Gray,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
 
         // Upgrade Shop Overlay
         if (showUpgradeShop) {
@@ -838,9 +844,9 @@ data class BaseDefenderGameState(
             }
 
             UpgradeType.MULTI_BASE -> {
-                if (money >= 200 && multiBaseLevel < 3) copy(
+                if (money >= 50 && multiBaseLevel < 3) copy(
                     multiBaseLevel = multiBaseLevel + 1,
-                    money = money - 200
+                    money = money - 50
                 ) else this
             }
         }
@@ -1453,10 +1459,10 @@ fun UpgradeShopOverlay(
                 UpgradeOption(
                     title = "Multi Base",
                     description = "Add another base (${gameState.multiBaseLevel}/3)",
-                    cost = 200,
+                    cost = 50,
                     currentLevel = gameState.multiBaseLevel,
                     onUpgrade = { onUpgrade(UpgradeType.MULTI_BASE) },
-                    enabled = gameState.money >= 200 && gameState.multiBaseLevel < 3
+                    enabled = gameState.money >= 50 && gameState.multiBaseLevel < 3
                 )
             }
 
