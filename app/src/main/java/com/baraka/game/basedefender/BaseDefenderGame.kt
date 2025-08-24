@@ -980,12 +980,8 @@ data class BaseDefenderGameState(
             }
         }
 
-        // Add enemies that weren't hit
-        enemies.forEach { enemy ->
-            if (!projectiles.any { it.bounds.overlaps(enemy.bounds) }) {
-                remainingEnemies.add(enemy)
-            }
-        }
+        // Add enemies that weren't hit by projectiles (they're already handled above)
+        // Note: Damaged enemies are already added to remainingEnemies in the projectile collision section
 
         // Check power-up collection (simplified - player always collects power-ups)
         val remainingPowerUps = mutableListOf<PowerUp>()
@@ -1738,30 +1734,6 @@ data class PowerUp(
 }
 
 
-@Composable
-fun PowerUpStatusButton(
-    text: String,
-    isActive: Boolean,
-    color: Color,
-    onClick: () -> Unit
-) {
-    Button(
-        onClick = onClick,
-        enabled = false, // Power-ups can't be manually activated
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isActive) color else Color.Gray.copy(alpha = 0.3f),
-            disabledContainerColor = if (isActive) color else Color.Gray.copy(alpha = 0.3f)
-        ),
-        modifier = Modifier.height(40.dp)
-    ) {
-        Text(
-            text = text,
-            fontSize = 12.sp,
-            color = if (isActive) Color.White else Color.Gray,
-            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
-        )
-    }
-}
 
 // Rect class for collision detection
 data class Rect(val topLeft: Offset, val size: Size) {
