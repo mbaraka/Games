@@ -416,11 +416,11 @@ data class BaseDefenderGameState(
         // Use the actual canvas height from the UI (400dp converted to pixels)
         val actualCanvasHeight = 400f
         val newEnemies =
-            enemies.map { it.update(timeSlowActive) }.filter { it.position.y < actualCanvasHeight }
+            enemies.map { it.update(timeSlowActive) }
         val newProjectiles = projectiles.map { it.update() }.filter { it.position.y > 0f }
 
         // Update power-ups (remove ones that are off-screen)
-        val newPowerUps = powerUps.filter { it.position.y < actualCanvasHeight }
+        val newPowerUps = powerUps
 
         // Update particles and effects
         val updatedParticles = particles.mapNotNull { it.update() }
