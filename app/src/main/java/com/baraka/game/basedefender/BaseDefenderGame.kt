@@ -1,4 +1,4 @@
-package com.baraka.game
+package com.baraka.game.basedefender
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -1696,7 +1696,15 @@ fun PowerUpStatusButton(
     }
 }
 
-// Note: Rect class is defined in PixelCollectorGame.kt
+// Rect class for collision detection
+data class Rect(val topLeft: Offset, val size: Size) {
+    fun overlaps(other: Rect): Boolean {
+        return !(topLeft.x + size.width < other.topLeft.x ||
+                other.topLeft.x + other.size.width < topLeft.x ||
+                topLeft.y + size.height < other.topLeft.y ||
+                other.topLeft.y + other.size.height < topLeft.y)
+    }
+}
 
 fun Offset.normalized(): Offset {
     val length = kotlin.math.sqrt(x * x + y * y)

@@ -31,7 +31,7 @@
             android:theme="@style/Theme.Game" />
             
         <activity
-            android:name=".BaseDefenderGame"
+            android:name=".basedefender.BaseDefenderGame"
             android:exported="false"
             android:label="Base Defender"
             android:theme="@style/Theme.Game" />

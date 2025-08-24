@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.baraka.game.basedefender.BaseDefenderGame
 import com.baraka.game.ui.theme.GameTheme
 
 class MainActivity : ComponentActivity() {
