@@ -173,7 +173,7 @@ fun BaseDefenderGameScreen() {
                         }
                     }
             ) {
-                gameState.draw(this)
+                gameState = gameState.draw(this)
             }
 
             // Wave announcement overlay
@@ -336,7 +336,7 @@ fun BaseDefenderGameScreen() {
             // Debug collision status
             item {
                 val collisionStatus = if (gameState.enemies.any { enemy ->
-                    val basePositions = gameState.getBasePositions(400f, 400f)
+                    val basePositions = gameState.getBasePositions(gameState.canvasHeight, 400f)
                     basePositions.any { basePos ->
                         val baseBounds = Rect(basePos, Size(40f, 40f))
                         enemy.bounds.overlaps(baseBounds)
@@ -449,7 +449,7 @@ data class BaseDefenderGameState(
         )
 
         // Check if enemies reached any base using proper collision detection
-        val basePositions = getBasePositions(actualCanvasHeight, 400f) // Use default width for now
+        val basePositions = getBasePositions(actualCanvasHeight, 400f) // Use actual height, default width for now
         val enemiesAtBase = finalEnemies.count { enemy ->
             basePositions.any { basePos ->
                 // Simplified collision detection: enemy must be near the base area
@@ -578,7 +578,7 @@ data class BaseDefenderGameState(
         val newProjectiles = mutableListOf<Projectile>()
 
         // Calculate positions for all active bases
-        val basePositions = getBasePositions(canvasHeight, 400f) // Use default width for now
+        val basePositions = getBasePositions(canvasHeight, 400f) // Use actual height, default width for now
 
         if (megaShotAvailable) {
             // Mega shot: one powerful projectile from each base
@@ -739,7 +739,7 @@ data class BaseDefenderGameState(
         }
     }
 
-    fun draw(drawScope: DrawScope) {
+    fun draw(drawScope: DrawScope): BaseDefenderGameState {
         // Get dynamic base positions based on actual canvas dimensions
         val actualCanvasHeight = drawScope.size.height
         val actualCanvasWidth = drawScope.size.width
@@ -797,6 +797,9 @@ data class BaseDefenderGameState(
         if (timeSlowActive) {
             drawTimeSlowEffect(drawScope)
         }
+        
+        // Return the updated game state with correct canvas dimensions
+        return updatedGameState
     }
 
     private fun drawTimeSlowEffect(drawScope: DrawScope) {
@@ -1000,7 +1003,7 @@ data class BaseDefenderGameState(
             // Check if power-up is near any of the player bases (simplified collision)
             var powerUpCollected = false
             val basePositions =
-                getBasePositions(400f, 400f) // Use default dimensions for collision detection
+                getBasePositions(400f, 400f) // Use default dimensions for collision detection (will be updated in draw)
 
             for (basePosition in basePositions) {
                 val playerBounds = Rect(basePosition, Size(40f, 40f))
@@ -1362,7 +1365,7 @@ data class Enemy(
 
             return Enemy(
                 position = Offset(
-                    x = (Random.nextFloat() * 350f + 25f).toFloat(),  // Updated to use full canvas width
+                    x = (Random.nextFloat() * 350f + 25f).toFloat(),  // Will be updated to use actual canvas width
                     y = -50f  // Keep spawning above screen
                 ),
                 health = finalHealth,
