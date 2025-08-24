@@ -451,15 +451,29 @@ data class BaseDefenderGameState(
             basePositions.any { basePos ->
                 // Check if enemy bounds overlap with any base bounds
                 val baseBounds = Rect(basePos, Size(player.size, player.size))
+                
+                // More precise collision detection: enemy must actually overlap with base
                 val overlaps = enemy.bounds.overlaps(baseBounds)
-                        // Debug: Log collision detection
-        if (overlaps) {
-            println("DEBUG: Enemy at ${enemy.position} hit base at $basePos")
-            println("DEBUG: Enemy bounds: ${enemy.bounds}, Base bounds: $baseBounds")
-            // Add visual debugging - make the enemy flash red when collision detected
-            return@any true
-        }
-                overlaps
+                
+                // Additional check: enemy must be near the bottom area (within base range)
+                val enemyBottomY = enemy.position.y + enemy.size
+                val baseTopY = basePos.y
+                val baseBottomY = basePos.y + player.size
+                
+                // Enemy is considered "at base" only if it's actually overlapping or very close
+                val isNearBase = enemyBottomY >= baseTopY - 5f && enemy.position.y <= baseBottomY + 5f
+                val finalCollision = overlaps && isNearBase
+                
+                // Debug: Log collision detection
+                if (overlaps) {
+                    println("DEBUG: Enemy at ${enemy.position} near base at $basePos")
+                    println("DEBUG: Enemy bounds: ${enemy.bounds}, Base bounds: $baseBounds")
+                    println("DEBUG: Canvas height: $actualCanvasHeight, Base Y: ${basePos.y}")
+                    println("DEBUG: Enemy bottom Y: $enemyBottomY, Base top Y: $baseTopY, Base bottom Y: $baseBottomY")
+                    println("DEBUG: Is near base: $isNearBase, Final collision: $finalCollision")
+                }
+                
+                finalCollision
             }
         }
 
@@ -479,7 +493,15 @@ data class BaseDefenderGameState(
         val finalEnemiesAfterBase = finalEnemies.filter { enemy ->
             !basePositions.any { basePos ->
                 val baseBounds = Rect(basePos, Size(player.size, player.size))
-                enemy.bounds.overlaps(baseBounds)
+                val overlaps = enemy.bounds.overlaps(baseBounds)
+                
+                // Use the same precise collision detection logic
+                val enemyBottomY = enemy.position.y + enemy.size
+                val baseTopY = basePos.y
+                val baseBottomY = basePos.y + player.size
+                val isNearBase = enemyBottomY >= baseTopY - 5f && enemy.position.y <= baseBottomY + 5f
+                
+                overlaps && isNearBase
             }
         }
 
