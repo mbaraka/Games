@@ -91,35 +91,44 @@ fun BaseDefenderGameScreen() {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        // Game stats
-        Row(
+        // Game stats - horizontally scrollable
+        LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(horizontal = 8.dp)
         ) {
-            Text(
-                text = "Wave: ${gameState.currentWave}/20",
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "Money: $${gameState.money}",
-                color = Color.Yellow,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "Bases: ${gameState.multiBaseLevel}",
-                color = Color.Cyan,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "Lives: ${gameState.lives}",
-                color = Color.Red,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
+            item {
+                Text(
+                    text = "Wave: ${gameState.currentWave}/20",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            item {
+                Text(
+                    text = "Money: $${gameState.money}",
+                    color = Color.Yellow,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            item {
+                Text(
+                    text = "Bases: ${gameState.multiBaseLevel}",
+                    color = Color.Cyan,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            item {
+                Text(
+                    text = "Lives: ${gameState.lives}",
+                    color = Color.Red,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
         // Wave progress bar
@@ -552,23 +561,33 @@ data class BaseDefenderGameState(
     private fun getBasePositions(canvasHeight: Float): List<Offset> {
         val positions = mutableListOf<Offset>()
         
+        // Calculate base positions dynamically based on canvas width
+        // We need to pass canvas width to this function, but for now we'll use a reasonable default
+        // The actual canvas width will be available in the draw function
+        val canvasWidth = 400f // Default width, will be overridden in draw function
+        
         when (multiBaseLevel) {
             1 -> {
                 // Single base at center
-                positions.add(Offset(200f, canvasHeight - player.size - 10f))
+                positions.add(Offset(canvasWidth / 2f, canvasHeight - player.size - 10f))
             }
             2 -> {
                 // Two bases: left and right
                 val baseY = canvasHeight - player.size - 10f
-                positions.add(Offset(120f, baseY))  // Left base
-                positions.add(Offset(280f, baseY))  // Right base
+                val leftX = canvasWidth * 0.25f
+                val rightX = canvasWidth * 0.75f
+                positions.add(Offset(leftX, baseY))  // Left base
+                positions.add(Offset(rightX, baseY))  // Right base
             }
             3 -> {
                 // Three bases: left, center, right
                 val baseY = canvasHeight - player.size - 10f
-                positions.add(Offset(120f, baseY))  // Left base
-                positions.add(Offset(200f, baseY))  // Center base
-                positions.add(Offset(280f, baseY))  // Right base
+                val leftX = canvasWidth * 0.2f
+                val centerX = canvasWidth * 0.5f
+                val rightX = canvasWidth * 0.8f
+                positions.add(Offset(leftX, baseY))  // Left base
+                positions.add(Offset(centerX, baseY))  // Center base
+                positions.add(Offset(rightX, baseY))  // Right base
             }
         }
         
