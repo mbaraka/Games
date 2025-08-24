@@ -10,6 +10,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -19,6 +20,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -206,6 +209,48 @@ fun BaseDefenderGameScreen() {
                 isSelected = gameState.currentWeapon == WeaponType.EXPLOSIVE,
                 onClick = { gameState = gameState.switchWeapon(WeaponType.EXPLOSIVE) }
             )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Power-up Status
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp)
+        ) {
+            item {
+                PowerUpStatusButton(
+                    text = "Rapid Fire",
+                    isActive = gameState.rapidFireActive,
+                    color = Color.Blue,
+                    onClick = { /* Can't manually activate */ }
+                )
+            }
+            item {
+                PowerUpStatusButton(
+                    text = "Shield",
+                    isActive = gameState.shieldActive,
+                    color = Color.Green,
+                    onClick = { /* Can't manually activate */ }
+                )
+            }
+            item {
+                PowerUpStatusButton(
+                    text = "Time Slow",
+                    isActive = gameState.timeSlowActive,
+                    color = Color(0xFF9C27B0),
+                    onClick = { /* Can't manually activate */ }
+                )
+            }
+            item {
+                PowerUpStatusButton(
+                    text = "Mega Shot",
+                    isActive = gameState.megaShotAvailable,
+                    color = Color.Red,
+                    onClick = { /* Can't manually activate */ }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -574,9 +619,6 @@ data class BaseDefenderGameState(
         // Draw particles and effects (not affected by screen shake)
         particles.forEach { it.draw(drawScope) }
         hitEffects.forEach { it.draw(drawScope) }
-
-        // Draw power-up status indicators
-        drawPowerUpStatus(drawScope)
     }
 
     private fun drawPowerUpStatus(drawScope: DrawScope) {
@@ -1468,6 +1510,31 @@ fun WeaponButton(
             text = text,
             fontSize = 10.sp,
             color = if (isSelected) Color.White else Color.Black
+        )
+    }
+}
+
+@Composable
+fun PowerUpStatusButton(
+    text: String,
+    isActive: Boolean,
+    color: Color,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        enabled = false, // Power-ups can't be manually activated
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isActive) color else Color.Gray.copy(alpha = 0.3f),
+            disabledContainerColor = if (isActive) color else Color.Gray.copy(alpha = 0.3f)
+        ),
+        modifier = Modifier.height(40.dp)
+    ) {
+        Text(
+            text = text,
+            fontSize = 12.sp,
+            color = if (isActive) Color.White else Color.Gray,
+            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
         )
     }
 }
