@@ -453,9 +453,8 @@ data class BaseDefenderGameState(
                 val enemyBottomY = enemy.position.y + enemy.size
                 val baseTopY = basePos.y
                 
-                // Enemy is considered "at base" only when it reaches the base area
-                // Use a small tolerance (10 pixels) to make it feel natural
-                val isAtBase = enemyBottomY >= baseTopY - 10f
+                // Enemy is considered "at base" only when it actually reaches the base
+                val isAtBase = enemyBottomY >= baseTopY
                 
                 // Debug: Log collision detection
                 if (isAtBase) {
@@ -487,7 +486,7 @@ data class BaseDefenderGameState(
                 // Use the same simplified collision detection logic
                 val enemyBottomY = enemy.position.y + enemy.size
                 val baseTopY = basePos.y
-                val isAtBase = enemyBottomY >= baseTopY - 10f
+                val isAtBase = enemyBottomY >= baseTopY
                 
                 isAtBase
             }
