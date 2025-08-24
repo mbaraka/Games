@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -97,6 +98,10 @@ fun BaseDefenderGameScreen() {
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(horizontal = 8.dp)
         ) {
+            item {
+                Spacer(modifier =Modifier.height(10.dp))
+            }
+
             item {
                 Text(
                     text = "Wave: ${gameState.currentWave}/20",
@@ -325,18 +330,23 @@ fun BaseDefenderGameScreen() {
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
-        }
 
-        // Upgrade Shop Overlay
-        if (showUpgradeShop) {
-            UpgradeShopOverlay(
-                gameState = gameState,
-                onUpgrade = { upgradeType ->
-                    gameState = gameState.applyUpgrade(upgradeType)
-                    showUpgradeShop = false
-                },
-                onClose = { showUpgradeShop = false }
-            )
+
+            // Upgrade Shop Overlay
+            if (showUpgradeShop) {
+                upgradeShopOverlay(
+                    gameState = gameState,
+                    onUpgrade = { upgradeType ->
+                        gameState = gameState.applyUpgrade(upgradeType)
+                        showUpgradeShop = false
+                    },
+                    onClose = { showUpgradeShop = false }
+                )
+            }
+
+            item {
+                Spacer(modifier =Modifier.height(20.dp))
+            }
         }
     }
 }
@@ -384,7 +394,8 @@ data class BaseDefenderGameState(
         if (gameStatus != GameStatus.PLAYING) return this
 
         val newGameTime = gameTime + 1
-        val newEnemies = enemies.map { it.update(timeSlowActive) }.filter { it.position.y < canvasHeight }
+        val newEnemies =
+            enemies.map { it.update(timeSlowActive) }.filter { it.position.y < canvasHeight }
         val newProjectiles = projectiles.map { it.update() }.filter { it.position.y > 0f }
 
         // Update power-ups (remove ones that are off-screen)
@@ -408,8 +419,8 @@ data class BaseDefenderGameState(
             newPowerUps
         }
 
-        // Check collisions
-        val (newScore, newMoney, newLives, finalEnemies, finalProjectiles, finalPowerUps, powerUpEffects, collisionParticles, collisionHitEffects) = checkCollisions(
+        // Check collisions (projectile-enemy and power-up collection)
+        val (newScore, newMoney, _, finalEnemies, finalProjectiles, finalPowerUps, powerUpEffects, collisionParticles, collisionHitEffects) = checkCollisions(
             updatedEnemies, newProjectiles, updatedPowerUps, score, money, lives
         )
 
@@ -419,17 +430,28 @@ data class BaseDefenderGameState(
             basePositions.any { basePos ->
                 // Check if enemy bounds overlap with any base bounds
                 val baseBounds = Rect(basePos, Size(player.size, player.size))
-                enemy.bounds.overlaps(baseBounds)
+                val overlaps = enemy.bounds.overlaps(baseBounds)
+                // Debug: Log collision detection
+                if (overlaps) {
+                    println("DEBUG: Enemy at ${enemy.position} hit base at $basePos")
+                    println("DEBUG: Enemy bounds: ${enemy.bounds}, Base bounds: $baseBounds")
+                }
+                overlaps
             }
         }
-        
+
         // Apply shield protection if active
         val finalLives = if (shieldActive) {
-            newLives // Shield protects against damage
+            lives // Shield protects against damage
         } else {
-            newLives - enemiesAtBase
+            lives - enemiesAtBase
         }
         
+        // Debug: Log lives calculation
+        if (enemiesAtBase > 0) {
+            println("DEBUG: $enemiesAtBase enemies hit base. Lives: $lives -> $finalLives")
+        }
+
         // Remove enemies that hit any base
         val finalEnemiesAfterBase = finalEnemies.filter { enemy ->
             !basePositions.any { basePos ->
@@ -527,7 +549,8 @@ data class BaseDefenderGameState(
             // Mega shot: one powerful projectile from each base
             basePositions.forEach { basePosition ->
                 val megaProjectile =
-                    player.copy(position = basePosition).shoot(offset, damageLevel * 3, projectileSpeedLevel, currentWeapon)
+                    player.copy(position = basePosition)
+                        .shoot(offset, damageLevel * 3, projectileSpeedLevel, currentWeapon)
                 newProjectiles.add(megaProjectile)
             }
             return copy(
@@ -542,7 +565,8 @@ data class BaseDefenderGameState(
                     val spread = (index - 1) * 0.1f // Small spread
                     val spreadOffset = offset.copy(x = offset.x + (spread * 50f))
                     val projectile =
-                        player.copy(position = basePosition).shoot(spreadOffset, damageLevel, projectileSpeedLevel, currentWeapon)
+                        player.copy(position = basePosition)
+                            .shoot(spreadOffset, damageLevel, projectileSpeedLevel, currentWeapon)
                     newProjectiles.add(projectile)
                 }
             }
@@ -554,7 +578,8 @@ data class BaseDefenderGameState(
             // Normal shot: one projectile from each base
             basePositions.forEach { basePosition ->
                 val newProjectile =
-                    player.copy(position = basePosition).shoot(offset, damageLevel, projectileSpeedLevel, currentWeapon)
+                    player.copy(position = basePosition)
+                        .shoot(offset, damageLevel, projectileSpeedLevel, currentWeapon)
                 newProjectiles.add(newProjectile)
             }
             return copy(
@@ -566,17 +591,18 @@ data class BaseDefenderGameState(
 
     private fun getBasePositions(canvasHeight: Float): List<Offset> {
         val positions = mutableListOf<Offset>()
-        
+
         // Calculate base positions dynamically based on canvas width
         // We need to pass canvas width to this function, but for now we'll use a reasonable default
         // The actual canvas width will be available in the draw function
         val canvasWidth = 400f // Default width, will be overridden in draw function
-        
+
         when (multiBaseLevel) {
             1 -> {
                 // Single base at center
                 positions.add(Offset(canvasWidth / 2f, canvasHeight - player.size - 10f))
             }
+
             2 -> {
                 // Two bases: left and right
                 val baseY = canvasHeight - player.size - 10f
@@ -585,6 +611,7 @@ data class BaseDefenderGameState(
                 positions.add(Offset(leftX, baseY))  // Left base
                 positions.add(Offset(rightX, baseY))  // Right base
             }
+
             3 -> {
                 // Three bases: left, center, right
                 val baseY = canvasHeight - player.size - 10f
@@ -596,7 +623,7 @@ data class BaseDefenderGameState(
                 positions.add(Offset(rightX, baseY))  // Right base
             }
         }
-        
+
         return positions
     }
 
@@ -683,7 +710,7 @@ data class BaseDefenderGameState(
         // Get dynamic base positions based on canvas height
         val canvasHeight = drawScope.size.height
         val basePositions = getBasePositions(canvasHeight)
-        
+
         // Debug: Draw base count indicator
         drawScope.drawRect(
             color = Color.Red.copy(alpha = 0.7f),
@@ -691,7 +718,7 @@ data class BaseDefenderGameState(
             size = Size(100f, 30f)
         )
         // Note: We can't draw text directly in DrawScope, so we'll use the UI text above
-        
+
         // Apply screen shake offset
         val shakeOffset = Offset(
             x = (Random.nextFloat() - 0.5f) * screenShake,
@@ -706,13 +733,13 @@ data class BaseDefenderGameState(
             basePositions.forEach { position ->
                 val dynamicPlayer = player.copy(position = position)
                 dynamicPlayer.draw(drawScope)
-                
+
                 // Draw shield effect if active
                 if (shieldActive) {
                     drawShieldEffect(drawScope, position)
                 }
             }
-            
+
             enemies.forEach { it.draw(drawScope) }
             projectiles.forEach { it.draw(drawScope) }
             powerUps.forEach { it.draw(drawScope) }
@@ -721,7 +748,7 @@ data class BaseDefenderGameState(
         // Draw particles and effects (not affected by screen shake)
         particles.forEach { it.draw(drawScope) }
         hitEffects.forEach { it.draw(drawScope) }
-        
+
         // Draw time slow effect indicator
         if (timeSlowActive) {
             drawTimeSlowEffect(drawScope)
@@ -731,19 +758,20 @@ data class BaseDefenderGameState(
     private fun drawTimeSlowEffect(drawScope: DrawScope) {
         // Draw time slow visual effect across the screen
         val alpha = 0.1f + (0.05f * kotlin.math.sin(gameTime * 0.15f)).toFloat()
-        
+
         // Draw subtle purple overlay
         drawScope.drawRect(
             color = Color(0xFF9C27B0).copy(alpha = alpha),
             topLeft = Offset(0f, 0f),
             size = Size(drawScope.size.width, drawScope.size.height)
         )
-        
+
         // Draw time slow particles
         repeat(5) { index ->
-            val x = (index * drawScope.size.width / 5f) + (gameTime * 0.5f) % (drawScope.size.width / 5f)
+            val x =
+                (index * drawScope.size.width / 5f) + (gameTime * 0.5f) % (drawScope.size.width / 5f)
             val y = (gameTime * 0.3f + index * 50f) % drawScope.size.height
-            
+
             drawScope.drawCircle(
                 color = Color(0xFF9C27B0).copy(alpha = 0.3f),
                 radius = 3f,
@@ -756,7 +784,7 @@ data class BaseDefenderGameState(
         // Draw shield bubble around base
         val shieldRadius = player.size * 1.5f
         val shieldAlpha = 0.3f + (0.2f * kotlin.math.sin(gameTime * 0.1f)).toFloat()
-        
+
         // Outer glow
         drawScope.drawCircle(
             color = Color.Cyan.copy(alpha = shieldAlpha * 0.5f),
@@ -766,7 +794,7 @@ data class BaseDefenderGameState(
                 y = basePosition.y + player.size / 2f
             )
         )
-        
+
         // Main shield
         drawScope.drawCircle(
             color = Color.Cyan.copy(alpha = shieldAlpha),
@@ -777,7 +805,7 @@ data class BaseDefenderGameState(
             ),
             style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f)
         )
-        
+
         // Inner shield
         drawScope.drawCircle(
             color = Color.Cyan.copy(alpha = shieldAlpha * 0.7f),
@@ -927,8 +955,9 @@ data class BaseDefenderGameState(
         powerUps.forEach { powerUp ->
             // Check if power-up is near any of the player bases (simplified collision)
             var powerUpCollected = false
-            val basePositions = getBasePositions(400f) // Use default canvas height for collision detection
-            
+            val basePositions =
+                getBasePositions(400f) // Use default canvas height for collision detection
+
             for (basePosition in basePositions) {
                 val playerBounds = Rect(basePosition, Size(40f, 40f))
                 if (powerUp.bounds.overlaps(playerBounds)) {
@@ -966,7 +995,7 @@ data class BaseDefenderGameState(
                     break
                 }
             }
-            
+
             if (!powerUpCollected) {
                 remainingPowerUps.add(powerUp)
             }
@@ -1006,7 +1035,10 @@ data class PowerUpEffects(
 )
 
 data class Defender(
-    val position: Offset = Offset(200f, 0f), // Will be calculated dynamically based on canvas height
+    val position: Offset = Offset(
+        200f,
+        0f
+    ), // Will be calculated dynamically based on canvas height
     val size: Float = 40f
 ) {
     fun getPosition(canvasHeight: Float): Offset {
@@ -1382,105 +1414,89 @@ data class Projectile(
     }
 }
 
-@Composable
-fun UpgradeShopOverlay(
+
+fun LazyListScope.upgradeShopOverlay(
     gameState: BaseDefenderGameState,
     onUpgrade: (UpgradeType) -> Unit,
     onClose: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.8f)),
-        contentAlignment = Alignment.Center
-    ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.9f)
-                .padding(24.dp)
-                .background(Color(0xFF2D2D2D), RoundedCornerShape(16.dp)),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            item {
-                Text(
-                    text = "Upgrade Shop",
-                    color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
 
-            item {
-                Text(
-                    text = "Money: $${gameState.money}",
-                    color = Color.Yellow,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-            }
-
-            item {
-                UpgradeOption(
-                    title = "Damage +10",
-                    description = "Increase projectile damage",
-                    cost = 100,
-                    currentLevel = gameState.damageLevel,
-                    onUpgrade = { onUpgrade(UpgradeType.DAMAGE) },
-                    enabled = gameState.money >= 100
-                )
-            }
-
-            item {
-                UpgradeOption(
-                    title = "Fire Rate +20%",
-                    description = "Shoot faster",
-                    cost = 150,
-                    currentLevel = gameState.fireRateLevel,
-                    onUpgrade = { onUpgrade(UpgradeType.FIRE_RATE) },
-                    enabled = gameState.money >= 150
-                )
-            }
-
-            item {
-                UpgradeOption(
-                    title = "Projectile Speed +25%",
-                    description = "Faster projectiles",
-                    cost = 120,
-                    currentLevel = gameState.projectileSpeedLevel,
-                    onUpgrade = { onUpgrade(UpgradeType.PROJECTILE_SPEED) },
-                    enabled = gameState.money >= 120
-                )
-            }
-
-            item {
-                UpgradeOption(
-                    title = "Multi Base",
-                    description = "Add another base (${gameState.multiBaseLevel}/3)",
-                    cost = 50,
-                    currentLevel = gameState.multiBaseLevel,
-                    onUpgrade = { onUpgrade(UpgradeType.MULTI_BASE) },
-                    enabled = gameState.money >= 50 && gameState.multiBaseLevel < 3
-                )
-            }
-
-            item {
-                Button(
-                    onClick = onClose,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
-                ) {
-                    Text("Close")
-                }
-            }
-
-
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
+    item {
+        Text(
+            text = "Upgrade Shop",
+            color = Color.White,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(16.dp)
+        )
     }
+
+    item {
+        Text(
+            text = "Money: $${gameState.money}",
+            color = Color.Yellow,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+    }
+
+    item {
+        UpgradeOption(
+            title = "Damage +10",
+            description = "Increase projectile damage",
+            cost = 100,
+            currentLevel = gameState.damageLevel,
+            onUpgrade = { onUpgrade(UpgradeType.DAMAGE) },
+            enabled = gameState.money >= 100
+        )
+    }
+
+    item {
+        UpgradeOption(
+            title = "Fire Rate +20%",
+            description = "Shoot faster",
+            cost = 150,
+            currentLevel = gameState.fireRateLevel,
+            onUpgrade = { onUpgrade(UpgradeType.FIRE_RATE) },
+            enabled = gameState.money >= 150
+        )
+    }
+
+    item {
+        UpgradeOption(
+            title = "Projectile Speed +25%",
+            description = "Faster projectiles",
+            cost = 120,
+            currentLevel = gameState.projectileSpeedLevel,
+            onUpgrade = { onUpgrade(UpgradeType.PROJECTILE_SPEED) },
+            enabled = gameState.money >= 120
+        )
+    }
+
+    item {
+        UpgradeOption(
+            title = "Multi Base",
+            description = "Add another base (${gameState.multiBaseLevel}/3)",
+            cost = 50,
+            currentLevel = gameState.multiBaseLevel,
+            onUpgrade = { onUpgrade(UpgradeType.MULTI_BASE) },
+            enabled = gameState.money >= 50 && gameState.multiBaseLevel < 3
+        )
+    }
+
+    item {
+        Button(
+            onClick = onClose,
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
+        ) {
+            Text("Close")
+        }
+    }
+
+
 }
+
 
 @Composable
 fun UpgradeOption(
@@ -1896,7 +1912,7 @@ fun VictoryOverlay(gameState: BaseDefenderGameState) {
 private fun drawBackgroundPattern(drawScope: DrawScope) {
     val gridSize = 40f
     val alpha = 0.1f
-    
+
     // Get the actual canvas dimensions from the drawScope
     val canvasWidth = drawScope.size.width
     val canvasHeight = drawScope.size.height  // Remove 0.8f multiplier to cover full canvas height
