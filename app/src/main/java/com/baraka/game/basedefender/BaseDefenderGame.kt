@@ -336,7 +336,7 @@ fun BaseDefenderGameScreen() {
             // Debug collision status
             item {
                 val collisionStatus = if (gameState.enemies.any { enemy ->
-                    val basePositions = gameState.getBasePositions(400f)
+                    val basePositions = gameState.getBasePositions(400f, 400f)
                     basePositions.any { basePos ->
                         val baseBounds = Rect(basePos, Size(40f, 40f))
                         enemy.bounds.overlaps(baseBounds)
@@ -416,7 +416,8 @@ data class BaseDefenderGameState(
 
         val newGameTime = gameTime + 1
         // Use the actual canvas height from the UI (400dp converted to pixels)
-        val actualCanvasHeight = 400f
+        // Note: This will be updated in the draw function with actual dimensions
+        val actualCanvasHeight = canvasHeight
         val newEnemies =
             enemies.map { it.update(timeSlowActive) }
         val newProjectiles = projectiles.map { it.update() }.filter { it.position.y > 0f }
@@ -448,7 +449,7 @@ data class BaseDefenderGameState(
         )
 
         // Check if enemies reached any base using proper collision detection
-        val basePositions = getBasePositions(actualCanvasHeight)
+        val basePositions = getBasePositions(actualCanvasHeight, 400f) // Use default width for now
         val enemiesAtBase = finalEnemies.count { enemy ->
             basePositions.any { basePos ->
                 // Simplified collision detection: enemy must be near the base area
@@ -577,7 +578,7 @@ data class BaseDefenderGameState(
         val newProjectiles = mutableListOf<Projectile>()
 
         // Calculate positions for all active bases
-        val basePositions = getBasePositions(canvasHeight)
+        val basePositions = getBasePositions(canvasHeight, 400f) // Use default width for now
 
         if (megaShotAvailable) {
             // Mega shot: one powerful projectile from each base
@@ -623,13 +624,11 @@ data class BaseDefenderGameState(
         }
     }
 
-    fun getBasePositions(canvasHeight: Float): List<Offset> {
+    fun getBasePositions(canvasHeight: Float, canvasWidth: Float = 400f): List<Offset> {
         val positions = mutableListOf<Offset>()
 
-        // Calculate base positions dynamically based on canvas width
-        // We need to pass canvas width to this function, but for now we'll use a reasonable default
-        // The actual canvas width will be available in the draw function
-        val canvasWidth = 400f // Default width, will be overridden in draw function
+        // Calculate base positions dynamically based on actual canvas dimensions
+        // Default width is 400f for backward compatibility
 
         when (multiBaseLevel) {
             1 -> {
@@ -741,9 +740,13 @@ data class BaseDefenderGameState(
     }
 
     fun draw(drawScope: DrawScope) {
-        // Get dynamic base positions based on canvas height
-        val canvasHeight = drawScope.size.height
-        val basePositions = getBasePositions(canvasHeight)
+        // Get dynamic base positions based on actual canvas dimensions
+        val actualCanvasHeight = drawScope.size.height
+        val actualCanvasWidth = drawScope.size.width
+        val basePositions = getBasePositions(actualCanvasHeight, actualCanvasWidth)
+        
+        // Update the game state's canvas dimensions for accurate positioning
+        val updatedGameState = copy(canvasHeight = actualCanvasHeight)
 
         // Debug: Draw collision status indicator
         val collisionStatus = if (enemies.any { enemy ->
@@ -997,7 +1000,7 @@ data class BaseDefenderGameState(
             // Check if power-up is near any of the player bases (simplified collision)
             var powerUpCollected = false
             val basePositions =
-                getBasePositions(400f) // Use actual canvas height for collision detection
+                getBasePositions(400f, 400f) // Use default dimensions for collision detection
 
             for (basePosition in basePositions) {
                 val playerBounds = Rect(basePosition, Size(40f, 40f))
@@ -1816,78 +1819,6 @@ fun GameOverOverlay(gameState: BaseDefenderGameState) {
             if (gameState.score > gameState.highScore) {
                 Text(
                     text = "🎉 NEW HIGH SCORE! 🎉",
-                    color = Color.Yellow,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
-}
-
-@Composable
-fun VictoryOverlay(gameState: BaseDefenderGameState) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.8f)),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState())
-                .background(Color(0xFF2D2D2D), RoundedCornerShape(16.dp)),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "🎉 VICTORY! 🎉",
-                color = Color.Green,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(16.dp)
-            )
-
-            Text(
-                text = "You've defended your base through all 20 waves!",
-                color = Color.White,
-                fontSize = 18.sp,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                modifier = Modifier.padding(16.dp)
-            )
-
-            // Victory statistics
-            GameStatsCard(
-                title = "Final Score",
-                value = "${gameState.score}",
-                color = Color.Yellow
-            )
-
-            GameStatsCard(
-                title = "Waves Completed",
-                value = "20",
-                color = Color.Cyan
-            )
-
-            GameStatsCard(
-                title = "Enemies Defeated",
-                value = "${gameState.totalEnemiesKilled}",
-                color = Color.Green
-            )
-
-            GameStatsCard(
-                title = "Total Money",
-                value = "$${gameState.totalMoneyEarned}",
-                color = Color(0xFFFF9800)
-            )
-
-            if (gameState.score > gameState.highScore) {
-                Text(
-                    text = "🏆 NEW HIGH SCORE! 🏆",
                     color = Color.Yellow,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,

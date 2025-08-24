@@ -20,7 +20,7 @@ fun WeaponButton(
         WeaponType.BASIC -> Pair("Basic", Color.Yellow)
         WeaponType.FIRE -> Pair("Fire", Color.Red)
         WeaponType.ICE -> Pair("Ice", Color.Cyan)
-        WeaponType.EXPLOSIVE -> Pair("Expl", Color(0xFFFF9800))
+        WeaponType.EXPLOSIVE -> Pair("Explosive", Color(0xFFFF9800))
     }
 
     Button(
