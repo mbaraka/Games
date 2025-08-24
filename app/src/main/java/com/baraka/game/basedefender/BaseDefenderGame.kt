@@ -333,24 +333,7 @@ fun BaseDefenderGameScreen() {
                 )
             }
             
-            // Debug collision status
-            item {
-                val collisionStatus = if (gameState.enemies.any { enemy ->
-                    val basePositions = gameState.getBasePositions(gameState.canvasHeight, 400f)
-                    basePositions.any { basePos ->
-                        val baseBounds = Rect(basePos, Size(40f, 40f))
-                        enemy.bounds.overlaps(baseBounds)
-                    }
-                }) "⚠️ COLLISION DETECTED! ⚠️" else "✅ No Collision"
-                
-                Text(
-                    text = collisionStatus,
-                    color = if (collisionStatus.contains("COLLISION")) Color.Red else Color.Green,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
+
 
 
             // Upgrade Shop Overlay
@@ -748,20 +731,7 @@ data class BaseDefenderGameState(
         // Update the game state's canvas dimensions for accurate positioning
         val updatedGameState = copy(canvasHeight = actualCanvasHeight)
 
-        // Debug: Draw collision status indicator
-        val collisionStatus = if (enemies.any { enemy ->
-            basePositions.any { basePos ->
-                val baseBounds = Rect(basePos, Size(player.size, player.size))
-                enemy.bounds.overlaps(baseBounds)
-            }
-        }) "COLLISION DETECTED!" else "No Collision"
-        
-        // Draw debug background
-        drawScope.drawRect(
-            color = if (collisionStatus == "COLLISION DETECTED!") Color.Red.copy(alpha = 0.7f) else Color.Green.copy(alpha = 0.7f),
-            topLeft = Offset(10f, 10f),
-            size = Size(150f, 30f)
-        )
+
 
         // Apply screen shake offset
         val shakeOffset = Offset(

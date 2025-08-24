@@ -7,16 +7,22 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.basedefender.BaseDefenderGame
+import com.baraka.game.memorymatch.MemoryMatchGame
+import com.baraka.game.rhythmrunner.RhythmRunnerGame
+import com.baraka.game.numbercruncher.NumberCruncherGame
 import com.baraka.game.ui.theme.GameTheme
 
 class MainActivity : ComponentActivity() {
@@ -36,6 +42,18 @@ class MainActivity : ComponentActivity() {
                                 val intent = Intent(this, BaseDefenderGame::class.java)
                                 startActivity(intent)
                             }
+                            GameType.MEMORY_MATCH -> {
+                                val intent = Intent(this, MemoryMatchGame::class.java)
+                                startActivity(intent)
+                            }
+                            GameType.RHYTHM_RUNNER -> {
+                                val intent = Intent(this, RhythmRunnerGame::class.java)
+                                startActivity(intent)
+                            }
+                            GameType.NUMBER_CRUNCHER -> {
+                                val intent = Intent(this, NumberCruncherGame::class.java)
+                                startActivity(intent)
+                            }
                         }
                     }
                 )
@@ -46,72 +64,86 @@ class MainActivity : ComponentActivity() {
 
 enum class GameType {
     PIXEL_COLLECTOR,
-    BASE_DEFENDER
+    BASE_DEFENDER,
+    MEMORY_MATCH,
+    RHYTHM_RUNNER,
+    NUMBER_CRUNCHER
 }
 
 @Composable
 fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1E1E1E))
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // App title
-        Text(
-            text = "Game Hub",
-            color = Color.White,
-            fontSize = 36.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        
-        Text(
-            text = "Choose Your Adventure",
-            color = Color.Gray,
-            fontSize = 18.sp,
-            modifier = Modifier.padding(bottom = 48.dp)
-        )
-        
-        // Game selection cards
-        GameCard(
-            title = "Pixel Collector",
-            description = "Collect green pixels while avoiding red obstacles!",
-            color = Color(0xFF4CAF50),
-            onClick = { onGameSelected(GameType.PIXEL_COLLECTOR) }
-        )
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        GameCard(
-            title = "Base Defender",
-            description = "Defend your base! Aim and shoot at incoming enemies!",
-            color = Color(0xFFFF5722),
-            onClick = { onGameSelected(GameType.BASE_DEFENDER) }
-        )
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        // Placeholder for future games
-        GameCard(
-            title = "Coming Soon...",
-            description = "More exciting games are in development!",
-            color = Color(0xFF9E9E9E),
-            onClick = { /* Future game */ },
-            enabled = false
-        )
-        
-        Spacer(modifier = Modifier.height(48.dp))
-        
-        // App info
-        Text(
-            text = "Built with Jetpack Compose",
-            color = Color.Gray,
-            fontSize = 14.sp
-        )
+    Scaffold(
+        topBar = {
+            Text(
+                text = "Game Hub",
+                color = Color.White,
+                fontSize = 36.sp,
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+            )
+        }
+    ) { padding->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .background(Color(0xFF1E1E1E))
+                .verticalScroll(rememberScrollState())
+                ,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Text(
+                text = "Choose Your Adventure",
+                color = Color.Gray,
+                fontSize = 18.sp,
+                modifier = Modifier
+            )
+
+            // Game selection cards
+            GameCard(
+                title = "Pixel Collector",
+                description = "Collect green pixels while avoiding red obstacles!",
+                color = Color(0xFF4CAF50),
+                onClick = { onGameSelected(GameType.PIXEL_COLLECTOR) }
+            )
+
+            GameCard(
+                title = "Base Defender",
+                description = "Defend your base! Aim and shoot at incoming enemies!",
+                color = Color(0xFFFF5722),
+                onClick = { onGameSelected(GameType.BASE_DEFENDER) }
+            )
+
+            GameCard(
+                title = "Memory Match",
+                description = "Find matching pairs of gaming cards!",
+                color = Color(0xFF2196F3),
+                onClick = { onGameSelected(GameType.MEMORY_MATCH) }
+            )
+
+            GameCard(
+                title = "Rhythm Runner",
+                description = "Run, jump, and collect to the beat!",
+                color = Color(0xFF9C27B0),
+                onClick = { onGameSelected(GameType.RHYTHM_RUNNER) }
+            )
+
+            GameCard(
+                title = "Number Cruncher",
+                description = "Combine numbers to reach the target!",
+                color = Color(0xFFFF6B6B),
+                onClick = { onGameSelected(GameType.NUMBER_CRUNCHER) }
+            )
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+        }
     }
+
 }
 
 @Composable
@@ -160,7 +192,7 @@ fun GameCard(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
-                
+                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(

@@ -35,6 +35,24 @@
             android:exported="false"
             android:label="Base Defender"
             android:theme="@style/Theme.Game" />
+            
+        <activity
+            android:name=".memorymatch.MemoryMatchGame"
+            android:exported="false"
+            android:label="Memory Match"
+            android:theme="@style/Theme.Game" />
+            
+        <activity
+            android:name=".rhythmrunner.RhythmRunnerGame"
+            android:exported="false"
+            android:label="Rhythm Runner"
+            android:theme="@style/Theme.Game" />
+            
+        <activity
+            android:name=".numbercruncher.NumberCruncherGame"
+            android:exported="false"
+            android:label="Number Cruncher"
+            android:theme="@style/Theme.Game" />
     </application>
 
 </manifest>
