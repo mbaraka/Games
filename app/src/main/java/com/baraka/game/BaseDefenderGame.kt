@@ -333,6 +333,7 @@ data class BaseDefenderGameState(
     val damageLevel: Int = 1,
     val fireRateLevel: Int = 1,
     val projectileSpeedLevel: Int = 1,
+    val multiBaseLevel: Int = 1,
     val currentWeapon: WeaponType = WeaponType.BASIC,
     val waveAnnouncement: String = "",
     val announcementTimer: Int = 0,
@@ -477,44 +478,76 @@ data class BaseDefenderGameState(
     fun handleTap(offset: Offset, canvasHeight: Float): BaseDefenderGameState {
         if (gameStatus != GameStatus.PLAYING) return this
 
-        // Calculate dynamic base position for shooting using actual canvas height
-        val basePosition = player.getPosition(canvasHeight)
-
         val newProjectiles = mutableListOf<Projectile>()
 
+        // Calculate positions for all active bases
+        val basePositions = getBasePositions(canvasHeight)
+
         if (megaShotAvailable) {
-            // Mega shot: one powerful projectile
-            val megaProjectile =
-                player.copy(position = basePosition).shoot(offset, damageLevel * 3, projectileSpeedLevel, currentWeapon)
-            newProjectiles.add(megaProjectile)
-            return copy(
-                projectiles = projectiles + newProjectiles,
-                megaShotAvailable = false,
-                totalProjectilesFired = totalProjectilesFired + 1
-            )
-        } else if (rapidFireActive) {
-            // Rapid fire: shoot 3 projectiles
-            repeat(3) { index ->
-                val spread = (index - 1) * 0.1f // Small spread
-                val spreadOffset = offset.copy(x = offset.x + (spread * 50f))
-                val projectile =
-                    player.copy(position = basePosition).shoot(spreadOffset, damageLevel, projectileSpeedLevel, currentWeapon)
-                newProjectiles.add(projectile)
+            // Mega shot: one powerful projectile from each base
+            basePositions.forEach { basePosition ->
+                val megaProjectile =
+                    player.copy(position = basePosition).shoot(offset, damageLevel * 3, projectileSpeedLevel, currentWeapon)
+                newProjectiles.add(megaProjectile)
             }
             return copy(
                 projectiles = projectiles + newProjectiles,
-                totalProjectilesFired = totalProjectilesFired + 3
+                megaShotAvailable = false,
+                totalProjectilesFired = totalProjectilesFired + basePositions.size
             )
-        } else {
-            // Normal shot
-            val newProjectile =
-                player.copy(position = basePosition).shoot(offset, damageLevel, projectileSpeedLevel, currentWeapon)
-            newProjectiles.add(newProjectile)
+        } else if (rapidFireActive) {
+            // Rapid fire: shoot 3 projectiles from each base
+            basePositions.forEach { basePosition ->
+                repeat(3) { index ->
+                    val spread = (index - 1) * 0.1f // Small spread
+                    val spreadOffset = offset.copy(x = offset.x + (spread * 50f))
+                    val projectile =
+                        player.copy(position = basePosition).shoot(spreadOffset, damageLevel, projectileSpeedLevel, currentWeapon)
+                    newProjectiles.add(projectile)
+                }
+            }
             return copy(
                 projectiles = projectiles + newProjectiles,
-                totalProjectilesFired = totalProjectilesFired + 1
+                totalProjectilesFired = totalProjectilesFired + (basePositions.size * 3)
+            )
+        } else {
+            // Normal shot: one projectile from each base
+            basePositions.forEach { basePosition ->
+                val newProjectile =
+                    player.copy(position = basePosition).shoot(offset, damageLevel, projectileSpeedLevel, currentWeapon)
+                newProjectiles.add(newProjectile)
+            }
+            return copy(
+                projectiles = projectiles + newProjectiles,
+                totalProjectilesFired = totalProjectilesFired + basePositions.size
             )
         }
+    }
+
+    private fun getBasePositions(canvasHeight: Float): List<Offset> {
+        val positions = mutableListOf<Offset>()
+        
+        when (multiBaseLevel) {
+            1 -> {
+                // Single base at center
+                positions.add(Offset(200f, canvasHeight - player.size - 10f))
+            }
+            2 -> {
+                // Two bases: left and right
+                val baseY = canvasHeight - player.size - 10f
+                positions.add(Offset(120f, baseY))  // Left base
+                positions.add(Offset(280f, baseY))  // Right base
+            }
+            3 -> {
+                // Three bases: left, center, right
+                val baseY = canvasHeight - player.size - 10f
+                positions.add(Offset(120f, baseY))  // Left base
+                positions.add(Offset(200f, baseY))  // Center base
+                positions.add(Offset(280f, baseY))  // Right base
+            }
+        }
+        
+        return positions
     }
 
     fun switchWeapon(weaponType: WeaponType): BaseDefenderGameState {
@@ -535,6 +568,7 @@ data class BaseDefenderGameState(
             damageLevel = 1,
             fireRateLevel = 1,
             projectileSpeedLevel = 1,
+            multiBaseLevel = 1,
             currentWeapon = WeaponType.BASIC,
             waveAnnouncement = "",
             announcementTimer = 0,
@@ -596,9 +630,9 @@ data class BaseDefenderGameState(
     }
 
     fun draw(drawScope: DrawScope) {
-        // Get dynamic base position based on canvas height
+        // Get dynamic base positions based on canvas height
         val canvasHeight = drawScope.size.height
-        val dynamicPlayer = player.copy(position = player.getPosition(canvasHeight))
+        val basePositions = getBasePositions(canvasHeight)
         
         // Apply screen shake offset
         val shakeOffset = Offset(
@@ -610,7 +644,12 @@ data class BaseDefenderGameState(
         drawScope.withTransform({
             translate(shakeOffset.x, shakeOffset.y)
         }) {
-            dynamicPlayer.draw(drawScope)
+            // Draw all bases
+            basePositions.forEach { position ->
+                val dynamicPlayer = player.copy(position = position)
+                dynamicPlayer.draw(drawScope)
+            }
+            
             enemies.forEach { it.draw(drawScope) }
             projectiles.forEach { it.draw(drawScope) }
             powerUps.forEach { it.draw(drawScope) }
@@ -671,6 +710,13 @@ data class BaseDefenderGameState(
                 if (money >= 120) copy(
                     projectileSpeedLevel = projectileSpeedLevel + 1,
                     money = money - 120
+                ) else this
+            }
+
+            UpgradeType.MULTI_BASE -> {
+                if (money >= 200 && multiBaseLevel < 3) copy(
+                    multiBaseLevel = multiBaseLevel + 1,
+                    money = money - 200
                 ) else this
             }
         }
@@ -749,40 +795,49 @@ data class BaseDefenderGameState(
         var powerUpEffects = PowerUpEffects()
 
         powerUps.forEach { powerUp ->
-            // Check if power-up is near player (simplified collision)
-            val playerBounds = Rect(player.position, Size(40f, 40f))
-            if (powerUp.bounds.overlaps(playerBounds)) {
-                // Apply power-up effect
-                powerUpEffects = when (powerUp.powerUpType) {
-                    PowerUpType.RAPID_FIRE -> PowerUpEffects(
-                        rapidFireActive = true,
-                        shieldActive = false,
-                        timeSlowActive = false,
-                        megaShotAvailable = false
-                    )
+            // Check if power-up is near any of the player bases (simplified collision)
+            var powerUpCollected = false
+            val basePositions = getBasePositions(400f) // Use default canvas height for collision detection
+            
+            for (basePosition in basePositions) {
+                val playerBounds = Rect(basePosition, Size(40f, 40f))
+                if (powerUp.bounds.overlaps(playerBounds)) {
+                    powerUpCollected = true
+                    // Apply power-up effect
+                    powerUpEffects = when (powerUp.powerUpType) {
+                        PowerUpType.RAPID_FIRE -> PowerUpEffects(
+                            rapidFireActive = true,
+                            shieldActive = false,
+                            timeSlowActive = false,
+                            megaShotAvailable = false
+                        )
 
-                    PowerUpType.SHIELD -> PowerUpEffects(
-                        rapidFireActive = false,
-                        shieldActive = true,
-                        timeSlowActive = false,
-                        megaShotAvailable = false
-                    )
+                        PowerUpType.SHIELD -> PowerUpEffects(
+                            rapidFireActive = false,
+                            shieldActive = true,
+                            timeSlowActive = false,
+                            megaShotAvailable = false
+                        )
 
-                    PowerUpType.TIME_SLOW -> PowerUpEffects(
-                        rapidFireActive = false,
-                        shieldActive = false,
-                        timeSlowActive = true,
-                        megaShotAvailable = false
-                    )
+                        PowerUpType.TIME_SLOW -> PowerUpEffects(
+                            rapidFireActive = false,
+                            shieldActive = false,
+                            timeSlowActive = true,
+                            megaShotAvailable = false
+                        )
 
-                    PowerUpType.MEGA_SHOT -> PowerUpEffects(
-                        rapidFireActive = false,
-                        shieldActive = false,
-                        timeSlowActive = false,
-                        megaShotAvailable = true
-                    )
+                        PowerUpType.MEGA_SHOT -> PowerUpEffects(
+                            rapidFireActive = false,
+                            shieldActive = false,
+                            timeSlowActive = false,
+                            megaShotAvailable = true
+                        )
+                    }
+                    break
                 }
-            } else {
+            }
+            
+            if (!powerUpCollected) {
                 remainingPowerUps.add(powerUp)
             }
         }
@@ -1271,6 +1326,17 @@ fun UpgradeShopOverlay(
             }
 
             item {
+                UpgradeOption(
+                    title = "Multi Base",
+                    description = "Add another base (${gameState.multiBaseLevel}/3)",
+                    cost = 200,
+                    currentLevel = gameState.multiBaseLevel,
+                    onUpgrade = { onUpgrade(UpgradeType.MULTI_BASE) },
+                    enabled = gameState.money >= 200 && gameState.multiBaseLevel < 3
+                )
+            }
+
+            item {
                 Button(
                     onClick = onClose,
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
@@ -1350,7 +1416,7 @@ fun UpgradeOption(
 }
 
 enum class UpgradeType {
-    DAMAGE, FIRE_RATE, PROJECTILE_SPEED
+    DAMAGE, FIRE_RATE, PROJECTILE_SPEED, MULTI_BASE
 }
 
 enum class WeaponType {
