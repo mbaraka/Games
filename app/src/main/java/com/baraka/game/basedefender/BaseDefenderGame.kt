@@ -330,6 +330,25 @@ fun BaseDefenderGameScreen() {
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
+            
+            // Debug collision status
+            item {
+                val collisionStatus = if (gameState.enemies.any { enemy ->
+                    val basePositions = gameState.getBasePositions(400f)
+                    basePositions.any { basePos ->
+                        val baseBounds = Rect(basePos, Size(40f, 40f))
+                        enemy.bounds.overlaps(baseBounds)
+                    }
+                }) "⚠️ COLLISION DETECTED! ⚠️" else "✅ No Collision"
+                
+                Text(
+                    text = collisionStatus,
+                    color = if (collisionStatus.contains("COLLISION")) Color.Red else Color.Green,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
 
 
             // Upgrade Shop Overlay
@@ -394,12 +413,14 @@ data class BaseDefenderGameState(
         if (gameStatus != GameStatus.PLAYING) return this
 
         val newGameTime = gameTime + 1
+        // Use the actual canvas height from the UI (400dp converted to pixels)
+        val actualCanvasHeight = 400f
         val newEnemies =
-            enemies.map { it.update(timeSlowActive) }.filter { it.position.y < canvasHeight }
+            enemies.map { it.update(timeSlowActive) }.filter { it.position.y < actualCanvasHeight }
         val newProjectiles = projectiles.map { it.update() }.filter { it.position.y > 0f }
 
         // Update power-ups (remove ones that are off-screen)
-        val newPowerUps = powerUps.filter { it.position.y < canvasHeight }
+        val newPowerUps = powerUps.filter { it.position.y < actualCanvasHeight }
 
         // Update particles and effects
         val updatedParticles = particles.mapNotNull { it.update() }
@@ -425,17 +446,19 @@ data class BaseDefenderGameState(
         )
 
         // Check if enemies reached any base using proper collision detection
-        val basePositions = getBasePositions(canvasHeight)
+        val basePositions = getBasePositions(actualCanvasHeight)
         val enemiesAtBase = finalEnemies.count { enemy ->
             basePositions.any { basePos ->
                 // Check if enemy bounds overlap with any base bounds
                 val baseBounds = Rect(basePos, Size(player.size, player.size))
                 val overlaps = enemy.bounds.overlaps(baseBounds)
-                // Debug: Log collision detection
-                if (overlaps) {
-                    println("DEBUG: Enemy at ${enemy.position} hit base at $basePos")
-                    println("DEBUG: Enemy bounds: ${enemy.bounds}, Base bounds: $baseBounds")
-                }
+                        // Debug: Log collision detection
+        if (overlaps) {
+            println("DEBUG: Enemy at ${enemy.position} hit base at $basePos")
+            println("DEBUG: Enemy bounds: ${enemy.bounds}, Base bounds: $baseBounds")
+            // Add visual debugging - make the enemy flash red when collision detected
+            return@any true
+        }
                 overlaps
             }
         }
@@ -589,7 +612,7 @@ data class BaseDefenderGameState(
         }
     }
 
-    private fun getBasePositions(canvasHeight: Float): List<Offset> {
+    fun getBasePositions(canvasHeight: Float): List<Offset> {
         val positions = mutableListOf<Offset>()
 
         // Calculate base positions dynamically based on canvas width
@@ -711,13 +734,20 @@ data class BaseDefenderGameState(
         val canvasHeight = drawScope.size.height
         val basePositions = getBasePositions(canvasHeight)
 
-        // Debug: Draw base count indicator
+        // Debug: Draw collision status indicator
+        val collisionStatus = if (enemies.any { enemy ->
+            basePositions.any { basePos ->
+                val baseBounds = Rect(basePos, Size(player.size, player.size))
+                enemy.bounds.overlaps(baseBounds)
+            }
+        }) "COLLISION DETECTED!" else "No Collision"
+        
+        // Draw debug background
         drawScope.drawRect(
-            color = Color.Red.copy(alpha = 0.7f),
+            color = if (collisionStatus == "COLLISION DETECTED!") Color.Red.copy(alpha = 0.7f) else Color.Green.copy(alpha = 0.7f),
             topLeft = Offset(10f, 10f),
-            size = Size(100f, 30f)
+            size = Size(150f, 30f)
         )
-        // Note: We can't draw text directly in DrawScope, so we'll use the UI text above
 
         // Apply screen shake offset
         val shakeOffset = Offset(
@@ -956,7 +986,7 @@ data class BaseDefenderGameState(
             // Check if power-up is near any of the player bases (simplified collision)
             var powerUpCollected = false
             val basePositions =
-                getBasePositions(400f) // Use default canvas height for collision detection
+                getBasePositions(400f) // Use actual canvas height for collision detection
 
             for (basePosition in basePositions) {
                 val playerBounds = Rect(basePosition, Size(40f, 40f))
@@ -1698,33 +1728,6 @@ data class PowerUp(
     }
 }
 
-@Composable
-fun WeaponButton(
-    weaponType: WeaponType,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val (text, color) = when (weaponType) {
-        WeaponType.BASIC -> Pair("Basic", Color.Yellow)
-        WeaponType.FIRE -> Pair("Fire", Color.Red)
-        WeaponType.ICE -> Pair("Ice", Color.Cyan)
-        WeaponType.EXPLOSIVE -> Pair("Expl", Color(0xFFFF9800))
-    }
-
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) color else Color.Gray
-        ),
-        modifier = Modifier.size(60.dp)
-    ) {
-        Text(
-            text = text,
-            fontSize = 10.sp,
-            color = if (isSelected) Color.White else Color.Black
-        )
-    }
-}
 
 @Composable
 fun PowerUpStatusButton(
