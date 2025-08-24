@@ -23,7 +23,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -980,8 +982,12 @@ data class BaseDefenderGameState(
             }
         }
 
-        // Add enemies that weren't hit by projectiles (they're already handled above)
-        // Note: Damaged enemies are already added to remainingEnemies in the projectile collision section
+        // Add enemies that weren't hit by projectiles
+        enemies.forEach { enemy ->
+            if (!projectiles.any { it.bounds.overlaps(enemy.bounds) }) {
+                remainingEnemies.add(enemy)
+            }
+        }
 
         // Check power-up collection (simplified - player always collects power-ups)
         val remainingPowerUps = mutableListOf<PowerUp>()
@@ -1834,6 +1840,7 @@ fun VictoryOverlay(gameState: BaseDefenderGameState) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp)
+                .verticalScroll(rememberScrollState())
                 .background(Color(0xFF2D2D2D), RoundedCornerShape(16.dp)),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
