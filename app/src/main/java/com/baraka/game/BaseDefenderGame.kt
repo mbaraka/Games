@@ -392,9 +392,15 @@ data class BaseDefenderGameState(
             updatedEnemies, newProjectiles, updatedPowerUps, score, money, lives
         )
 
-        // Check if enemies reached base using dynamic positioning
-        val baseY = canvasHeight - player.size - 10f // Calculate base Y position dynamically
-        val enemiesAtBase = finalEnemies.count { it.position.y >= baseY }
+        // Check if enemies reached any base using proper collision detection
+        val basePositions = getBasePositions(canvasHeight)
+        val enemiesAtBase = finalEnemies.count { enemy ->
+            basePositions.any { basePos ->
+                // Check if enemy bounds overlap with any base bounds
+                val baseBounds = Rect(basePos, Size(player.size, player.size))
+                enemy.bounds.overlaps(baseBounds)
+            }
+        }
         
         // Apply shield protection if active
         val finalLives = if (shieldActive) {
@@ -403,7 +409,13 @@ data class BaseDefenderGameState(
             newLives - enemiesAtBase
         }
         
-        val finalEnemiesAfterBase = finalEnemies.filter { it.position.y < baseY }
+        // Remove enemies that hit any base
+        val finalEnemiesAfterBase = finalEnemies.filter { enemy ->
+            !basePositions.any { basePos ->
+                val baseBounds = Rect(basePos, Size(player.size, player.size))
+                enemy.bounds.overlaps(baseBounds)
+            }
+        }
 
         // Add screen shake when enemies reach base (only if shield is not active)
         val baseShake = if (enemiesAtBase > 0 && !shieldActive) 3f * enemiesAtBase else 0f
