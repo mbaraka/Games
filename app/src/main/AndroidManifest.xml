@@ -57,7 +57,7 @@
         <activity
             android:name=".zombie.ZombieGame"
             android:exported="false"
-            android:label="Rhythm Runner"
+            android:label="Zombie Survival"
             android:theme="@style/Theme.Game" />
     </application>
 

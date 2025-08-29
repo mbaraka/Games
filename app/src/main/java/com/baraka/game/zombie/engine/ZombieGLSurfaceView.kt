@@ -19,8 +19,8 @@ class ZombieGLSurfaceView @JvmOverloads constructor(
     }
     
     private fun setupOpenGL() {
-        // Configure OpenGL ES 2.0
-        setEGLContextClientVersion(2)
+        // Configure OpenGL ES 1.0 (compatible with our current engine)
+        setEGLContextClientVersion(1)
         
         // Set renderer
         val renderer = ZombieGLRenderer()
@@ -29,7 +29,7 @@ class ZombieGLSurfaceView @JvmOverloads constructor(
         // Configure rendering
         renderMode = RENDERMODE_CONTINUOUSLY
         
-        // Initialize the engine (but don't create OpenGL components yet)
+        // Initialize the engine
         zombieEngine = Zombie3DEngine()
         zombieEngine.create()
     }
@@ -51,18 +51,15 @@ class ZombieGLSurfaceView @JvmOverloads constructor(
     // Custom renderer
     private inner class ZombieGLRenderer : Renderer {
         override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-            // Surface created - now it's safe to initialize LibGDX OpenGL components
-            zombieEngine.onSurfaceCreated()
+            gl?.let { zombieEngine.onSurfaceCreated(it) }
         }
         
         override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
-            // Surface changed - update viewport
-            zombieEngine.resize(width, height)
+            gl?.let { zombieEngine.resize(it, width, height) }
         }
         
         override fun onDrawFrame(gl: GL10?) {
-            // Render frame
-            zombieEngine.render()
+            gl?.let { zombieEngine.render(it) }
         }
     }
 }

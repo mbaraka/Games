@@ -1,20 +1,14 @@
 package com.baraka.game.zombie.engine
 
 import android.view.MotionEvent
-import com.badlogic.gdx.ApplicationAdapter
-import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.graphics.GL20
-import com.badlogic.gdx.graphics.OrthographicCamera
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer
-import com.badlogic.gdx.math.Vector3
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.FloatBuffer
+import javax.microedition.khronos.opengles.GL10
 import kotlin.math.cos
 import kotlin.math.sin
 
-class Zombie3DEngine : ApplicationAdapter() {
-    
-    // Basic rendering
-    private var shapeRenderer: ShapeRenderer? = null
-    private var camera: OrthographicCamera? = null
+class Zombie3DEngine {
     
     // Game state
     private var playerX = 0f
@@ -28,63 +22,148 @@ class Zombie3DEngine : ApplicationAdapter() {
     private var lastTouchY = 0f
     private var touchSensitivity = 0.5f
     
-    // Initialization state
-    private var isInitialized = false
+    // OpenGL state
+    private var initialized = false
     
-    override fun create() {
-        // Don't initialize OpenGL components here - wait for onSurfaceCreated
-        // This will be called by the renderer when OpenGL context is ready
+    // Vertex buffers
+    private lateinit var groundVertices: FloatBuffer
+    private lateinit var playerVertices: FloatBuffer
+    
+    fun create() {
+        // Mark as initialized - OpenGL context will be set up in onSurfaceCreated
+        initialized = true
     }
     
-    fun onSurfaceCreated() {
-        if (!isInitialized) {
-            // Initialize basic rendering only when OpenGL context is ready
-            shapeRenderer = ShapeRenderer()
+    fun onSurfaceCreated(gl: GL10) {
+        // Set up OpenGL state
+        gl.glClearColor(0.2f, 0.2f, 0.2f, 1.0f)
+        gl.glEnable(GL10.GL_DEPTH_TEST)
+        gl.glDepthFunc(GL10.GL_LEQUAL)
+        
+        // Create vertex buffers
+        createVertexBuffers()
+    }
+    
+    private fun createVertexBuffers() {
+        // Ground vertices (simple quad)
+        val groundData = floatArrayOf(
+            -25f, 0f, -25f,  // bottom left
+            25f, 0f, -25f,   // bottom right
+            25f, 0f, 25f,    // top right
+            -25f, 0f, 25f    // top left
+        )
+        
+        groundVertices = ByteBuffer.allocateDirect(groundData.size * 4)
+            .order(ByteOrder.nativeOrder())
+            .asFloatBuffer()
+        groundVertices.put(groundData)
+        groundVertices.position(0)
+        
+        // Player vertices (simple cube)
+        val size = 0.5f
+        val playerData = floatArrayOf(
+            // Front face
+            -size, 0f, -size,
+            size, 0f, -size,
+            size, size * 2, -size,
+            -size, size * 2, -size,
             
-            // Setup camera (2D view for now, we'll upgrade to 3D later)
-            camera = OrthographicCamera()
-            camera?.setToOrtho(false, 800f, 600f) // Default size, will be updated in resize
-            camera?.update()
+            // Back face
+            -size, 0f, size,
+            size, 0f, size,
+            size, size * 2, size,
+            -size, size * 2, size,
             
-            isInitialized = true
+            // Left face
+            -size, 0f, -size,
+            -size, 0f, size,
+            -size, size * 2, size,
+            -size, size * 2, -size,
+            
+            // Right face
+            size, 0f, -size,
+            size, 0f, size,
+            size, size * 2, size,
+            size, size * 2, -size,
+            
+            // Top face
+            -size, size * 2, -size,
+            size, size * 2, -size,
+            size, size * 2, size,
+            -size, size * 2, size
+        )
+        
+        playerVertices = ByteBuffer.allocateDirect(playerData.size * 4)
+            .order(ByteOrder.nativeOrder())
+            .asFloatBuffer()
+        playerVertices.put(playerData)
+        playerVertices.position(0)
+    }
+    
+    fun render(gl: GL10) {
+        if (!initialized) return
+        
+        // Clear buffers
+        gl.glClear(GL10.GL_COLOR_BUFFER_BIT or GL10.GL_DEPTH_BUFFER_BIT)
+        
+        // Reset modelview matrix
+        gl.glMatrixMode(GL10.GL_MODELVIEW)
+        gl.glLoadIdentity()
+        
+        // Apply camera transformations
+        gl.glRotatef(-cameraRotationX, 1f, 0f, 0f)
+        gl.glRotatef(-cameraRotationY, 0f, 1f, 0f)
+        gl.glTranslatef(-playerX, -playerY, -playerZ)
+        
+        // Draw ground
+        drawGround(gl)
+        
+        // Draw player
+        drawPlayer(gl)
+    }
+    
+    private fun drawGround(gl: GL10) {
+        gl.glColor4f(0.5f, 0.5f, 0.5f, 1.0f)
+        
+        gl.glEnableClientState(GL10.GL_VERTEX_ARRAY)
+        gl.glVertexPointer(3, GL10.GL_FLOAT, 0, groundVertices)
+        gl.glDrawArrays(GL10.GL_TRIANGLE_FAN, 0, 4)
+        gl.glDisableClientState(GL10.GL_VERTEX_ARRAY)
+        
+        gl.glColor4f(1.0f, 1.0f, 1.0f, 1.0f) // Reset color
+    }
+    
+    private fun drawPlayer(gl: GL10) {
+        gl.glColor4f(0.0f, 0.0f, 1.0f, 1.0f)
+        
+        gl.glEnableClientState(GL10.GL_VERTEX_ARRAY)
+        gl.glVertexPointer(3, GL10.GL_FLOAT, 0, playerVertices)
+        
+        // Draw each face of the cube
+        for (i in 0 until 5) {
+            gl.glDrawArrays(GL10.GL_TRIANGLE_FAN, i * 4, 4)
         }
+        
+        gl.glDisableClientState(GL10.GL_VERTEX_ARRAY)
+        gl.glColor4f(1.0f, 1.0f, 1.0f, 1.0f) // Reset color
     }
     
-    override fun render() {
-        if (!isInitialized || shapeRenderer == null || camera == null) return
+    fun resize(gl: GL10, width: Int, height: Int) {
+        gl.glViewport(0, 0, width, height)
         
-        // Clear screen
-        Gdx.gl.glClearColor(0.2f, 0.2f, 0.2f, 1f)
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT)
+        gl.glMatrixMode(GL10.GL_PROJECTION)
+        gl.glLoadIdentity()
         
-        // Update camera
-        camera?.update()
-        shapeRenderer?.projectionMatrix = camera?.combined
+        // Set up perspective projection
+        val aspect = width.toFloat() / height.toFloat()
+        gl.glFrustumf(-aspect, aspect, -1f, 1f, 1f, 100f)
         
-        // Begin rendering
-        shapeRenderer?.begin(ShapeRenderer.ShapeType.Filled)
-        
-        // Draw ground (simple rectangle)
-        shapeRenderer?.setColor(0.5f, 0.5f, 0.5f, 1f)
-        shapeRenderer?.rect(-25f, -25f, 50f, 50f)
-        
-        // Draw player (simple rectangle)
-        shapeRenderer?.setColor(0f, 0f, 1f, 1f)
-        shapeRenderer?.rect(playerX - 0.5f, playerY - 0.5f, 1f, 2f)
-        
-        shapeRenderer?.end()
+        gl.glMatrixMode(GL10.GL_MODELVIEW)
+        gl.glLoadIdentity()
     }
     
-    override fun resize(width: Int, height: Int) {
-        if (camera != null) {
-            camera?.setToOrtho(false, width.toFloat(), height.toFloat())
-            camera?.update()
-        }
-    }
-    
-    override fun dispose() {
-        shapeRenderer?.dispose()
-        isInitialized = false
+    fun dispose() {
+        initialized = false
     }
     
     // Touch controls for mobile
@@ -141,5 +220,5 @@ class Zombie3DEngine : ApplicationAdapter() {
     fun getPlayerPosition(): Triple<Float, Float, Float> = Triple(playerX, playerY, playerZ)
     
     // Check if engine is ready
-    fun isReady(): Boolean = isInitialized
+    fun isReady(): Boolean = initialized
 }
