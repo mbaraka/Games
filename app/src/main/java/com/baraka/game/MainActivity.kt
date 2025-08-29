@@ -23,6 +23,7 @@ import com.baraka.game.basedefender.BaseDefenderGame
 import com.baraka.game.memorymatch.MemoryMatchGame
 import com.baraka.game.rhythmrunner.RhythmRunnerGame
 import com.baraka.game.numbercruncher.NumberCruncherGame
+import com.baraka.game.zombie.ZombieGame
 import com.baraka.game.ui.theme.GameTheme
 
 class MainActivity : ComponentActivity() {
@@ -54,6 +55,10 @@ class MainActivity : ComponentActivity() {
                                 val intent = Intent(this, NumberCruncherGame::class.java)
                                 startActivity(intent)
                             }
+                            GameType.ZOMBIE_SURVIVAL -> {
+                                val intent = Intent(this, ZombieGame::class.java)
+                                startActivity(intent)
+                            }
                         }
                     }
                 )
@@ -67,7 +72,8 @@ enum class GameType {
     BASE_DEFENDER,
     MEMORY_MATCH,
     RHYTHM_RUNNER,
-    NUMBER_CRUNCHER
+    NUMBER_CRUNCHER,
+    ZOMBIE_SURVIVAL
 }
 
 @Composable
@@ -137,6 +143,13 @@ fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
                 description = "Combine numbers to reach the target!",
                 color = Color(0xFFFF6B6B),
                 onClick = { onGameSelected(GameType.NUMBER_CRUNCHER) }
+            )
+
+            GameCard(
+                title = "Zombie Survival",
+                description = "3D FPS - Survive zombie waves, upgrade weapons!",
+                color = Color(0xFF8B0000),
+                onClick = { onGameSelected(GameType.ZOMBIE_SURVIVAL) }
             )
 
             Spacer(modifier = Modifier.height(48.dp))

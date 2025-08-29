@@ -53,6 +53,12 @@
             android:exported="false"
             android:label="Number Cruncher"
             android:theme="@style/Theme.Game" />
+
+        <activity
+            android:name=".zombie.ZombieGame"
+            android:exported="false"
+            android:label="Rhythm Runner"
+            android:theme="@style/Theme.Game" />
     </application>
 
 </manifest>
