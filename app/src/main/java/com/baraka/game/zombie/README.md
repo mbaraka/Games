@@ -40,10 +40,10 @@
 - [x] Test player movement
 
 ### TASK 4: Basic Environment
-- [ ] Create simple building structures
-- [ ] Add walls and obstacles
+- [x] Create simple building structures
+- [x] Add walls and obstacles
 - [ ] Implement collision detection
-- [ ] Test environment interaction
+- [x] Test environment interaction
 
 ### TASK 5: Zombie System - Part 1
 - [ ] Create zombie placeholder models
@@ -119,10 +119,10 @@ zombie/
 ```
 
 ## Progress Tracking
-**Current Task:** TASK 4 - Basic Environment
-**Completion:** 3/12 tasks complete
-**Next Milestone:** Add buildings, obstacles, and collision detection
-**Recent Achievement:** TASK 3 COMPLETE! 3D engine working, player visible, camera controls functional!
+**Current Task:** TASK 5 - Zombie System - Part 1
+**Completion:** 4/12 tasks complete
+**Next Milestone:** Create zombie models, implement spawning and basic AI
+**Recent Achievement:** TASK 4 COMPLETE! 3D environment with buildings and walls working!
 
 ## Notes
 - Focus on mobile-friendly controls first
