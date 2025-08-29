@@ -253,10 +253,9 @@ class Zombie3DEngine {
         gl.glMatrixMode(GL10.GL_MODELVIEW)
         gl.glLoadIdentity()
         
-        // Apply camera transformations (positioned much further back and higher for better overview)
-        gl.glRotatef(-cameraRotationX, 1f, 0f, 0f)
-        gl.glRotatef(-cameraRotationY, 0f, 1f, 0f)
-        gl.glTranslatef(-playerX, -(playerY + 8f), -(playerZ + 20f))
+        // Apply camera transformations (eagle's eye view - directly above player looking down)
+        gl.glRotatef(-90f, 1f, 0f, 0f) // Rotate 90 degrees to look straight down
+        gl.glTranslatef(-playerX, -(playerY + 25f), -playerZ) // 25 units above, no offset behind
         
         // Draw ground
         drawGround(gl)
