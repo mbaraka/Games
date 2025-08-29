@@ -28,6 +28,8 @@ class Zombie3DEngine {
     // Vertex buffers
     private lateinit var groundVertices: FloatBuffer
     private lateinit var playerVertices: FloatBuffer
+    private lateinit var buildingVertices: FloatBuffer
+    private lateinit var wallVertices: FloatBuffer
     
     fun create() {
         // Mark as initialized - OpenGL context will be set up in onSurfaceCreated
@@ -42,6 +44,7 @@ class Zombie3DEngine {
         
         // Create vertex buffers
         createVertexBuffers()
+        createEnvironmentVertices()
     }
     
     private fun createVertexBuffers() {
@@ -100,6 +103,89 @@ class Zombie3DEngine {
         playerVertices.position(0)
     }
     
+    private fun createEnvironmentVertices() {
+        // Building vertices (simple cube)
+        val buildingSize = 3f
+        val buildingData = floatArrayOf(
+            // Front face
+            -buildingSize, 0f, -buildingSize,
+            buildingSize, 0f, -buildingSize,
+            buildingSize, buildingSize * 2, -buildingSize,
+            -buildingSize, buildingSize * 2, -buildingSize,
+            
+            // Back face
+            -buildingSize, 0f, buildingSize,
+            buildingSize, 0f, buildingSize,
+            buildingSize, buildingSize * 2, buildingSize,
+            -buildingSize, buildingSize * 2, buildingSize,
+            
+            // Left face
+            -buildingSize, 0f, -buildingSize,
+            -buildingSize, 0f, buildingSize,
+            -buildingSize, buildingSize * 2, buildingSize,
+            -buildingSize, buildingSize * 2, -buildingSize,
+            
+            // Right face
+            buildingSize, 0f, -buildingSize,
+            buildingSize, 0f, buildingSize,
+            buildingSize, buildingSize * 2, buildingSize,
+            buildingSize, buildingSize * 2, -buildingSize,
+            
+            // Top face
+            -buildingSize, buildingSize * 2, -buildingSize,
+            buildingSize, buildingSize * 2, -buildingSize,
+            buildingSize, buildingSize * 2, buildingSize,
+            -buildingSize, buildingSize * 2, buildingSize
+        )
+        
+        buildingVertices = ByteBuffer.allocateDirect(buildingData.size * 4)
+            .order(ByteOrder.nativeOrder())
+            .asFloatBuffer()
+        buildingVertices.put(buildingData)
+        buildingVertices.position(0)
+        
+        // Wall vertices (simple barrier)
+        val wallHeight = 2f
+        val wallWidth = 1f
+        val wallData = floatArrayOf(
+            // Front face
+            -wallWidth, 0f, -wallWidth,
+            wallWidth, 0f, -wallWidth,
+            wallWidth, wallHeight, -wallWidth,
+            -wallWidth, wallHeight, -wallWidth,
+            
+            // Back face
+            -wallWidth, 0f, wallWidth,
+            wallWidth, 0f, wallWidth,
+            wallWidth, wallHeight, wallWidth,
+            -wallWidth, wallHeight, wallWidth,
+            
+            // Left face
+            -wallWidth, 0f, -wallWidth,
+            -wallWidth, 0f, wallWidth,
+            -wallWidth, wallHeight, wallWidth,
+            -wallWidth, wallHeight, -wallWidth,
+            
+            // Right face
+            wallWidth, 0f, -wallWidth,
+            wallWidth, 0f, wallWidth,
+            wallWidth, wallHeight, wallWidth,
+            wallWidth, wallHeight, -wallWidth,
+            
+            // Top face
+            -wallWidth, wallHeight, -wallWidth,
+            wallWidth, wallHeight, -wallWidth,
+            wallWidth, wallHeight, wallWidth,
+            -wallWidth, wallHeight, wallWidth
+        )
+        
+        wallVertices = ByteBuffer.allocateDirect(wallData.size * 4)
+            .order(ByteOrder.nativeOrder())
+            .asFloatBuffer()
+        wallVertices.put(wallData)
+        wallVertices.position(0)
+    }
+    
     fun render(gl: GL10) {
         if (!initialized) return
         
@@ -117,6 +203,9 @@ class Zombie3DEngine {
         
         // Draw ground
         drawGround(gl)
+        
+        // Draw environment objects
+        drawEnvironment(gl)
         
         // Draw player
         drawPlayer(gl)
@@ -146,6 +235,88 @@ class Zombie3DEngine {
         
         gl.glDisableClientState(GL10.GL_VERTEX_ARRAY)
         gl.glColor4f(1.0f, 1.0f, 1.0f, 1.0f) // Reset color
+    }
+    
+    private fun drawEnvironment(gl: GL10) {
+        // Draw buildings
+        gl.glColor4f(0.8f, 0.6f, 0.4f, 1.0f) // Brown color for buildings
+        
+        // Building 1 (north)
+        gl.glPushMatrix()
+        gl.glTranslatef(0f, 0f, -15f)
+        drawBuilding(gl)
+        gl.glPopMatrix()
+        
+        // Building 2 (east)
+        gl.glPushMatrix()
+        gl.glTranslatef(15f, 0f, 0f)
+        drawBuilding(gl)
+        gl.glPopMatrix()
+        
+        // Building 3 (south)
+        gl.glPushMatrix()
+        gl.glTranslatef(0f, 0f, 15f)
+        drawBuilding(gl)
+        gl.glPopMatrix()
+        
+        // Building 4 (west)
+        gl.glPushMatrix()
+        gl.glTranslatef(-15f, 0f, 0f)
+        drawBuilding(gl)
+        gl.glPopMatrix()
+        
+        // Draw walls/barriers
+        gl.glColor4f(0.7f, 0.7f, 0.7f, 1.0f) // Gray color for walls
+        
+        // Wall 1 (northeast)
+        gl.glPushMatrix()
+        gl.glTranslatef(8f, 0f, -8f)
+        drawWall(gl)
+        gl.glPopMatrix()
+        
+        // Wall 2 (southeast)
+        gl.glPushMatrix()
+        gl.glTranslatef(8f, 0f, 8f)
+        drawWall(gl)
+        gl.glPopMatrix()
+        
+        // Wall 3 (southwest)
+        gl.glPushMatrix()
+        gl.glTranslatef(-8f, 0f, 8f)
+        drawWall(gl)
+        gl.glPopMatrix()
+        
+        // Wall 4 (northwest)
+        gl.glPushMatrix()
+        gl.glTranslatef(-8f, 0f, -8f)
+        drawWall(gl)
+        gl.glPopMatrix()
+        
+        gl.glColor4f(1.0f, 1.0f, 1.0f, 1.0f) // Reset color
+    }
+    
+    private fun drawBuilding(gl: GL10) {
+        gl.glEnableClientState(GL10.GL_VERTEX_ARRAY)
+        gl.glVertexPointer(3, GL10.GL_FLOAT, 0, buildingVertices)
+        
+        // Draw each face of the building
+        for (i in 0 until 5) {
+            gl.glDrawArrays(GL10.GL_TRIANGLE_FAN, i * 4, 4)
+        }
+        
+        gl.glDisableClientState(GL10.GL_VERTEX_ARRAY)
+    }
+    
+    private fun drawWall(gl: GL10) {
+        gl.glEnableClientState(GL10.GL_VERTEX_ARRAY)
+        gl.glVertexPointer(3, GL10.GL_FLOAT, 0, wallVertices)
+        
+        // Draw each face of the wall
+        for (i in 0 until 5) {
+            gl.glDrawArrays(GL10.GL_TRIANGLE_FAN, i * 4, 4)
+        }
+        
+        gl.glDisableClientState(GL10.GL_VERTEX_ARRAY)
     }
     
     fun resize(gl: GL10, width: Int, height: Int) {
