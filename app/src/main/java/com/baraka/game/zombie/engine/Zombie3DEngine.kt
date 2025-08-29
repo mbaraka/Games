@@ -255,7 +255,7 @@ class Zombie3DEngine {
         
         // Apply camera transformations (eagle's eye view - directly above player looking down)
         gl.glRotatef(-90f, 1f, 0f, 0f) // Rotate 90 degrees to look straight down
-        gl.glTranslatef(-playerX, -(playerY + 25f), -playerZ) // 25 units above, no offset behind
+        gl.glTranslatef(-playerX, -(playerY + 8f), -playerZ) // 8 units above player (much closer)
         
         // Draw ground
         drawGround(gl)
@@ -384,9 +384,9 @@ class Zombie3DEngine {
         gl.glMatrixMode(GL10.GL_PROJECTION)
         gl.glLoadIdentity()
         
-        // Set up perspective projection with much wider view for better overview
+        // Set up perspective projection with much closer and wider view for better visibility
         val aspect = width.toFloat() / height.toFloat()
-        gl.glFrustumf(-aspect * 0.8f, aspect * 0.8f, -0.8f, 0.8f, 5f, 300f)
+        gl.glFrustumf(-aspect * 1.2f, aspect * 1.2f, -1.2f, 1.2f, 1f, 100f)
         
         gl.glMatrixMode(GL10.GL_MODELVIEW)
         gl.glLoadIdentity()
