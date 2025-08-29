@@ -110,10 +110,10 @@ class Zombie3DEngine {
         gl.glMatrixMode(GL10.GL_MODELVIEW)
         gl.glLoadIdentity()
         
-        // Apply camera transformations
+        // Apply camera transformations (positioned behind and above player)
         gl.glRotatef(-cameraRotationX, 1f, 0f, 0f)
         gl.glRotatef(-cameraRotationY, 0f, 1f, 0f)
-        gl.glTranslatef(-playerX, -playerY, -playerZ)
+        gl.glTranslatef(-playerX, -(playerY + 2f), -(playerZ + 5f))
         
         // Draw ground
         drawGround(gl)
@@ -154,9 +154,9 @@ class Zombie3DEngine {
         gl.glMatrixMode(GL10.GL_PROJECTION)
         gl.glLoadIdentity()
         
-        // Set up perspective projection
+        // Set up perspective projection with wider view
         val aspect = width.toFloat() / height.toFloat()
-        gl.glFrustumf(-aspect, aspect, -1f, 1f, 1f, 100f)
+        gl.glFrustumf(-aspect * 0.5f, aspect * 0.5f, -0.5f, 0.5f, 2f, 200f)
         
         gl.glMatrixMode(GL10.GL_MODELVIEW)
         gl.glLoadIdentity()
