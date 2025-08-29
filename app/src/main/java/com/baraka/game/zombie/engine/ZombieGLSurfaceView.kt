@@ -59,6 +59,9 @@ class ZombieGLSurfaceView @JvmOverloads constructor(
         }
         
         override fun onDrawFrame(gl: GL10?) {
+            // Update game logic (zombie AI, etc.)
+            zombieEngine.update()
+            // Render the frame
             gl?.let { zombieEngine.render(it) }
         }
     }

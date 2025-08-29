@@ -25,15 +25,32 @@ class Zombie3DEngine {
     // OpenGL state
     private var initialized = false
     
+    // Zombie system
+    private data class Zombie(
+        var x: Float,
+        var y: Float,
+        var z: Float,
+        var health: Int = 100,
+        var speed: Float = 0.05f
+    )
+    
+    private val zombies = mutableListOf<Zombie>()
+    private var waveNumber = 1
+    private var zombiesPerWave = 3
+    
     // Vertex buffers
     private lateinit var groundVertices: FloatBuffer
     private lateinit var playerVertices: FloatBuffer
     private lateinit var buildingVertices: FloatBuffer
     private lateinit var wallVertices: FloatBuffer
+    private lateinit var zombieVertices: FloatBuffer
     
     fun create() {
         // Mark as initialized - OpenGL context will be set up in onSurfaceCreated
         initialized = true
+        
+        // Spawn initial wave of zombies
+        spawnZombieWave()
     }
     
     fun onSurfaceCreated(gl: GL10) {
@@ -184,6 +201,46 @@ class Zombie3DEngine {
             .asFloatBuffer()
         wallVertices.put(wallData)
         wallVertices.position(0)
+        
+        // Zombie vertices (simple red cube, slightly smaller than player)
+        val zombieSize = 0.4f
+        val zombieData = floatArrayOf(
+            // Front face
+            -zombieSize, 0f, -zombieSize,
+            zombieSize, 0f, -zombieSize,
+            zombieSize, zombieSize * 2, -zombieSize,
+            -zombieSize, zombieSize * 2, -zombieSize,
+            
+            // Back face
+            -zombieSize, 0f, zombieSize,
+            zombieSize, 0f, zombieSize,
+            zombieSize, zombieSize * 2, zombieSize,
+            -zombieSize, zombieSize * 2, zombieSize,
+            
+            // Left face
+            -zombieSize, 0f, -zombieSize,
+            -zombieSize, 0f, zombieSize,
+            -zombieSize, zombieSize * 2, zombieSize,
+            -zombieSize, zombieSize * 2, -zombieSize,
+            
+            // Right face
+            zombieSize, 0f, -zombieSize,
+            zombieSize, 0f, zombieSize,
+            zombieSize, zombieSize * 2, zombieSize,
+            zombieSize, zombieSize * 2, -zombieSize,
+            
+            // Top face
+            -zombieSize, zombieSize * 2, -zombieSize,
+            zombieSize, zombieSize * 2, -zombieSize,
+            zombieSize, zombieSize * 2, zombieSize,
+            -zombieSize, zombieSize * 2, zombieSize
+        )
+        
+        zombieVertices = ByteBuffer.allocateDirect(zombieData.size * 4)
+            .order(ByteOrder.nativeOrder())
+            .asFloatBuffer()
+        zombieVertices.put(zombieData)
+        zombieVertices.position(0)
     }
     
     fun render(gl: GL10) {
@@ -206,6 +263,9 @@ class Zombie3DEngine {
         
         // Draw environment objects
         drawEnvironment(gl)
+        
+        // Draw zombies
+        drawZombies(gl)
         
         // Draw player
         drawPlayer(gl)
@@ -392,4 +452,67 @@ class Zombie3DEngine {
     
     // Check if engine is ready
     fun isReady(): Boolean = initialized
+    
+    // Zombie spawning system
+    private fun spawnZombieWave() {
+        zombies.clear()
+        repeat(zombiesPerWave) {
+            val zombie = Zombie(
+                x = (Math.random() * 40 - 20).toFloat(), // Random X between -20 and 20
+                y = 0.4f, // Same height as zombie size
+                z = (Math.random() * 40 - 20).toFloat()  // Random Z between -20 and 20
+            )
+            zombies.add(zombie)
+        }
+    }
+    
+    // Zombie AI - move toward player
+    private fun updateZombies() {
+        zombies.forEach { zombie ->
+            // Calculate direction to player
+            val dx = playerX - zombie.x
+            val dz = playerZ - zombie.z
+            val distance = kotlin.math.sqrt(dx * dx + dz * dz)
+            
+            if (distance > 0.1f) { // Don't move if very close to player
+                // Normalize direction and move
+                val moveX = (dx / distance) * zombie.speed
+                val moveZ = (dz / distance) * zombie.speed
+                
+                zombie.x += moveX
+                zombie.z += moveZ
+            }
+        }
+    }
+    
+    // Draw all zombies
+    private fun drawZombies(gl: GL10) {
+        gl.glColor4f(1.0f, 0.0f, 0.0f, 1.0f) // Red color for zombies
+        
+        zombies.forEach { zombie ->
+            gl.glPushMatrix()
+            gl.glTranslatef(zombie.x, zombie.y, zombie.z)
+            drawZombie(gl)
+            gl.glPopMatrix()
+        }
+        
+        gl.glColor4f(1.0f, 1.0f, 1.0f, 1.0f) // Reset color
+    }
+    
+    private fun drawZombie(gl: GL10) {
+        gl.glEnableClientState(GL10.GL_VERTEX_ARRAY)
+        gl.glVertexPointer(3, GL10.GL_FLOAT, 0, zombieVertices)
+        
+        // Draw each face of the zombie cube
+        for (i in 0 until 5) {
+            gl.glDrawArrays(GL10.GL_TRIANGLE_FAN, i * 4, 4)
+        }
+        
+        gl.glDisableClientState(GL10.GL_VERTEX_ARRAY)
+    }
+    
+    // Game loop update
+    fun update() {
+        updateZombies()
+    }
 }
