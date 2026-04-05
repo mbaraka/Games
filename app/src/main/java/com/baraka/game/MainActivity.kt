@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.basedefender.BaseDefenderGame
+import com.baraka.game.keyreader.KeyReaderActivity
 import com.baraka.game.memorymatch.MemoryMatchGame
 import com.baraka.game.rhythmrunner.RhythmRunnerGame
 import com.baraka.game.numbercruncher.NumberCruncherGame
@@ -59,6 +60,10 @@ class MainActivity : ComponentActivity() {
                                 val intent = Intent(this, ZombieGame::class.java)
                                 startActivity(intent)
                             }
+                            GameType.KEY_READER -> {
+                                val intent = Intent(this, KeyReaderActivity::class.java)
+                                startActivity(intent)
+                            }
                         }
                     }
                 )
@@ -73,7 +78,8 @@ enum class GameType {
     MEMORY_MATCH,
     RHYTHM_RUNNER,
     NUMBER_CRUNCHER,
-    ZOMBIE_SURVIVAL
+    ZOMBIE_SURVIVAL,
+    KEY_READER
 }
 
 @Composable
@@ -150,6 +156,13 @@ fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
                 description = "3D FPS - Survive zombie waves, upgrade weapons!",
                 color = Color(0xFF8B0000),
                 onClick = { onGameSelected(GameType.ZOMBIE_SURVIVAL) }
+            )
+
+            GameCard(
+                title = "Key Reader",
+                description = "Scan NFC keys and manage saved entries.",
+                color = Color(0xFF2E7D32),
+                onClick = { onGameSelected(GameType.KEY_READER) }
             )
 
             Spacer(modifier = Modifier.height(48.dp))

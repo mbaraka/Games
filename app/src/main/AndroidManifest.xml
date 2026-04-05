@@ -2,6 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.NFC" />
+
+    <uses-feature
+        android:name="android.hardware.nfc"
+        android:required="false" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -23,31 +29,31 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
+
         <activity
             android:name=".PixelCollectorGame"
             android:exported="false"
             android:label="Pixel Collector"
             android:theme="@style/Theme.Game" />
-            
+
         <activity
             android:name=".basedefender.BaseDefenderGame"
             android:exported="false"
             android:label="Base Defender"
             android:theme="@style/Theme.Game" />
-            
+
         <activity
             android:name=".memorymatch.MemoryMatchGame"
             android:exported="false"
             android:label="Memory Match"
             android:theme="@style/Theme.Game" />
-            
+
         <activity
             android:name=".rhythmrunner.RhythmRunnerGame"
             android:exported="false"
             android:label="Rhythm Runner"
             android:theme="@style/Theme.Game" />
-            
+
         <activity
             android:name=".numbercruncher.NumberCruncherGame"
             android:exported="false"
@@ -58,6 +64,13 @@
             android:name=".zombie.ZombieGame"
             android:exported="false"
             android:label="Zombie Survival"
+            android:theme="@style/Theme.Game" />
+
+        <activity
+            android:name=".keyreader.KeyReaderActivity"
+            android:exported="false"
+            android:label="Key Reader"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.Game" />
     </application>
 

@@ -12,7 +12,7 @@ class Zombie3DEngine {
     
     // Game state
     private var playerX = 0f
-    private var playerY = 1f
+    private var playerY = 0f  // Changed from 1f to 0f so player is on ground level
     private var playerZ = 0f
     private var cameraRotationY = 0f
     private var cameraRotationX = 0f
@@ -21,6 +21,11 @@ class Zombie3DEngine {
     private var lastTouchX = 0f
     private var lastTouchY = 0f
     private var touchSensitivity = 0.5f
+    
+    // Camera position - positioned to see the player clearly
+    private var cameraX = 0f
+    private var cameraY = -5f   // Much closer to see the player
+    private var cameraZ = -15f  // Closer to see the player
     
     // OpenGL state
     private var initialized = false
@@ -55,7 +60,7 @@ class Zombie3DEngine {
     
     fun onSurfaceCreated(gl: GL10) {
         // Set up OpenGL state
-        gl.glClearColor(0.2f, 0.2f, 0.2f, 1.0f)
+        gl.glClearColor(0.1f, 0.3f, 0.1f, 1.0f) // Dark green background
         gl.glEnable(GL10.GL_DEPTH_TEST)
         gl.glDepthFunc(GL10.GL_LEQUAL)
         
@@ -79,8 +84,8 @@ class Zombie3DEngine {
         groundVertices.put(groundData)
         groundVertices.position(0)
         
-        // Player vertices (simple cube)
-        val size = 0.5f
+        // Player vertices (simple cube) - make it much larger and visible
+        val size = 1.5f  // Increased from 0.5f to 1.5f
         val playerData = floatArrayOf(
             // Front face
             -size, 0f, -size,
@@ -253,11 +258,10 @@ class Zombie3DEngine {
         gl.glMatrixMode(GL10.GL_MODELVIEW)
         gl.glLoadIdentity()
         
-        // Apply camera transformations (eagle's eye view - directly above player looking down)
-        gl.glRotatef(-90f, 1f, 0f, 0f) // Rotate 90 degrees to look straight down
-        gl.glTranslatef(-playerX, -(playerY + 3f), -playerZ) // 3 units above player (very close)
+        // Camera setup - use camera position variables
+        gl.glTranslatef(cameraX, cameraY, cameraZ)
         
-        // Draw ground
+        // Draw ground first
         drawGround(gl)
         
         // Draw environment objects
@@ -266,8 +270,11 @@ class Zombie3DEngine {
         // Draw zombies
         drawZombies(gl)
         
-        // Draw player
+        // Draw player last (on top) - make sure it's visible
+        gl.glPushMatrix()
+        gl.glTranslatef(playerX, playerY, playerZ)
         drawPlayer(gl)
+        gl.glPopMatrix()
     }
     
     private fun drawGround(gl: GL10) {
@@ -282,7 +289,8 @@ class Zombie3DEngine {
     }
     
     private fun drawPlayer(gl: GL10) {
-        gl.glColor4f(0.0f, 0.0f, 1.0f, 1.0f)
+        // Make player SUPER visible with bright cyan color
+        gl.glColor4f(0.0f, 1.0f, 1.0f, 1.0f) // Bright cyan (very visible)
         
         gl.glEnableClientState(GL10.GL_VERTEX_ARRAY)
         gl.glVertexPointer(3, GL10.GL_FLOAT, 0, playerVertices)
@@ -384,9 +392,9 @@ class Zombie3DEngine {
         gl.glMatrixMode(GL10.GL_PROJECTION)
         gl.glLoadIdentity()
         
-        // Set up perspective projection with very close and wide view for maximum visibility
+        // Use orthographic projection for guaranteed 2D-like view
         val aspect = width.toFloat() / height.toFloat()
-        gl.glFrustumf(-aspect * 2.0f, aspect * 2.0f, -2.0f, 2.0f, 0.5f, 50f)
+        gl.glOrthof(-aspect * 20f, aspect * 20f, -20f, 20f, -100f, 100f)
         
         gl.glMatrixMode(GL10.GL_MODELVIEW)
         gl.glLoadIdentity()
@@ -396,7 +404,7 @@ class Zombie3DEngine {
         initialized = false
     }
     
-    // Touch controls for mobile
+    // Touch controls for mobile - simplified approach
     fun handleTouch(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
@@ -408,12 +416,14 @@ class Zombie3DEngine {
                 val deltaX = (event.x - lastTouchX) * touchSensitivity
                 val deltaY = (event.y - lastTouchY) * touchSensitivity
                 
-                // Rotate camera (look around)
-                cameraRotationY -= deltaX * 0.5f
-                cameraRotationX -= deltaY * 0.5f
+                // Simple camera movement: X = left/right, Y = up/down
+                cameraX -= deltaX * 0.1f
+                cameraY += deltaY * 0.1f
                 
-                // Clamp vertical rotation
-                cameraRotationX = cameraRotationX.coerceIn(-89f, 89f)
+                // Keep camera within reasonable bounds
+                cameraX = cameraX.coerceIn(-30f, 30f)
+                cameraY = cameraY.coerceIn(-20f, 5f)
+                cameraZ = cameraZ.coerceIn(-40f, 10f)
                 
                 lastTouchX = event.x
                 lastTouchY = event.y
