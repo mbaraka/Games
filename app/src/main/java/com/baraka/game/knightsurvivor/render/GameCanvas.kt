@@ -9,9 +9,9 @@ import com.baraka.game.knightsurvivor.model.GameState
 
 /**
  * Renders one frame of [state], layering arena -> gems -> weapon effects -> enemies ->
- * projectiles -> player. Reports its measured pixel size via [onSizeMeasured] so
- * ui/KnightSurvivorScreen.kt can keep `GameState.arenaSize` in sync with actual layout —
- * this file only draws; it never reads input or mutates game state itself.
+ * projectiles -> hit/death particles -> player. Reports its measured pixel size via
+ * [onSizeMeasured] so ui/KnightSurvivorScreen.kt can keep `GameState.arenaSize` in sync
+ * with actual layout — this file only draws; it never reads input or mutates game state.
  */
 @Composable
 fun GameCanvas(state: GameState, onSizeMeasured: (widthPx: Float, heightPx: Float) -> Unit) {
@@ -25,6 +25,7 @@ fun GameCanvas(state: GameState, onSizeMeasured: (widthPx: Float, heightPx: Floa
         drawWeaponActivationEffects(state.recentWeaponActivations, state.elapsedMs)
         drawEnemies(state.enemies, state.elapsedMs)
         drawProjectiles(state.projectiles)
+        drawParticles(state.particles)
         drawPlayer(state.player, state.elapsedMs)
     }
 }

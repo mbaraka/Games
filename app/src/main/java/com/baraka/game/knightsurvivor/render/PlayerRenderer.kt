@@ -104,18 +104,32 @@ private fun DrawScope.drawPlayerHpBar(player: PlayerState) {
     drawRect(color = Color(0xFF66BB6A), topLeft = topLeft, size = Size(barWidth * hpFraction, barHeight))
 }
 
-/** Draws the fading ring left behind by an AREA_AROUND_PLAYER weapon's most recent activation(s). */
+/**
+ * Draws an actual swinging slash arc for each AREA_AROUND_PLAYER weapon's most recent
+ * activation(s) — the arc rotates through the effect's whole lifetime, reading as a sword
+ * swing instead of a static fading ring.
+ */
 fun DrawScope.drawWeaponActivationEffects(activations: List<WeaponActivationEvent>, nowMs: Long) {
     activations.forEach { event ->
         val ageMs = nowMs - event.activatedAtMs
         val lifeFraction = (1f - ageMs.toFloat() / GameTunables.WEAPON_EFFECT_VISIBLE_MS).coerceIn(0f, 1f)
         if (lifeFraction <= 0f) return@forEach
 
-        drawCircle(
-            color = Color(event.kind.colorArgb).copy(alpha = lifeFraction * 0.6f),
-            radius = event.radius,
-            center = event.position.toOffset(),
-            style = Stroke(width = 3f)
+        val swingProgress = 1f - lifeFraction
+        val startAngleDegrees = SLASH_START_ANGLE_DEGREES + swingProgress * SLASH_TOTAL_ROTATION_DEGREES
+
+        drawArc(
+            color = Color(event.kind.colorArgb).copy(alpha = lifeFraction * 0.9f),
+            startAngle = startAngleDegrees,
+            sweepAngle = SLASH_SWEEP_DEGREES,
+            useCenter = false,
+            topLeft = Offset(event.position.x - event.radius, event.position.y - event.radius),
+            size = Size(event.radius * 2f, event.radius * 2f),
+            style = Stroke(width = 6f, cap = StrokeCap.Round)
         )
     }
 }
+
+private const val SLASH_START_ANGLE_DEGREES = -50f
+private const val SLASH_SWEEP_DEGREES = 100f
+private const val SLASH_TOTAL_ROTATION_DEGREES = 260f

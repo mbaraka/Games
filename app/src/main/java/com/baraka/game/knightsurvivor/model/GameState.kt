@@ -22,6 +22,7 @@ data class GameState(
     val enemies: List<EnemyInstance> = emptyList(),
     val projectiles: List<Projectile> = emptyList(),
     val xpGems: List<XpGem> = emptyList(),
+    val particles: List<Particle> = emptyList(),
     val recentWeaponActivations: List<WeaponActivationEvent> = emptyList(),
     val elapsedMs: Long = 0L,
     val phase: GamePhase = GamePhase.RUNNING,

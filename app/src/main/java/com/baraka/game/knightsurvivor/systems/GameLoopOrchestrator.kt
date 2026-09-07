@@ -52,11 +52,16 @@ object GameLoopOrchestrator {
         val prunedActivations = (state.recentWeaponActivations + firing.newActivationEvents)
             .filter { event -> newElapsedMs - event.activatedAtMs <= GameTunables.WEAPON_EFFECT_VISIBLE_MS }
 
+        val newParticles = collision.hitFeedback.flatMap { ParticleSystem.hitSpark(it.position, it.colorArgb, random) } +
+            collision.deathFeedback.flatMap { ParticleSystem.deathBurst(it.position, it.colorArgb, random) }
+        val updatedParticles = ParticleSystem.step(state.particles + newParticles, dtMs, dtSeconds)
+
         val nextState = state.copy(
             player = xpStep.player,
             enemies = collision.enemies + spawnedEnemies,
             projectiles = collision.projectiles,
             xpGems = xpStep.xpGems,
+            particles = updatedParticles,
             recentWeaponActivations = prunedActivations,
             elapsedMs = newElapsedMs,
             killCount = state.killCount + collision.killsThisTick

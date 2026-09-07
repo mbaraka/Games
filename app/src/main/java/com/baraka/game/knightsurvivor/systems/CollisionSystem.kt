@@ -4,6 +4,7 @@ import com.baraka.game.knightsurvivor.balance.GameTunables
 import com.baraka.game.knightsurvivor.model.DamageEvent
 import com.baraka.game.knightsurvivor.model.EnemyInstance
 import com.baraka.game.knightsurvivor.model.EntityIdGenerator
+import com.baraka.game.knightsurvivor.model.HitFeedback
 import com.baraka.game.knightsurvivor.model.PlayerState
 import com.baraka.game.knightsurvivor.model.Projectile
 import com.baraka.game.knightsurvivor.model.XpGem
@@ -14,7 +15,11 @@ data class CollisionResult(
     val projectiles: List<Projectile>,
     val newXpGems: List<XpGem>,
     val killsThisTick: Int,
-    val player: PlayerState
+    val player: PlayerState,
+    /** An enemy that took damage and survived — GameLoopOrchestrator turns each into a small spark burst. */
+    val hitFeedback: List<HitFeedback> = emptyList(),
+    /** An enemy whose HP reached zero — GameLoopOrchestrator turns each into a bigger death burst. */
+    val deathFeedback: List<HitFeedback> = emptyList()
 )
 
 /**
@@ -42,6 +47,8 @@ object CollisionSystem {
 
         val survivingEnemies = mutableListOf<EnemyInstance>()
         val newXpGems = mutableListOf<XpGem>()
+        val hitFeedback = mutableListOf<HitFeedback>()
+        val deathFeedback = mutableListOf<HitFeedback>()
         var kills = 0
 
         for (enemy in enemies) {
@@ -50,11 +57,13 @@ object CollisionSystem {
             if (newHp <= 0) {
                 kills++
                 newXpGems += XpGem(id = EntityIdGenerator.next(), position = enemy.position, value = enemy.kind.xpValue)
+                deathFeedback += HitFeedback(enemy.position, enemy.kind.colorArgb)
             } else {
                 survivingEnemies += enemy.copy(
                     hp = newHp,
                     hitFlashUntilMs = if (damage > 0) nowMs + HIT_FLASH_MS else enemy.hitFlashUntilMs
                 )
+                if (damage > 0) hitFeedback += HitFeedback(enemy.position, enemy.kind.colorArgb)
             }
         }
 
@@ -65,7 +74,9 @@ object CollisionSystem {
             projectiles = survivingProjectiles,
             newXpGems = newXpGems,
             killsThisTick = kills,
-            player = updatedPlayer
+            player = updatedPlayer,
+            hitFeedback = hitFeedback,
+            deathFeedback = deathFeedback
         )
     }
 
