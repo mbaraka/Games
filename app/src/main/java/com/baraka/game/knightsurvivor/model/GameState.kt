@@ -24,6 +24,8 @@ data class GameState(
     val xpGems: List<XpGem> = emptyList(),
     val particles: List<Particle> = emptyList(),
     val recentWeaponActivations: List<WeaponActivationEvent> = emptyList(),
+    /** Sounds to play for what just happened this tick. Drained and cleared by ui/KnightSurvivorScreen.kt every tick — never accumulates. */
+    val pendingSoundCues: List<SoundCue> = emptyList(),
     val elapsedMs: Long = 0L,
     val phase: GamePhase = GamePhase.RUNNING,
     val pendingUpgradeChoices: List<UpgradeOption> = emptyList(),

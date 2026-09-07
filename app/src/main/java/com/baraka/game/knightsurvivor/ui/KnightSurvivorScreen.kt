@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.knightsurvivor.balance.GameTunables
+import com.baraka.game.knightsurvivor.data.SurvivorSoundEngine
 import com.baraka.game.knightsurvivor.data.SurvivorStatsRepository
 import com.baraka.game.knightsurvivor.model.ArenaSize
 import com.baraka.game.knightsurvivor.model.GamePhase
@@ -45,6 +47,10 @@ private val BACKGROUND_COLOR = Color(0xFF12141A)
 fun KnightSurvivorScreen() {
     val context = LocalContext.current
     val statsRepository = remember { SurvivorStatsRepository.getInstance(context) }
+    val soundEngine = remember { SurvivorSoundEngine() }
+    DisposableEffect(Unit) {
+        onDispose { soundEngine.release() }
+    }
 
     var gameState by remember { mutableStateOf(createInitialGameState(statsRepository.bestSurvivalTimeMs())) }
     var hasRecordedThisRun by remember { mutableStateOf(false) }
@@ -54,7 +60,9 @@ fun KnightSurvivorScreen() {
     LaunchedEffect(isRunning) {
         while (isRunning) {
             delay(GameTunables.TICK_MS)
-            gameState = GameLoopOrchestrator.tick(gameState)
+            val ticked = GameLoopOrchestrator.tick(gameState)
+            ticked.pendingSoundCues.forEach(soundEngine::play)
+            gameState = if (ticked.pendingSoundCues.isEmpty()) ticked else ticked.copy(pendingSoundCues = emptyList())
         }
     }
 

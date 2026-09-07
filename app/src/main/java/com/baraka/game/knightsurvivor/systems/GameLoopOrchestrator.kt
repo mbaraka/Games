@@ -3,6 +3,7 @@ package com.baraka.game.knightsurvivor.systems
 import com.baraka.game.knightsurvivor.balance.GameTunables
 import com.baraka.game.knightsurvivor.model.GamePhase
 import com.baraka.game.knightsurvivor.model.GameState
+import com.baraka.game.knightsurvivor.model.SoundCue
 import com.baraka.game.knightsurvivor.model.UpgradeOption
 import kotlin.random.Random
 
@@ -56,6 +57,14 @@ object GameLoopOrchestrator {
             collision.deathFeedback.flatMap { ParticleSystem.deathBurst(it.position, it.colorArgb, random) }
         val updatedParticles = ParticleSystem.step(state.particles + newParticles, dtMs, dtSeconds)
 
+        val soundCues = buildList {
+            if (firing.newProjectiles.isNotEmpty() || firing.newActivationEvents.isNotEmpty()) add(SoundCue.WEAPON_FIRE)
+            if (collision.hitFeedback.isNotEmpty()) add(SoundCue.ENEMY_HIT)
+            if (collision.deathFeedback.isNotEmpty()) add(SoundCue.ENEMY_DEATH)
+            if (collision.player.hp < playerWithWeapons.hp) add(SoundCue.PLAYER_HURT)
+            if (xpStep.leveledUp) add(SoundCue.LEVEL_UP)
+        }
+
         val nextState = state.copy(
             player = xpStep.player,
             enemies = collision.enemies + spawnedEnemies,
@@ -63,16 +72,17 @@ object GameLoopOrchestrator {
             xpGems = xpStep.xpGems,
             particles = updatedParticles,
             recentWeaponActivations = prunedActivations,
+            pendingSoundCues = soundCues,
             elapsedMs = newElapsedMs,
             killCount = state.killCount + collision.killsThisTick
         )
 
         return when {
             nextState.player.hp <= 0 ->
-                nextState.copy(phase = GamePhase.GAME_OVER)
+                nextState.copy(phase = GamePhase.GAME_OVER, pendingSoundCues = soundCues + SoundCue.GAME_OVER)
 
             nextState.elapsedMs >= GameTunables.VICTORY_SURVIVAL_TIME_MS ->
-                nextState.copy(phase = GamePhase.VICTORY)
+                nextState.copy(phase = GamePhase.VICTORY, pendingSoundCues = soundCues + SoundCue.VICTORY)
 
             xpStep.leveledUp ->
                 nextState.copy(
