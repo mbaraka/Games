@@ -1,10 +1,13 @@
 package com.baraka.game.knightsurvivor.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -16,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.baraka.game.knightsurvivor.balance.GameTunables
 import com.baraka.game.knightsurvivor.data.SurvivorStatsRepository
 import com.baraka.game.knightsurvivor.model.ArenaSize
@@ -44,7 +48,8 @@ fun KnightSurvivorScreen() {
 
     var gameState by remember { mutableStateOf(createInitialGameState(statsRepository.bestSurvivalTimeMs())) }
     var hasRecordedThisRun by remember { mutableStateOf(false) }
-    val isRunning = gameState.phase == GamePhase.RUNNING
+    var showCompendium by remember { mutableStateOf(false) }
+    val isRunning = gameState.phase == GamePhase.RUNNING && !showCompendium
 
     LaunchedEffect(isRunning) {
         while (isRunning) {
@@ -90,6 +95,15 @@ fun KnightSurvivorScreen() {
                 modifier = Modifier.align(Alignment.BottomStart).padding(20.dp)
             )
 
+            CompendiumButton(
+                onClick = { showCompendium = true },
+                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
+            )
+
+            if (showCompendium) {
+                CompendiumOverlay(player = gameState.player, onClose = { showCompendium = false })
+            }
+
             if (gameState.phase == GamePhase.LEVEL_UP_PAUSE) {
                 LevelUpOverlay(
                     choices = gameState.pendingUpgradeChoices,
@@ -114,6 +128,20 @@ fun KnightSurvivorScreen() {
             }
         }
     }
+}
+
+/** Opens [CompendiumOverlay]. A plain labeled chip rather than a glyph — a Unicode arrow already read as invisible/ambiguous once in this app's hub screen; a short word is unambiguous at any size. */
+@Composable
+private fun CompendiumButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Text(
+        text = "Guide",
+        color = Color.White,
+        fontSize = 13.sp,
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    )
 }
 
 private fun createInitialGameState(
