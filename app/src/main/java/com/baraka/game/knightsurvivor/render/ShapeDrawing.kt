@@ -1,8 +1,10 @@
 package com.baraka.game.knightsurvivor.render
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import kotlin.math.cos
@@ -86,13 +88,19 @@ fun DrawScope.drawDiamond(
     drawPath(path, color = outlineColor, style = Stroke(width = outlineWidth))
 }
 
-/** A pentagon "heater shield" silhouette (flat top, pointed bottom) — the knight's body and its orbiting shields. */
+/**
+ * A pentagon "heater shield" silhouette (flat top, pointed bottom) with a heraldic cross
+ * emblem — the one recurring "this is knight gear" cue shared by the Knight's own body
+ * and any weapon (Orbit Shield) that should visually read as "a shield," not just an
+ * arbitrary polygon.
+ */
 fun DrawScope.drawShield(
     center: Offset,
     radius: Float,
     color: Color,
     outlineColor: Color = Color.White,
-    outlineWidth: Float = 1.5f
+    outlineWidth: Float = 1.5f,
+    emblem: Boolean = true
 ) {
     val height = radius * 1.15f
     val path = Path().apply {
@@ -106,6 +114,71 @@ fun DrawScope.drawShield(
     }
     drawPath(path, color = color)
     drawPath(path, color = outlineColor, style = Stroke(width = outlineWidth))
+
+    if (emblem) {
+        drawRect(
+            color = outlineColor,
+            topLeft = Offset(center.x - radius * 0.09f, center.y - radius * 0.55f),
+            size = Size(radius * 0.18f, radius * 0.75f)
+        )
+        drawRect(
+            color = outlineColor,
+            topLeft = Offset(center.x - radius * 0.4f, center.y - radius * 0.28f),
+            size = Size(radius * 0.8f, radius * 0.18f)
+        )
+    }
 }
 
+/**
+ * A bladed weapon: pointed blade, crossguard, grip, and pommel — reads as a sword or
+ * dagger instead of an abstract elongated diamond. [lengthRatio] (relative to [radius])
+ * differentiates a short dagger from a longer sword; a shared silhouette otherwise so the
+ * two still visually belong to the same "bladed weapon" family.
+ */
+fun DrawScope.drawBlade(
+    center: Offset,
+    radius: Float,
+    lengthRatio: Float,
+    bladeColor: Color,
+    outlineColor: Color = Color.White,
+    outlineWidth: Float = 1.5f
+) {
+    val tipY = center.y - radius * lengthRatio
+    val shoulderY = center.y - radius * 0.35f
+    val bladeHalfWidth = radius * 0.26f
+
+    val bladePath = Path().apply {
+        moveTo(center.x, tipY)
+        lineTo(center.x + bladeHalfWidth, shoulderY)
+        lineTo(center.x, shoulderY + radius * 0.16f)
+        lineTo(center.x - bladeHalfWidth, shoulderY)
+        close()
+    }
+    drawPath(bladePath, color = bladeColor)
+    drawPath(bladePath, color = outlineColor, style = Stroke(width = outlineWidth))
+
+    val guardY = shoulderY + radius * 0.2f
+    drawLine(
+        color = outlineColor,
+        start = Offset(center.x - radius * 0.5f, guardY),
+        end = Offset(center.x + radius * 0.5f, guardY),
+        strokeWidth = radius * 0.18f,
+        cap = StrokeCap.Round
+    )
+
+    val gripBottom = center.y + radius * 0.55f
+    drawLine(
+        color = GRIP_COLOR,
+        start = Offset(center.x, guardY + radius * 0.08f),
+        end = Offset(center.x, gripBottom),
+        strokeWidth = radius * 0.22f,
+        cap = StrokeCap.Round
+    )
+
+    val pommelCenter = Offset(center.x, gripBottom + radius * 0.12f)
+    drawCircle(color = bladeColor, radius = radius * 0.16f, center = pommelCenter)
+    drawCircle(color = outlineColor, radius = radius * 0.16f, center = pommelCenter, style = Stroke(width = outlineWidth))
+}
+
+private val GRIP_COLOR = Color(0xFF6D4C41)
 private val HALF_PI = (Math.PI / 2).toFloat()

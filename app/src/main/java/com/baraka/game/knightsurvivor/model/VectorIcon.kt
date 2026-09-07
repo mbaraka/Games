@@ -16,7 +16,12 @@ sealed class VectorIcon {
     data class Polygon(val sides: Int) : VectorIcon()
     data class Diamond(val aspectRatio: Float = 1f) : VectorIcon()
     data class Star(val points: Int, val innerRadiusRatio: Float = 0.5f) : VectorIcon()
+
+    /** A heater-shield silhouette with a heraldic cross emblem — the Knight's own body, and any weapon that should visually read as "a shield." */
     data object Shield : VectorIcon()
+
+    /** A bladed weapon: pointed blade, crossguard, grip, and pommel — not just an elongated diamond. [lengthRatio] (relative to radius) differentiates a short dagger from a longer sword. */
+    data class Blade(val lengthRatio: Float = 2.2f) : VectorIcon()
 
     /**
      * A simple creature face: a round head plus optional features. New monsters can

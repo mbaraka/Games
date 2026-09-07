@@ -6,7 +6,9 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import com.baraka.game.knightsurvivor.model.Projectile
 import kotlin.math.atan2
 
-/** Draws every travelling projectile as a small dagger-like diamond, oriented along its direction of travel. */
+private const val PROJECTILE_RADIUS = 11f
+
+/** Draws every travelling projectile using its source weapon's own [com.baraka.game.knightsurvivor.model.VectorIcon], oriented along its direction of travel. */
 fun DrawScope.drawProjectiles(projectiles: List<Projectile>) {
     projectiles.forEach { projectile ->
         val color = Color(projectile.sourceWeapon.colorArgb)
@@ -16,7 +18,7 @@ fun DrawScope.drawProjectiles(projectiles: List<Projectile>) {
         ).toFloat() + 90f
 
         rotate(degrees = headingDegrees, pivot = center) {
-            drawDiamond(center = center, halfWidth = 4f, halfHeight = 11f, color = color)
+            drawVectorIcon(icon = projectile.sourceWeapon.icon, center = center, radius = PROJECTILE_RADIUS, color = color)
         }
     }
 }

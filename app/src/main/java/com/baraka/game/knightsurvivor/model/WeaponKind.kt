@@ -22,21 +22,21 @@ enum class WeaponKind(
         description = "Swings a blade around the knight, hitting every enemy in range.",
         targeting = WeaponTargeting.AREA_AROUND_PLAYER,
         colorArgb = 0xFFCFD8DC,
-        icon = VectorIcon.Diamond(aspectRatio = 2.2f)
+        icon = VectorIcon.Blade(lengthRatio = 2.2f)
     ),
     DAGGER_THROW(
         displayName = "Dagger Throw",
         description = "Hurls a dagger at the nearest enemy at regular intervals.",
         targeting = WeaponTargeting.NEAREST_ENEMY,
         colorArgb = 0xFFFFC107,
-        icon = VectorIcon.Diamond(aspectRatio = 2.5f)
+        icon = VectorIcon.Blade(lengthRatio = 1.5f)
     ),
     ORBIT_SHIELD(
         displayName = "Orbit Shield",
         description = "Shields spin around the knight, damaging anything they touch.",
         targeting = WeaponTargeting.ORBIT,
         colorArgb = 0xFF29B6F6,
-        icon = VectorIcon.Polygon(sides = 6)
+        icon = VectorIcon.Shield
     );
 
     /** Damage dealt per hit at [level] (1..[maxLevel]). */
