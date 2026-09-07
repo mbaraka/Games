@@ -5,7 +5,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +18,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -128,12 +135,7 @@ fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
             )
 
             // Game selection cards
-            GameCard(
-                title = "Pixel Collector",
-                description = "Collect green pixels while avoiding red obstacles!",
-                color = Color(0xFF4CAF50),
-                onClick = { onGameSelected(GameType.PIXEL_COLLECTOR) }
-            )
+            SectionHeader(text = "Favorites")
 
             GameCard(
                 title = "Base Defender",
@@ -148,27 +150,6 @@ fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
                 color = Color(0xFF2196F3),
                 onClick = { onGameSelected(GameType.MEMORY_MATCH) }
             )
-            
-            GameCard(
-                title = "Snakes & Ladders",
-                description = "2D board — 2–6 players, each human or CPU.",
-                color = Color(0xFF00897B),
-                onClick = { onGameSelected(GameType.SNAKES_LADDERS) }
-            )
-
-            GameCard(
-                title = "Battleship",
-                description = "Local 2 players or vs computer — place fleets, then take turns firing.",
-                color = Color(0xFF0277BD),
-                onClick = { onGameSelected(GameType.BATTLESHIP) }
-            )
-
-            GameCard(
-                title = "Rhythm Runner",
-                description = "Run, jump, and collect to the beat!",
-                color = Color(0xFF9C27B0),
-                onClick = { onGameSelected(GameType.RHYTHM_RUNNER) }
-            )
 
             GameCard(
                 title = "Number Cruncher",
@@ -177,25 +158,113 @@ fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
                 onClick = { onGameSelected(GameType.NUMBER_CRUNCHER) }
             )
 
-            GameCard(
-                title = "Zombie Survival",
-                description = "3D FPS - Survive zombie waves, upgrade weapons!",
-                color = Color(0xFF8B0000),
-                onClick = { onGameSelected(GameType.ZOMBIE_SURVIVAL) }
-            )
+            var otherGamesExpanded by remember { mutableStateOf(false) }
 
-            GameCard(
-                title = "Key Reader",
-                description = "Scan NFC keys and manage saved entries.",
-                color = Color(0xFF2E7D32),
-                onClick = { onGameSelected(GameType.KEY_READER) }
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { otherGamesExpanded = !otherGamesExpanded },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SectionHeader(text = "Other Games")
+                ExpandChevron(expanded = otherGamesExpanded)
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                if (otherGamesExpanded) {
+                    GameCard(
+                        title = "Pixel Collector",
+                        description = "Collect green pixels while avoiding red obstacles!",
+                        color = Color(0xFF4CAF50),
+                        onClick = { onGameSelected(GameType.PIXEL_COLLECTOR) }
+                    )
+
+                    GameCard(
+                        title = "Snakes & Ladders",
+                        description = "2D board — 2–6 players, each human or CPU.",
+                        color = Color(0xFF00897B),
+                        onClick = { onGameSelected(GameType.SNAKES_LADDERS) }
+                    )
+
+                    GameCard(
+                        title = "Battleship",
+                        description = "Local 2 players or vs computer — place fleets, then take turns firing.",
+                        color = Color(0xFF0277BD),
+                        onClick = { onGameSelected(GameType.BATTLESHIP) }
+                    )
+
+                    GameCard(
+                        title = "Rhythm Runner",
+                        description = "Run, jump, and collect to the beat!",
+                        color = Color(0xFF9C27B0),
+                        onClick = { onGameSelected(GameType.RHYTHM_RUNNER) }
+                    )
+
+                    GameCard(
+                        title = "Zombie Survival",
+                        description = "3D FPS - Survive zombie waves, upgrade weapons!",
+                        color = Color(0xFF8B0000),
+                        onClick = { onGameSelected(GameType.ZOMBIE_SURVIVAL) }
+                    )
+
+                    GameCard(
+                        title = "Key Reader",
+                        description = "Scan NFC keys and manage saved entries.",
+                        color = Color(0xFF2E7D32),
+                        onClick = { onGameSelected(GameType.KEY_READER) }
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(48.dp))
 
         }
     }
 
+}
+
+@Composable
+fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        color = Color.Gray,
+        fontSize = 18.sp,
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+/**
+ * A small hand-drawn expand/collapse arrow. A plain Text glyph ("▾"/"▸") rendered too
+ * faintly to read against the dark background on some devices/fonts, so this draws the
+ * arrow itself with an explicit, always-visible stroke color instead of depending on a
+ * font's glyph coverage or weight.
+ */
+@Composable
+private fun ExpandChevron(expanded: Boolean, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(20.dp)) {
+        val path = Path().apply {
+            if (expanded) {
+                moveTo(size.width * 0.2f, size.height * 0.35f)
+                lineTo(size.width * 0.5f, size.height * 0.65f)
+                lineTo(size.width * 0.8f, size.height * 0.35f)
+            } else {
+                moveTo(size.width * 0.35f, size.height * 0.2f)
+                lineTo(size.width * 0.65f, size.height * 0.5f)
+                lineTo(size.width * 0.35f, size.height * 0.8f)
+            }
+        }
+        drawPath(
+            path = path,
+            color = Color.White,
+            style = Stroke(width = 3f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+    }
 }
 
 @Composable
