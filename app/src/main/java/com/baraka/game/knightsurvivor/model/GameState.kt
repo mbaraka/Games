@@ -34,6 +34,8 @@ data class GameState(
     val arenaSize: ArenaSize,
     val joystickInput: Vec2 = Vec2.ZERO,
     val killCount: Int = 0,
+    /** Fixed for the whole run — chosen from settings when the run starts, see ui/KnightSurvivorScreen.kt. */
+    val difficulty: Difficulty = Difficulty.NORMAL,
     /** The best survival time persisted from previous runs, loaded once at game start purely for HUD/end-screen display and comparison — this state layer never writes to storage itself, see data/SurvivorStatsRepository.kt. */
     val bestSurvivalTimeMsAtStart: Long = 0L
 ) {

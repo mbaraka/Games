@@ -45,6 +45,7 @@ object GameLoopOrchestrator {
             arenaSize = state.arenaSize,
             previousElapsedMs = state.elapsedMs,
             newElapsedMs = newElapsedMs,
+            difficulty = state.difficulty,
             random = random
         )
 

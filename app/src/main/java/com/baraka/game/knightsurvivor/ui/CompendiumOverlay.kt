@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.baraka.game.knightsurvivor.model.Difficulty
 import com.baraka.game.knightsurvivor.model.EnemyKind
 import com.baraka.game.knightsurvivor.model.PlayerState
 import com.baraka.game.knightsurvivor.model.WeaponInstance
@@ -50,7 +51,7 @@ private enum class CompendiumTab(val label: String) {
  * plus the current [PlayerState]; needs no new systems/model state of its own.
  */
 @Composable
-fun CompendiumOverlay(player: PlayerState, onClose: () -> Unit) {
+fun CompendiumOverlay(player: PlayerState, difficulty: Difficulty, onClose: () -> Unit) {
     var tab by remember { mutableStateOf(CompendiumTab.KNIGHT) }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.94f))) {
@@ -86,7 +87,7 @@ fun CompendiumOverlay(player: PlayerState, onClose: () -> Unit) {
 
             LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 when (tab) {
-                    CompendiumTab.KNIGHT -> item { KnightSummaryCard(player) }
+                    CompendiumTab.KNIGHT -> item { KnightSummaryCard(player, difficulty) }
                     CompendiumTab.ENEMIES -> items(EnemyKind.entries) { kind -> EnemyEntryCard(kind) }
                     CompendiumTab.WEAPONS -> items(WeaponKind.entries) { kind -> WeaponEntryCard(kind, player.weaponOf(kind)) }
                 }
@@ -115,7 +116,7 @@ private fun IconSwatch(iconSize: Dp = 48.dp, draw: DrawScope.() -> Unit) {
 }
 
 @Composable
-private fun KnightSummaryCard(player: PlayerState) {
+private fun KnightSummaryCard(player: PlayerState, difficulty: Difficulty) {
     CompendiumCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconSwatch(iconSize = 56.dp) {
@@ -124,7 +125,7 @@ private fun KnightSummaryCard(player: PlayerState) {
             Spacer(Modifier.width(12.dp))
             Column {
                 Text("Your Knight", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("Level ${player.level}", color = Color.Cyan, fontSize = 14.sp)
+                Text("Level ${player.level} · ${difficulty.displayName}", color = Color.Cyan, fontSize = 14.sp)
             }
         }
         Spacer(Modifier.height(10.dp))

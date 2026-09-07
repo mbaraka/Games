@@ -2,6 +2,7 @@ package com.baraka.game.knightsurvivor.systems
 
 import com.baraka.game.knightsurvivor.balance.GameTunables
 import com.baraka.game.knightsurvivor.model.ArenaSize
+import com.baraka.game.knightsurvivor.model.Difficulty
 import com.baraka.game.knightsurvivor.model.EnemyInstance
 import com.baraka.game.knightsurvivor.model.EnemyKind
 import com.baraka.game.knightsurvivor.model.EntityIdGenerator
@@ -10,13 +11,15 @@ import kotlin.random.Random
 
 /**
  * Decides WHEN, WHERE, and HOW STRONG new enemies are, reading purely from
- * balance/GameTunables.kt's curves/weights/thresholds. Never decides enemy movement AI
- * (see EnemyMovementSystem) or how they're drawn (see render/EnemyRenderer.kt).
+ * balance/GameTunables.kt's curves/weights/thresholds, stretched or compressed by the
+ * run's [Difficulty]. Never decides enemy movement AI (see EnemyMovementSystem) or how
+ * they're drawn (see render/EnemyRenderer.kt).
  */
 object EnemySpawnSystem {
 
     /**
-     * Regular spawns are gated by [GameTunables.spawnIntervalMsAt]; a boss is added every
+     * Regular spawns are gated by [GameTunables.spawnIntervalMsAt] (scaled by
+     * [Difficulty.spawnIntervalMultiplier]); a boss is added every
      * [GameTunables.BOSS_SPAWN_INTERVAL_MS]. Pass the tick's *previous* and *new* elapsed
      * time so a threshold crossed within this one tick is detected exactly once.
      */
@@ -25,6 +28,7 @@ object EnemySpawnSystem {
         arenaSize: ArenaSize,
         previousElapsedMs: Long,
         newElapsedMs: Long,
+        difficulty: Difficulty,
         random: Random = Random.Default
     ): List<EnemyInstance> {
         if (currentEnemyCount >= GameTunables.MAX_LIVE_ENEMIES) return emptyList()
@@ -34,14 +38,14 @@ object EnemySpawnSystem {
 
         if (crossedInterval(previousElapsedMs, newElapsedMs, GameTunables.BOSS_SPAWN_INTERVAL_MS)) {
             EnemyKind.BOSSES.randomOrNull(random)?.let { bossKind ->
-                spawned += spawnEnemy(bossKind, elapsedSeconds, arenaSize, random)
+                spawned += spawnEnemy(bossKind, elapsedSeconds, arenaSize, difficulty, random)
             }
         }
 
-        val regularIntervalMs = GameTunables.spawnIntervalMsAt(elapsedSeconds)
+        val regularIntervalMs = (GameTunables.spawnIntervalMsAt(elapsedSeconds) * difficulty.spawnIntervalMultiplier).toLong()
         if (crossedInterval(previousElapsedMs, newElapsedMs, regularIntervalMs)) {
             val kind = pickWeightedRegularKind(elapsedSeconds, random)
-            spawned += spawnEnemy(kind, elapsedSeconds, arenaSize, random)
+            spawned += spawnEnemy(kind, elapsedSeconds, arenaSize, difficulty, random)
         }
 
         return spawned
@@ -64,9 +68,9 @@ object EnemySpawnSystem {
         return weighted.last().first
     }
 
-    private fun spawnEnemy(kind: EnemyKind, elapsedSeconds: Float, arenaSize: ArenaSize, random: Random): EnemyInstance {
-        val powerMultiplier = GameTunables.enemyPowerMultiplierAt(elapsedSeconds)
-        val speedMultiplier = GameTunables.enemySpeedMultiplierAt(elapsedSeconds)
+    private fun spawnEnemy(kind: EnemyKind, elapsedSeconds: Float, arenaSize: ArenaSize, difficulty: Difficulty, random: Random): EnemyInstance {
+        val powerMultiplier = GameTunables.enemyPowerMultiplierAt(elapsedSeconds) * difficulty.enemyPowerMultiplier
+        val speedMultiplier = GameTunables.enemySpeedMultiplierAt(elapsedSeconds) * difficulty.enemySpeedMultiplier
         val hp = (kind.baseHp * powerMultiplier).toInt().coerceAtLeast(1)
 
         return EnemyInstance(

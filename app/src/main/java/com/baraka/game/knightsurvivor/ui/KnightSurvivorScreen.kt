@@ -2,10 +2,15 @@ package com.baraka.game.knightsurvivor.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,9 +27,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.knightsurvivor.balance.GameTunables
+import com.baraka.game.knightsurvivor.data.SettingsRepository
 import com.baraka.game.knightsurvivor.data.SurvivorSoundEngine
 import com.baraka.game.knightsurvivor.data.SurvivorStatsRepository
 import com.baraka.game.knightsurvivor.model.ArenaSize
+import com.baraka.game.knightsurvivor.model.Difficulty
 import com.baraka.game.knightsurvivor.model.GamePhase
 import com.baraka.game.knightsurvivor.model.GameState
 import com.baraka.game.knightsurvivor.model.PlayerState
@@ -47,22 +54,28 @@ private val BACKGROUND_COLOR = Color(0xFF12141A)
 fun KnightSurvivorScreen() {
     val context = LocalContext.current
     val statsRepository = remember { SurvivorStatsRepository.getInstance(context) }
+    val settingsRepository = remember { SettingsRepository.getInstance(context) }
     val soundEngine = remember { SurvivorSoundEngine() }
     DisposableEffect(Unit) {
         onDispose { soundEngine.release() }
     }
 
-    var gameState by remember { mutableStateOf(createInitialGameState(statsRepository.bestSurvivalTimeMs())) }
+    var soundEnabled by remember { mutableStateOf(settingsRepository.isSoundEnabled()) }
+    var difficulty by remember { mutableStateOf(settingsRepository.difficulty()) }
+    var gameState by remember { mutableStateOf(createInitialGameState(statsRepository.bestSurvivalTimeMs(), difficulty = difficulty)) }
     var hasRecordedThisRun by remember { mutableStateOf(false) }
     var showCompendium by remember { mutableStateOf(false) }
-    val isRunning = gameState.phase == GamePhase.RUNNING && !showCompendium
+    var showSettings by remember { mutableStateOf(false) }
+    val isRunning = gameState.phase == GamePhase.RUNNING && !showCompendium && !showSettings
 
     LaunchedEffect(isRunning) {
         while (isRunning) {
             delay(GameTunables.TICK_MS)
             val ticked = GameLoopOrchestrator.tick(gameState)
-            ticked.pendingSoundCues.forEach(soundEngine::play)
-            ticked.pendingWeaponFireSounds.forEach(soundEngine::playWeaponFire)
+            if (soundEnabled) {
+                ticked.pendingSoundCues.forEach(soundEngine::play)
+                ticked.pendingWeaponFireSounds.forEach(soundEngine::playWeaponFire)
+            }
             gameState = if (ticked.pendingSoundCues.isEmpty() && ticked.pendingWeaponFireSounds.isEmpty()) {
                 ticked
             } else {
@@ -84,7 +97,12 @@ fun KnightSurvivorScreen() {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(BACKGROUND_COLOR)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BACKGROUND_COLOR)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    ) {
         Hud(
             player = gameState.player,
             survivalTimeMs = gameState.survivalTimeMs,
@@ -108,13 +126,32 @@ fun KnightSurvivorScreen() {
                 modifier = Modifier.align(Alignment.BottomStart).padding(20.dp)
             )
 
-            CompendiumButton(
-                onClick = { showCompendium = true },
-                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
-            )
+            Row(
+                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TopBarChip(text = "Guide", onClick = { showCompendium = true })
+                TopBarChip(text = "Settings", onClick = { showSettings = true })
+            }
 
             if (showCompendium) {
-                CompendiumOverlay(player = gameState.player, onClose = { showCompendium = false })
+                CompendiumOverlay(player = gameState.player, difficulty = gameState.difficulty, onClose = { showCompendium = false })
+            }
+
+            if (showSettings) {
+                SettingsOverlay(
+                    soundEnabled = soundEnabled,
+                    onSoundEnabledChanged = { enabled ->
+                        soundEnabled = enabled
+                        settingsRepository.setSoundEnabled(enabled)
+                    },
+                    difficulty = difficulty,
+                    onDifficultyChanged = { chosen ->
+                        difficulty = chosen
+                        settingsRepository.setDifficulty(chosen)
+                    },
+                    onClose = { showSettings = false }
+                )
             }
 
             if (gameState.phase == GamePhase.LEVEL_UP_PAUSE) {
@@ -134,7 +171,7 @@ fun KnightSurvivorScreen() {
                     killCount = gameState.killCount,
                     isNewBestTime = gameState.isNewBestTime,
                     onPlayAgain = {
-                        gameState = createInitialGameState(statsRepository.bestSurvivalTimeMs(), gameState.arenaSize)
+                        gameState = createInitialGameState(statsRepository.bestSurvivalTimeMs(), gameState.arenaSize, difficulty)
                         hasRecordedThisRun = false
                     }
                 )
@@ -143,11 +180,11 @@ fun KnightSurvivorScreen() {
     }
 }
 
-/** Opens [CompendiumOverlay]. A plain labeled chip rather than a glyph — a Unicode arrow already read as invisible/ambiguous once in this app's hub screen; a short word is unambiguous at any size. */
+/** Opens an overlay (Guide/Settings). A plain labeled chip rather than a glyph — a Unicode arrow already read as invisible/ambiguous once in this app's hub screen; a short word is unambiguous at any size. */
 @Composable
-private fun CompendiumButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun TopBarChip(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Text(
-        text = "Guide",
+        text = text,
         color = Color.White,
         fontSize = 13.sp,
         modifier = modifier
@@ -159,7 +196,8 @@ private fun CompendiumButton(onClick: () -> Unit, modifier: Modifier = Modifier)
 
 private fun createInitialGameState(
     bestSurvivalTimeMs: Long,
-    arenaSize: ArenaSize = ArenaSize(GameTunables.DEFAULT_ARENA_WIDTH, GameTunables.DEFAULT_ARENA_HEIGHT)
+    arenaSize: ArenaSize = ArenaSize(GameTunables.DEFAULT_ARENA_WIDTH, GameTunables.DEFAULT_ARENA_HEIGHT),
+    difficulty: Difficulty = Difficulty.NORMAL
 ): GameState {
     val player = PlayerState(
         position = Vec2(arenaSize.width / 2f, arenaSize.height / 2f),
@@ -168,5 +206,5 @@ private fun createInitialGameState(
         xpToNextLevel = GameTunables.xpRequiredForLevel(1),
         weapons = listOf(WeaponInstance(kind = WeaponKind.SWORD_SLASH, level = 1))
     )
-    return GameState(player = player, arenaSize = arenaSize, bestSurvivalTimeMsAtStart = bestSurvivalTimeMs)
+    return GameState(player = player, arenaSize = arenaSize, bestSurvivalTimeMsAtStart = bestSurvivalTimeMs, difficulty = difficulty)
 }
