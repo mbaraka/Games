@@ -72,6 +72,18 @@
             android:label="Key Reader"
             android:launchMode="singleTop"
             android:theme="@style/Theme.Game" />
+
+        <activity
+            android:name=".snakeladder.SnakeLadderActivity"
+            android:exported="false"
+            android:label="Snakes &amp; Ladders"
+            android:theme="@style/Theme.Game" />
+
+        <activity
+            android:name=".battleship.BattleShipActivity"
+            android:exported="false"
+            android:label="Battleship"
+            android:theme="@style/Theme.Game" />
     </application>
 
 </manifest>

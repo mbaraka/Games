@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Simple ladder: two rails + three rungs -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M5,2h2.5v20H5V2zM16.5,2H19v20h-2.5V2zM5,7h14v2H5V7zM5,12h14v2H5V12zM5,17h14v2H5V17z" />
+</vector>

@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.basedefender.BaseDefenderGame
 import com.baraka.game.keyreader.KeyReaderActivity
+import com.baraka.game.snakeladder.SnakeLadderActivity
+import com.baraka.game.battleship.BattleShipActivity
 import com.baraka.game.memorymatch.MemoryMatchGame
 import com.baraka.game.rhythmrunner.RhythmRunnerGame
 import com.baraka.game.numbercruncher.NumberCruncherGame
@@ -48,6 +50,10 @@ class MainActivity : ComponentActivity() {
                                 val intent = Intent(this, MemoryMatchGame::class.java)
                                 startActivity(intent)
                             }
+                            GameType.SNAKES_LADDERS -> {
+                                val intent = Intent(this, SnakeLadderActivity::class.java)
+                                startActivity(intent)
+                            }
                             GameType.RHYTHM_RUNNER -> {
                                 val intent = Intent(this, RhythmRunnerGame::class.java)
                                 startActivity(intent)
@@ -62,6 +68,10 @@ class MainActivity : ComponentActivity() {
                             }
                             GameType.KEY_READER -> {
                                 val intent = Intent(this, KeyReaderActivity::class.java)
+                                startActivity(intent)
+                            }
+                            GameType.BATTLESHIP -> {
+                                val intent = Intent(this, BattleShipActivity::class.java)
                                 startActivity(intent)
                             }
                         }
@@ -79,7 +89,9 @@ enum class GameType {
     RHYTHM_RUNNER,
     NUMBER_CRUNCHER,
     ZOMBIE_SURVIVAL,
-    KEY_READER
+    KEY_READER,
+    SNAKES_LADDERS,
+    BATTLESHIP
 }
 
 @Composable
@@ -135,6 +147,20 @@ fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
                 description = "Find matching pairs of gaming cards!",
                 color = Color(0xFF2196F3),
                 onClick = { onGameSelected(GameType.MEMORY_MATCH) }
+            )
+            
+            GameCard(
+                title = "Snakes & Ladders",
+                description = "2D board — 2–6 players, each human or CPU.",
+                color = Color(0xFF00897B),
+                onClick = { onGameSelected(GameType.SNAKES_LADDERS) }
+            )
+
+            GameCard(
+                title = "Battleship",
+                description = "Local 2 players or vs computer — place fleets, then take turns firing.",
+                color = Color(0xFF0277BD),
+                onClick = { onGameSelected(GameType.BATTLESHIP) }
             )
 
             GameCard(
