@@ -58,7 +58,6 @@ object GameLoopOrchestrator {
         val updatedParticles = ParticleSystem.step(state.particles + newParticles, dtMs, dtSeconds)
 
         val soundCues = buildList {
-            if (firing.newProjectiles.isNotEmpty() || firing.newActivationEvents.isNotEmpty()) add(SoundCue.WEAPON_FIRE)
             if (collision.hitFeedback.isNotEmpty()) add(SoundCue.ENEMY_HIT)
             if (collision.deathFeedback.isNotEmpty()) add(SoundCue.ENEMY_DEATH)
             if (collision.player.hp < playerWithWeapons.hp) add(SoundCue.PLAYER_HURT)
@@ -73,6 +72,7 @@ object GameLoopOrchestrator {
             particles = updatedParticles,
             recentWeaponActivations = prunedActivations,
             pendingSoundCues = soundCues,
+            pendingWeaponFireSounds = firing.firedWeaponKinds,
             elapsedMs = newElapsedMs,
             killCount = state.killCount + collision.killsThisTick
         )

@@ -62,7 +62,12 @@ fun KnightSurvivorScreen() {
             delay(GameTunables.TICK_MS)
             val ticked = GameLoopOrchestrator.tick(gameState)
             ticked.pendingSoundCues.forEach(soundEngine::play)
-            gameState = if (ticked.pendingSoundCues.isEmpty()) ticked else ticked.copy(pendingSoundCues = emptyList())
+            ticked.pendingWeaponFireSounds.forEach(soundEngine::playWeaponFire)
+            gameState = if (ticked.pendingSoundCues.isEmpty() && ticked.pendingWeaponFireSounds.isEmpty()) {
+                ticked
+            } else {
+                ticked.copy(pendingSoundCues = emptyList(), pendingWeaponFireSounds = emptyList())
+            }
         }
     }
 

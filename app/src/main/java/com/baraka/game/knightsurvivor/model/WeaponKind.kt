@@ -15,6 +15,10 @@ enum class WeaponKind(
     val targeting: WeaponTargeting,
     val colorArgb: Long,
     val icon: VectorIcon,
+    /** Pitch of this weapon's own fire sound — see data/SurvivorSoundEngine.kt#playWeaponFire. */
+    val fireSoundHz: Double,
+    /** Timbre of this weapon's own fire sound. */
+    val fireSoundWaveform: Waveform,
     val maxLevel: Int = 5
 ) {
     SWORD_SLASH(
@@ -22,21 +26,27 @@ enum class WeaponKind(
         description = "Swings a blade around the knight, hitting every enemy in range.",
         targeting = WeaponTargeting.AREA_AROUND_PLAYER,
         colorArgb = 0xFFCFD8DC,
-        icon = VectorIcon.Blade(lengthRatio = 2.2f)
+        icon = VectorIcon.Blade(lengthRatio = 2.2f),
+        fireSoundHz = 320.0, // low, broad — a heavy swing
+        fireSoundWaveform = Waveform.SAWTOOTH
     ),
     DAGGER_THROW(
         displayName = "Dagger Throw",
         description = "Hurls a dagger at the nearest enemy at regular intervals.",
         targeting = WeaponTargeting.NEAREST_ENEMY,
         colorArgb = 0xFFFFC107,
-        icon = VectorIcon.Blade(lengthRatio = 1.5f)
+        icon = VectorIcon.Blade(lengthRatio = 1.5f),
+        fireSoundHz = 920.0, // high, crisp — a quick flick
+        fireSoundWaveform = Waveform.SQUARE
     ),
     ORBIT_SHIELD(
         displayName = "Orbit Shield",
         description = "Shields spin around the knight, damaging anything they touch.",
         targeting = WeaponTargeting.ORBIT,
         colorArgb = 0xFF29B6F6,
-        icon = VectorIcon.Shield
+        icon = VectorIcon.Shield,
+        fireSoundHz = 540.0, // soft, sustained — a magical hum (not currently triggered; ORBIT ticks too often to sound a fire cue without spamming, see WeaponFiringSystem)
+        fireSoundWaveform = Waveform.SINE
     );
 
     /** Damage dealt per hit at [level] (1..[maxLevel]). */

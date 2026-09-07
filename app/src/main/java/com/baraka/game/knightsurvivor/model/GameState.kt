@@ -26,6 +26,8 @@ data class GameState(
     val recentWeaponActivations: List<WeaponActivationEvent> = emptyList(),
     /** Sounds to play for what just happened this tick. Drained and cleared by ui/KnightSurvivorScreen.kt every tick — never accumulates. */
     val pendingSoundCues: List<SoundCue> = emptyList(),
+    /** Which weapon(s) fired this tick, so ui/KnightSurvivorScreen.kt can play that weapon's own fire sound. Drained and cleared every tick, same as [pendingSoundCues]. */
+    val pendingWeaponFireSounds: List<WeaponKind> = emptyList(),
     val elapsedMs: Long = 0L,
     val phase: GamePhase = GamePhase.RUNNING,
     val pendingUpgradeChoices: List<UpgradeOption> = emptyList(),

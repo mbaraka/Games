@@ -9,6 +9,7 @@ import com.baraka.game.knightsurvivor.model.Projectile
 import com.baraka.game.knightsurvivor.model.Vec2
 import com.baraka.game.knightsurvivor.model.WeaponActivationEvent
 import com.baraka.game.knightsurvivor.model.WeaponInstance
+import com.baraka.game.knightsurvivor.model.WeaponKind
 import com.baraka.game.knightsurvivor.model.WeaponTargeting
 import kotlin.math.cos
 import kotlin.math.sin
@@ -18,7 +19,9 @@ data class WeaponFiringResult(
     val weapons: List<WeaponInstance>,
     val newProjectiles: List<Projectile>,
     val directDamageEvents: List<DamageEvent>,
-    val newActivationEvents: List<WeaponActivationEvent>
+    val newActivationEvents: List<WeaponActivationEvent>,
+    /** Which weapon kind(s) actually activated this tick — lets a UI layer play that weapon's own fire sound. Excludes ORBIT, which ticks too often to sound a fire cue without spamming. */
+    val firedWeaponKinds: List<WeaponKind> = emptyList()
 )
 
 /**
@@ -43,6 +46,7 @@ object WeaponFiringSystem {
         val newProjectiles = mutableListOf<Projectile>()
         val damageEvents = mutableListOf<DamageEvent>()
         val activationEvents = mutableListOf<WeaponActivationEvent>()
+        val firedWeaponKinds = mutableListOf<WeaponKind>()
 
         for (weapon in player.weapons) {
             val spinningWeapon = if (weapon.kind.targeting == WeaponTargeting.ORBIT) {
@@ -61,6 +65,7 @@ object WeaponFiringSystem {
                 WeaponTargeting.NEAREST_ENEMY -> {
                     nearestEnemyWithinRange(player.position, enemies)?.let { target ->
                         newProjectiles += fireProjectileAt(player.position, target, spinningWeapon)
+                        firedWeaponKinds += spinningWeapon.kind
                     }
                 }
 
@@ -71,6 +76,7 @@ object WeaponFiringSystem {
                         .filter { enemy -> enemy.position.distanceTo(player.position) <= radius + enemy.radius }
                         .forEach { enemy -> damageEvents += DamageEvent(enemy.id, damage, spinningWeapon.kind) }
                     activationEvents += WeaponActivationEvent(spinningWeapon.kind, player.position, radius, nowMs)
+                    firedWeaponKinds += spinningWeapon.kind
                 }
 
                 WeaponTargeting.ORBIT -> {
@@ -91,7 +97,7 @@ object WeaponFiringSystem {
             updatedWeapons += spinningWeapon.copy(cooldownRemainingMs = freshCooldownMs)
         }
 
-        return WeaponFiringResult(updatedWeapons, newProjectiles, damageEvents, activationEvents)
+        return WeaponFiringResult(updatedWeapons, newProjectiles, damageEvents, activationEvents, firedWeaponKinds)
     }
 
     /**

@@ -4,16 +4,19 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import com.baraka.game.knightsurvivor.model.SoundCue
+import com.baraka.game.knightsurvivor.model.Waveform
+import com.baraka.game.knightsurvivor.model.WeaponKind
 import kotlin.math.PI
 import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * Plays every [SoundCue] as a short procedurally-synthesized tone — no audio asset files
- * at all, the same "everything is generated code, not a binary asset" approach this game
- * already uses for its icons. Each cue's waveform is synthesized once at construction and
- * held in its own dedicated [AudioTrack], so playing it is just "restart from position 0."
+ * Plays every [SoundCue] — plus a distinct fire sound per [WeaponKind] — as a short
+ * procedurally-synthesized tone. No audio asset files at all, the same "everything is
+ * generated code, not a binary asset" approach this game already uses for its icons. Each
+ * sound's waveform is synthesized once at construction and held in its own dedicated
+ * [AudioTrack], so playing it is just "restart from position 0."
  *
  * Lives in data/ alongside SurvivorStatsRepository.kt: both are the Android-dependent side
  * of this game, kept out of model/systems so those stay platform-free.
@@ -21,11 +24,18 @@ import kotlin.math.sin
 class SurvivorSoundEngine {
 
     private val sampleRateHz = 44_100
-    private val tracks: Map<SoundCue, AudioTrack> = SoundCue.entries.associateWith { cue -> buildTrack(synthesize(cue)) }
+    private val cueTracks: Map<SoundCue, AudioTrack> = SoundCue.entries.associateWith { cue -> buildTrack(synthesize(cue)) }
+    private val weaponFireTracks: Map<WeaponKind, AudioTrack> =
+        WeaponKind.entries.associateWith { kind -> buildTrack(tone(kind.fireSoundHz, WEAPON_FIRE_DURATION_MS, kind.fireSoundWaveform, WEAPON_FIRE_VOLUME)) }
 
     /** Restarts the given cue's track from the beginning — safe to call again before a previous play finished. */
-    fun play(cue: SoundCue) {
-        val track = tracks[cue] ?: return
+    fun play(cue: SoundCue) = restart(cueTracks[cue])
+
+    /** Restarts [kind]'s own fire-sound track — each weapon has a distinct pitch/timbre, see [WeaponKind.fireSoundHz]. */
+    fun playWeaponFire(kind: WeaponKind) = restart(weaponFireTracks[kind])
+
+    private fun restart(track: AudioTrack?) {
+        track ?: return
         track.pause()
         track.setPlaybackHeadPosition(0)
         track.play()
@@ -33,7 +43,8 @@ class SurvivorSoundEngine {
 
     /** Releases every underlying [AudioTrack]. Call once when the game screen leaves composition. */
     fun release() {
-        tracks.values.forEach { it.release() }
+        cueTracks.values.forEach { it.release() }
+        weaponFireTracks.values.forEach { it.release() }
     }
 
     private fun buildTrack(samples: ShortArray): AudioTrack {
@@ -62,7 +73,6 @@ class SurvivorSoundEngine {
     // --- Synthesis: one short waveform per cue, each with an attack/release envelope so it doesn't click. ---
 
     private fun synthesize(cue: SoundCue): ShortArray = when (cue) {
-        SoundCue.WEAPON_FIRE -> tone(frequencyHz = 740.0, durationMs = 70, waveform = Waveform.SQUARE, volume = 0.22f)
         SoundCue.ENEMY_HIT -> tone(frequencyHz = 180.0, durationMs = 45, waveform = Waveform.SQUARE, volume = 0.28f)
         SoundCue.ENEMY_DEATH -> sweep(startHz = 420.0, endHz = 120.0, durationMs = 160, waveform = Waveform.SAWTOOTH, volume = 0.28f)
         SoundCue.PLAYER_HURT -> tone(frequencyHz = 140.0, durationMs = 140, waveform = Waveform.SQUARE, volume = 0.32f)
@@ -132,5 +142,8 @@ class SurvivorSoundEngine {
         return bytes
     }
 
-    private enum class Waveform { SINE, SQUARE, SAWTOOTH }
+    private companion object {
+        const val WEAPON_FIRE_DURATION_MS = 70
+        const val WEAPON_FIRE_VOLUME = 0.22f
+    }
 }
