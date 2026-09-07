@@ -34,9 +34,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.knightsurvivor.model.EnemyKind
 import com.baraka.game.knightsurvivor.model.PlayerState
-import com.baraka.game.knightsurvivor.model.VectorIcon
 import com.baraka.game.knightsurvivor.model.WeaponInstance
 import com.baraka.game.knightsurvivor.model.WeaponKind
+import com.baraka.game.knightsurvivor.render.drawKnightIcon
 import com.baraka.game.knightsurvivor.render.drawVectorIcon
 
 private enum class CompendiumTab(val label: String) {
@@ -119,7 +119,7 @@ private fun KnightSummaryCard(player: PlayerState) {
     CompendiumCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconSwatch(iconSize = 56.dp) {
-                drawVectorIcon(icon = VectorIcon.Shield, center = center, radius = size.minDimension * 0.36f, color = Color(0xFF42A5F5))
+                drawKnightIcon(center = center, radius = size.minDimension * 0.42f)
             }
             Spacer(Modifier.width(12.dp))
             Column {

@@ -30,15 +30,23 @@ fun DrawScope.drawPlayer(player: PlayerState, nowMs: Long) {
     val isInvulnerable = player.isInvulnerableAt(nowMs)
     val flashOn = isInvulnerable && (nowMs / 80L) % 2L == 0L
     val bodyColor = if (flashOn) INVULNERABLE_FLASH_COLOR else PLAYER_BODY_COLOR
-    val center = player.position.toOffset()
-    val radius = player.radius
 
-    drawShield(center = Offset(center.x, center.y + radius * 0.32f), radius = radius * 0.82f, color = bodyColor, emblem = false)
-    drawHelmet(center = Offset(center.x, center.y - radius * 0.62f), radius = radius * 0.5f)
-    drawKnightBlade(knightCenter = center, knightRadius = radius)
+    drawKnightIcon(center = player.position.toOffset(), radius = player.radius, bodyColor = bodyColor)
 
     drawOrbitWeapons(player)
     drawPlayerHpBar(player)
+}
+
+/**
+ * The knight's actual visual identity — shield body, helmet, held sword — with none of
+ * the in-run-only extras (HP bar, invulnerability flash, orbiting weapons). Reused by
+ * ui/CompendiumOverlay.kt so its "Your Knight" preview shows the real character instead
+ * of a generic placeholder shape.
+ */
+fun DrawScope.drawKnightIcon(center: Offset, radius: Float, bodyColor: Color = PLAYER_BODY_COLOR) {
+    drawShield(center = Offset(center.x, center.y + radius * 0.32f), radius = radius * 0.82f, color = bodyColor, emblem = false)
+    drawHelmet(center = Offset(center.x, center.y - radius * 0.62f), radius = radius * 0.5f)
+    drawKnightBlade(knightCenter = center, knightRadius = radius)
 }
 
 /** A winged/plumed helm with a single horizontal eye-slit sitting above the shield body — gives the knight a face, the same way enemies get one, instead of reading as a bare geometric shape. */
