@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.basedefender.BaseDefenderGame
 import com.baraka.game.keyreader.KeyReaderActivity
+import com.baraka.game.knightsurvivor.KnightSurvivorActivity
 import com.baraka.game.snakeladder.SnakeLadderActivity
 import com.baraka.game.battleship.BattleShipActivity
 import com.baraka.game.memorymatch.MemoryMatchGame
@@ -81,6 +82,10 @@ class MainActivity : ComponentActivity() {
                                 val intent = Intent(this, BattleShipActivity::class.java)
                                 startActivity(intent)
                             }
+                            GameType.KNIGHT_SURVIVOR -> {
+                                val intent = Intent(this, KnightSurvivorActivity::class.java)
+                                startActivity(intent)
+                            }
                         }
                     }
                 )
@@ -98,7 +103,8 @@ enum class GameType {
     ZOMBIE_SURVIVAL,
     KEY_READER,
     SNAKES_LADDERS,
-    BATTLESHIP
+    BATTLESHIP,
+    KNIGHT_SURVIVOR
 }
 
 @Composable
@@ -136,6 +142,13 @@ fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
 
             // Game selection cards
             SectionHeader(text = "Favorites")
+
+            GameCard(
+                title = "Knight Survivor",
+                description = "Arena survivor — auto-attack hordes, level up, and outlast the clock!",
+                color = Color(0xFF7B1FA2),
+                onClick = { onGameSelected(GameType.KNIGHT_SURVIVOR) }
+            )
 
             GameCard(
                 title = "Base Defender",

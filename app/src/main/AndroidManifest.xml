@@ -84,6 +84,13 @@
             android:exported="false"
             android:label="Battleship"
             android:theme="@style/Theme.Game" />
+
+        <activity
+            android:name=".knightsurvivor.KnightSurvivorActivity"
+            android:exported="false"
+            android:label="Knight Survivor"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Game" />
     </application>
 
 </manifest>
