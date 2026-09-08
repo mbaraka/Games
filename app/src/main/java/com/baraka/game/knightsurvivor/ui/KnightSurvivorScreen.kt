@@ -70,9 +70,8 @@ fun KnightSurvivorScreen() {
     var gameState by remember { mutableStateOf(createInitialGameState(statsRepository.bestSurvivalTimeMs(), difficulty = difficulty, weaponDeck = weaponDeck)) }
     var hasRecordedThisRun by remember { mutableStateOf(false) }
     var unlockedAchievements by remember { mutableStateOf(achievementRepository.unlockedAchievements()) }
-    var showCompendium by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
-    val isRunning = gameState.phase == GamePhase.RUNNING && !showCompendium && !showSettings && !showDeckPicker
+    val isRunning = gameState.phase == GamePhase.RUNNING && !showSettings && !showDeckPicker
 
     LaunchedEffect(isRunning) {
         while (isRunning) {
@@ -156,21 +155,11 @@ fun KnightSurvivorScreen() {
                 modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                TopBarChip(text = "Guide", onClick = { showCompendium = true })
                 TopBarChip(text = "Settings", onClick = { showSettings = true })
             }
 
-            if (showCompendium) {
-                CompendiumOverlay(
-                    player = gameState.player,
-                    difficulty = gameState.difficulty,
-                    unlockedAchievements = unlockedAchievements,
-                    onClose = { showCompendium = false }
-                )
-            }
-
             if (showSettings) {
-                SettingsOverlay(
+                SettingsScreen(
                     soundEnabled = soundEnabled,
                     onSoundEnabledChanged = { enabled ->
                         soundEnabled = enabled
@@ -181,6 +170,8 @@ fun KnightSurvivorScreen() {
                         difficulty = chosen
                         settingsRepository.setDifficulty(chosen)
                     },
+                    player = gameState.player,
+                    unlockedAchievements = unlockedAchievements,
                     onClose = { showSettings = false }
                 )
             }

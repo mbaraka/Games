@@ -4,7 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -49,63 +48,39 @@ private enum class CompendiumTab(val label: String) {
 }
 
 /**
- * An in-game reference screen: the current knight build, every enemy's base stats, every
+ * The in-game reference: the current knight build, every enemy's base stats, every
  * weapon's stats/unlock status, and earned achievements — so a player can check "how
  * strong is this thing" or "what am I working toward" without leaving the run. Reads
  * entirely from the static [EnemyKind]/[WeaponKind]/[Achievement] enums plus the current
  * [PlayerState] and unlocked set; needs no new systems/model state of its own.
+ *
+ * Embedded as the "Guide" tab of [SettingsScreen] rather than its own full-screen overlay —
+ * seen once and then rarely revisited, so it doesn't need a spot of its own on the main
+ * screen.
  */
 @Composable
-fun CompendiumOverlay(
-    player: PlayerState,
-    difficulty: Difficulty,
-    unlockedAchievements: Set<Achievement>,
-    onClose: () -> Unit
-) {
+fun CompendiumContent(player: PlayerState, difficulty: Difficulty, unlockedAchievements: Set<Achievement>) {
     var tab by remember { mutableStateOf(CompendiumTab.KNIGHT) }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.94f))) {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "Compendium",
-                    color = GameColors.TextPrimary,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "Close ✕",
-                    color = GameColors.TextPrimary,
-                    fontSize = 14.sp,
-                    modifier = Modifier
-                        .background(Color(0xFF2D2D2D), RoundedCornerShape(8.dp))
-                        .clickable(onClick = onClose)
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                )
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            CompendiumTab.entries.forEach { candidate ->
+                TabChip(text = candidate.label, selected = candidate == tab, onClick = { tab = candidate })
             }
+        }
 
-            Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                CompendiumTab.entries.forEach { candidate ->
-                    TabChip(text = candidate.label, selected = candidate == tab, onClick = { tab = candidate })
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                when (tab) {
-                    CompendiumTab.KNIGHT -> item { KnightSummaryCard(player, difficulty) }
-                    CompendiumTab.ENEMIES -> items(EnemyKind.entries) { kind -> EnemyEntryCard(kind) }
-                    CompendiumTab.WEAPONS -> items(WeaponKind.entries) { kind -> WeaponEntryCard(kind, player.weaponOf(kind)) }
-                    CompendiumTab.ACHIEVEMENTS -> items(Achievement.entries) { achievement ->
-                        AchievementEntryCard(achievement, unlocked = achievement in unlockedAchievements)
-                    }
+        LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            when (tab) {
+                CompendiumTab.KNIGHT -> item { KnightSummaryCard(player, difficulty) }
+                CompendiumTab.ENEMIES -> items(EnemyKind.entries) { kind -> EnemyEntryCard(kind) }
+                CompendiumTab.WEAPONS -> items(WeaponKind.entries) { kind -> WeaponEntryCard(kind, player.weaponOf(kind)) }
+                CompendiumTab.ACHIEVEMENTS -> items(Achievement.entries) { achievement ->
+                    AchievementEntryCard(achievement, unlocked = achievement in unlockedAchievements)
                 }
             }
         }
