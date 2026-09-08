@@ -57,14 +57,23 @@ enum class WeaponKind(
         fireSoundHz = 240.0,
         fireSoundWaveform = Waveform.SAWTOOTH
     ),
-    HOLY_AURA(
-        displayName = "Holy Aura",
-        description = "A radiant field that repeatedly scorches every enemy nearby.",
+    SUNBURST(
+        displayName = "Sunburst",
+        description = "A blazing solar field that repeatedly scorches every enemy nearby.",
         targeting = WeaponTargeting.AREA_AROUND_PLAYER,
-        colorArgb = 0xFFFFF59D,
-        icon = VectorIcon.Star(points = 4, innerRadiusRatio = 0.4f),
+        colorArgb = 0xFFFFB300,
+        icon = VectorIcon.Star(points = 8, innerRadiusRatio = 0.55f),
         fireSoundHz = 1200.0,
         fireSoundWaveform = Waveform.SINE
+    ),
+    RUBBER_DUCK(
+        displayName = "Rubber Duck Toss",
+        description = "Bonks the nearest enemy with a squeaky rubber duck. Purely for morale.",
+        targeting = WeaponTargeting.NEAREST_ENEMY,
+        colorArgb = 0xFFFFEB3B,
+        icon = VectorIcon.Duck,
+        fireSoundHz = 660.0,
+        fireSoundWaveform = Waveform.SQUARE
     );
 
     /** Damage dealt per hit at [level] (1..[maxLevel]). */
@@ -73,7 +82,8 @@ enum class WeaponKind(
         DAGGER_THROW -> 10 + (level - 1) * 5
         ORBIT_SHIELD -> 8 + (level - 1) * 4
         THROWING_AXE -> 15 + (level - 1) * 7
-        HOLY_AURA -> 4 + (level - 1) * 2
+        SUNBURST -> 4 + (level - 1) * 2
+        RUBBER_DUCK -> 12 + (level - 1) * 5
     }
 
     /**
@@ -86,15 +96,16 @@ enum class WeaponKind(
         DAGGER_THROW -> (650 - (level - 1) * 60).coerceAtLeast(300).toLong()
         ORBIT_SHIELD -> (350 - (level - 1) * 20).coerceAtLeast(220).toLong()
         THROWING_AXE -> (820 - (level - 1) * 70).coerceAtLeast(420).toLong()
-        HOLY_AURA -> (420 - (level - 1) * 30).coerceAtLeast(220).toLong()
+        SUNBURST -> (420 - (level - 1) * 30).coerceAtLeast(220).toLong()
+        RUBBER_DUCK -> (700 - (level - 1) * 60).coerceAtLeast(350).toLong()
     }
 
     /** Hit radius in px. Used as the AoE radius for AREA_AROUND_PLAYER and the orbit radius for ORBIT. */
     fun radiusAtLevel(level: Int): Float = when (this) {
         SWORD_SLASH -> 70f + (level - 1) * 10f
         ORBIT_SHIELD -> 60f + (level - 1) * 4f
-        HOLY_AURA -> 50f + (level - 1) * 8f
-        DAGGER_THROW, THROWING_AXE -> 0f
+        SUNBURST -> 50f + (level - 1) * 8f
+        DAGGER_THROW, THROWING_AXE, RUBBER_DUCK -> 0f
     }
 
     /** Number of simultaneous orbiting instances (ORBIT_SHIELD only, 0 for every other kind). */
@@ -122,6 +133,7 @@ enum class WeaponKind(
         get() = when (this) {
             DAGGER_THROW -> 260f
             THROWING_AXE -> 190f
+            RUBBER_DUCK -> 210f
             else -> 0f
         }
 }

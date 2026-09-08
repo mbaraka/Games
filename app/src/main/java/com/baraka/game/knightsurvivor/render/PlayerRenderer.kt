@@ -44,7 +44,7 @@ fun DrawScope.drawPlayer(player: PlayerState, nowMs: Long) {
  * of a generic placeholder shape.
  */
 fun DrawScope.drawKnightIcon(center: Offset, radius: Float, bodyColor: Color = PLAYER_BODY_COLOR) {
-    drawShield(center = Offset(center.x, center.y + radius * 0.32f), radius = radius * 0.82f, color = bodyColor, emblem = false)
+    drawShield(center = Offset(center.x, center.y + radius * 0.32f), radius = radius * 0.82f, color = bodyColor)
     drawHelmet(center = Offset(center.x, center.y - radius * 0.62f), radius = radius * 0.5f)
     drawKnightBlade(knightCenter = center, knightRadius = radius)
 }

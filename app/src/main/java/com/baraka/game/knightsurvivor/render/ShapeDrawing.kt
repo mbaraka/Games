@@ -89,19 +89,13 @@ fun DrawScope.drawDiamond(
     drawPath(path, color = outlineColor, style = Stroke(width = outlineWidth))
 }
 
-/**
- * A pentagon "heater shield" silhouette (flat top, pointed bottom) with a heraldic cross
- * emblem — the one recurring "this is knight gear" cue shared by the Knight's own body
- * and any weapon (Orbit Shield) that should visually read as "a shield," not just an
- * arbitrary polygon.
- */
+/** A pentagon "heater shield" silhouette (flat top, pointed bottom) — the Knight's own body, and any weapon that should visually read as "a shield." */
 fun DrawScope.drawShield(
     center: Offset,
     radius: Float,
     color: Color,
     outlineColor: Color = Color.White,
-    outlineWidth: Float = 1.5f,
-    emblem: Boolean = true
+    outlineWidth: Float = 1.5f
 ) {
     val height = radius * 1.15f
     val path = Path().apply {
@@ -115,19 +109,6 @@ fun DrawScope.drawShield(
     }
     drawPath(path, color = color)
     drawPath(path, color = outlineColor, style = Stroke(width = outlineWidth))
-
-    if (emblem) {
-        drawRect(
-            color = outlineColor,
-            topLeft = Offset(center.x - radius * 0.09f, center.y - radius * 0.55f),
-            size = Size(radius * 0.18f, radius * 0.75f)
-        )
-        drawRect(
-            color = outlineColor,
-            topLeft = Offset(center.x - radius * 0.4f, center.y - radius * 0.28f),
-            size = Size(radius * 0.8f, radius * 0.18f)
-        )
-    }
 }
 
 /**
@@ -245,5 +226,41 @@ fun DrawScope.drawHeart(
     drawPath(path, color = outlineColor, style = Stroke(width = outlineWidth))
 }
 
+/** A classic rubber duck: oval body, round head with a small orange beak, and an eye. */
+fun DrawScope.drawDuck(
+    center: Offset,
+    radius: Float,
+    bodyColor: Color,
+    outlineColor: Color = Color.White,
+    outlineWidth: Float = 1.5f
+) {
+    val bodyCenter = Offset(center.x, center.y + radius * 0.25f)
+    val bodySize = Size(radius * 1.8f, radius * 1.1f)
+    val bodyTopLeft = Offset(bodyCenter.x - bodySize.width / 2f, bodyCenter.y - bodySize.height / 2f)
+    drawOval(color = bodyColor, topLeft = bodyTopLeft, size = bodySize)
+    drawOval(color = outlineColor, topLeft = bodyTopLeft, size = bodySize, style = Stroke(width = outlineWidth))
+
+    val headCenter = Offset(center.x + radius * 0.45f, center.y - radius * 0.5f)
+    val headRadius = radius * 0.45f
+    drawCircle(color = bodyColor, radius = headRadius, center = headCenter)
+    drawCircle(color = outlineColor, radius = headRadius, center = headCenter, style = Stroke(width = outlineWidth))
+
+    val beakPath = Path().apply {
+        moveTo(headCenter.x + headRadius * 0.75f, headCenter.y - headRadius * 0.1f)
+        lineTo(headCenter.x + headRadius * 1.7f, headCenter.y + headRadius * 0.15f)
+        lineTo(headCenter.x + headRadius * 0.75f, headCenter.y + headRadius * 0.55f)
+        close()
+    }
+    drawPath(beakPath, color = DUCK_BEAK_COLOR)
+    drawPath(beakPath, color = outlineColor, style = Stroke(width = outlineWidth * 0.7f))
+
+    drawCircle(
+        color = Color(0xFF1A1A1A),
+        radius = headRadius * 0.16f,
+        center = Offset(headCenter.x + headRadius * 0.2f, headCenter.y - headRadius * 0.25f)
+    )
+}
+
+private val DUCK_BEAK_COLOR = Color(0xFFFF9800)
 private val GRIP_COLOR = Color(0xFF6D4C41)
 private val HALF_PI = (Math.PI / 2).toFloat()

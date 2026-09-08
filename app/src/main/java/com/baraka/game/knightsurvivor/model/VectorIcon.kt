@@ -17,7 +17,7 @@ sealed class VectorIcon {
     data class Diamond(val aspectRatio: Float = 1f) : VectorIcon()
     data class Star(val points: Int, val innerRadiusRatio: Float = 0.5f) : VectorIcon()
 
-    /** A heater-shield silhouette with a heraldic cross emblem — the Knight's own body, and any weapon that should visually read as "a shield." */
+    /** A heater-shield silhouette — the Knight's own body, and any weapon that should visually read as "a shield." */
     data object Shield : VectorIcon()
 
     /** A bladed weapon: pointed blade, crossguard, grip, and pommel — not just an elongated diamond. [lengthRatio] (relative to radius) differentiates a short dagger from a longer sword. */
@@ -28,6 +28,9 @@ sealed class VectorIcon {
 
     /** A heart — health pickups, so they read as "heal" instead of another gem. */
     data object Heart : VectorIcon()
+
+    /** A classic bath-toy rubber duck — round body, round head, small beak. Purely a fun/cute weapon. */
+    data object Duck : VectorIcon()
 
     /**
      * A simple creature face: a round head plus optional features. New monsters can
