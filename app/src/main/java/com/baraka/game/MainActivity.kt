@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -165,33 +166,7 @@ fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
             // Game selection cards
             SectionHeader(text = "Favorites")
 
-            GameCard(
-                title = "Knight Survivor",
-                description = "Arena survivor — auto-attack hordes, level up, and outlast the clock!",
-                color = Color(0xFF7B1FA2),
-                onClick = { onGameSelected(GameType.KNIGHT_SURVIVOR) }
-            )
-
-            GameCard(
-                title = "Base Defender",
-                description = "Defend your base! Aim and shoot at incoming enemies!",
-                color = Color(0xFFFF5722),
-                onClick = { onGameSelected(GameType.BASE_DEFENDER) }
-            )
-
-            GameCard(
-                title = "Memory Match",
-                description = "Find matching pairs of gaming cards!",
-                color = Color(0xFF2196F3),
-                onClick = { onGameSelected(GameType.MEMORY_MATCH) }
-            )
-
-            GameCard(
-                title = "Number Cruncher",
-                description = "Combine numbers to reach the target!",
-                color = Color(0xFFFF6B6B),
-                onClick = { onGameSelected(GameType.NUMBER_CRUNCHER) }
-            )
+            Favorites(onGameSelected)
 
             var otherGamesExpanded by remember { mutableStateOf(false) }
 
@@ -218,13 +193,6 @@ fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
                         description = "Collect green pixels while avoiding red obstacles!",
                         color = Color(0xFF4CAF50),
                         onClick = { onGameSelected(GameType.PIXEL_COLLECTOR) }
-                    )
-
-                    GameCard(
-                        title = "Snakes & Ladders",
-                        description = "2D board — 2–6 players, each human or CPU.",
-                        color = Color(0xFF00897B),
-                        onClick = { onGameSelected(GameType.SNAKES_LADDERS) }
                     )
 
                     GameCard(
@@ -369,4 +337,42 @@ fun GameCard(
             }
         }
     }
+}
+
+@Composable
+fun ColumnScope.Favorites(onGameSelected: (GameType) -> Unit) {
+    GameCard(
+        title = "Knight Survivor",
+        description = "Arena survivor — auto-attack hordes, level up, and outlast the clock!",
+        color = Color(0xFF7B1FA2),
+        onClick = { onGameSelected(GameType.KNIGHT_SURVIVOR) }
+    )
+
+    GameCard(
+        title = "Base Defender",
+        description = "Defend your base! Aim and shoot at incoming enemies!",
+        color = Color(0xFFFF5722),
+        onClick = { onGameSelected(GameType.BASE_DEFENDER) }
+    )
+
+    GameCard(
+        title = "Memory Match",
+        description = "Find matching pairs of gaming cards!",
+        color = Color(0xFF2196F3),
+        onClick = { onGameSelected(GameType.MEMORY_MATCH) }
+    )
+
+    GameCard(
+        title = "Number Cruncher",
+        description = "Combine numbers to reach the target!",
+        color = Color(0xFFFF6B6B),
+        onClick = { onGameSelected(GameType.NUMBER_CRUNCHER) }
+    )
+
+    GameCard(
+        title = "Snakes & Ladders",
+        description = "2D board — 2–6 players, each human or CPU.",
+        color = Color(0xFF00897B),
+        onClick = { onGameSelected(GameType.SNAKES_LADDERS) }
+    )
 }
