@@ -7,6 +7,7 @@ import com.baraka.game.clashdecks.ai.Difficulty
 import com.baraka.game.clashdecks.data.DuelSoundEngine
 import com.baraka.game.clashdecks.model.DuelPhase
 import com.baraka.game.clashdecks.model.DuelState
+import com.baraka.game.clashdecks.model.DuelVfx
 import com.baraka.game.clashdecks.systems.DuelEngine
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,11 +19,16 @@ import kotlin.random.Random
 
 enum class ClashScreen { MENU, DUEL, CODEX, RESULT }
 
+/** One visual effect plus a unique id so the UI's effect layer plays each batch once. */
+data class VfxEmission(val id: Long, val vfx: DuelVfx)
+
 data class ClashUiModel(
     val screen: ClashScreen = ClashScreen.MENU,
     val difficulty: Difficulty = Difficulty.NORMAL,
     val duel: DuelState? = null,
-    val cpuThinking: Boolean = false
+    val cpuThinking: Boolean = false,
+    /** The most recent batch of effects to animate; replaced on every state transition. */
+    val effects: List<VfxEmission> = emptyList()
 )
 
 /**
@@ -33,6 +39,7 @@ class ClashDecksViewModel : ViewModel() {
 
     private val rng = Random(System.nanoTime())
     private val sound = DuelSoundEngine()
+    private var vfxSeq = 0L
 
     private val _ui = MutableStateFlow(ClashUiModel())
     val ui: StateFlow<ClashUiModel> = _ui.asStateFlow()
@@ -113,13 +120,15 @@ class ClashDecksViewModel : ViewModel() {
         }
     }
 
-    /** Drains the state's pending sounds, then stores it (clearing the sound queue). */
+    /** Plays the state's pending sounds, forwards its VFX to the UI, then stores it cleared. */
     private fun applyState(state: DuelState) {
         state.pendingSounds.forEach(sound::play)
-        val cleared = state.copy(pendingSounds = emptyList())
+        val emissions = state.pendingVfx.map { VfxEmission(vfxSeq++, it) }
+        val cleared = state.copy(pendingSounds = emptyList(), pendingVfx = emptyList())
         _ui.update {
             it.copy(
                 duel = cleared,
+                effects = emissions,
                 screen = if (cleared.winner != null) ClashScreen.RESULT else it.screen
             )
         }

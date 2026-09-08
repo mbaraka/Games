@@ -355,10 +355,10 @@ fun ColumnScope.Favorites(onGameSelected: (GameType) -> Unit) {
     )
 
     GameCard(
-        title = "Base Defender",
-        description = "Defend your base! Aim and shoot at incoming enemies!",
-        color = Color(0xFFFF5722),
-        onClick = { onGameSelected(GameType.BASE_DEFENDER) }
+        title = "Clash Decks",
+        description = "Card duel vs computer — Attack, Defense, Support, and status-effect tactics.",
+        color = Color(0xFF3949AB),
+        onClick = { onGameSelected(GameType.CLASH_DECKS) }
     )
 
     GameCard(
@@ -383,9 +383,9 @@ fun ColumnScope.Favorites(onGameSelected: (GameType) -> Unit) {
     )
 
     GameCard(
-        title = "Clash Decks",
-        description = "Card duel vs computer — Attack, Defense, Support, and status-effect tactics.",
-        color = Color(0xFF3949AB),
-        onClick = { onGameSelected(GameType.CLASH_DECKS) }
+        title = "Base Defender",
+        description = "Defend your base! Aim and shoot at incoming enemies!",
+        color = Color(0xFFFF5722),
+        onClick = { onGameSelected(GameType.BASE_DEFENDER) }
     )
 }

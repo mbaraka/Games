@@ -38,6 +38,7 @@ data class DuelState(
     val activeRooted: Boolean,
     val log: List<DuelLogEntry>,
     val pendingSounds: List<DuelSound>,
+    val pendingVfx: List<DuelVfx>,
     val winner: String?
 ) {
     val active: Duelist get() = if (activeIsPlayer) player else cpu
@@ -53,4 +54,9 @@ data class DuelState(
         copy(log = log + DuelLogEntry(text, kind))
 
     fun sound(cue: DuelSound): DuelState = copy(pendingSounds = pendingSounds + cue)
+
+    fun vfx(effect: DuelVfx): DuelState = copy(pendingVfx = pendingVfx + effect)
+
+    val activeSide: VfxSide get() = if (activeIsPlayer) VfxSide.PLAYER else VfxSide.CPU
+    val inactiveSide: VfxSide get() = if (activeIsPlayer) VfxSide.CPU else VfxSide.PLAYER
 }

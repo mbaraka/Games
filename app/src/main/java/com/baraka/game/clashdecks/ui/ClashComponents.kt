@@ -1,5 +1,8 @@
 package com.baraka.game.clashdecks.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,12 +14,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,16 +31,44 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.baraka.game.clashdecks.VfxEmission
 import com.baraka.game.clashdecks.model.Card
+import com.baraka.game.clashdecks.model.DuelVfx
 import com.baraka.game.clashdecks.model.Duelist
 import com.baraka.game.clashdecks.model.StatusEffect
+import com.baraka.game.clashdecks.model.VfxSide
 import com.baraka.game.clashdecks.model.showsAmount
+import com.baraka.game.knightsurvivor.model.KnightDesign
 import com.baraka.game.knightsurvivor.model.VectorIcon
+import com.baraka.game.knightsurvivor.render.drawKnightIcon
 import com.baraka.game.knightsurvivor.render.drawVectorIcon
 import com.baraka.game.ui.theme.GameColors
 
 internal val PanelBg = Color(0xFF1C2029)
 internal val ScreenBg = Color(0xFF12141A)
+
+@Composable
+internal fun AvatarCanvas(design: KnightDesign, frozen: Boolean, flash: Color) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (frozen) Color(0xFF16303D) else Color(0xFF161A22)),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.size(34.dp)) {
+            drawKnightIcon(
+                center = Offset(size.width / 2f, size.height / 2f),
+                radius = size.minDimension * 0.44f,
+                design = design,
+                bodyColor = if (frozen) Color(0xFF80D8FF) else Color(0xFFCFD8DC)
+            )
+        }
+        if (flash != Color.Transparent) {
+            Box(modifier = Modifier.size(40.dp).background(flash))
+        }
+    }
+}
 
 @Composable
 internal fun IconSwatch(icon: VectorIcon, tint: Color, size: Dp = 26.dp) {
@@ -115,16 +148,48 @@ internal fun StatusRow(statuses: List<StatusEffect>) {
 }
 
 @Composable
-internal fun DuelistPanel(duelist: Duelist, label: String) {
+internal fun DuelistPanel(
+    duelist: Duelist,
+    label: String,
+    side: VfxSide,
+    effects: List<VfxEmission>
+) {
+    val latest = effects.lastOrNull { it.vfx.side == side }
+    val hurt = latest?.vfx is DuelVfx.Hit || latest?.vfx is DuelVfx.Frozen
+    val healed = latest?.vfx is DuelVfx.Heal || latest?.vfx is DuelVfx.BlockGain
+
+    val flash by animateColorAsState(
+        targetValue = when {
+            hurt -> GameColors.Danger.copy(alpha = 0.28f)
+            healed -> GameColors.Success.copy(alpha = 0.22f)
+            else -> Color.Transparent
+        },
+        animationSpec = tween(if (latest == null) 400 else 120),
+        label = "panelFlash"
+    )
+    // A tiny one-shot horizontal nudge keyed to the latest hurt event.
+    val jitter by animateFloatAsState(
+        targetValue = if (hurt) 1f else 0f,
+        animationSpec = tween(90),
+        label = "jitter"
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .offset(x = if (hurt) (jitter * 5f - 2.5f).dp else 0.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(PanelBg)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            AvatarCanvas(
+                design = if (duelist.isCpu) KnightDesign.BERSERKER else KnightDesign.SWORN_BLADE,
+                frozen = duelist.hasStatus(com.baraka.game.clashdecks.model.StatusKind.FREEZE),
+                flash = flash
+            )
+            Spacer(Modifier.width(8.dp))
             Text(label, color = GameColors.TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(8.dp))
             if (duelist.block > 0) {

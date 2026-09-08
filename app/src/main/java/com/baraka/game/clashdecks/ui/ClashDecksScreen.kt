@@ -37,6 +37,7 @@ import com.baraka.game.clashdecks.model.DuelPhase
 import com.baraka.game.clashdecks.model.DuelState
 import com.baraka.game.clashdecks.model.DuelWinner
 import com.baraka.game.clashdecks.model.LogKind
+import com.baraka.game.clashdecks.model.VfxSide
 import com.baraka.game.ui.theme.GameColors
 
 @Composable
@@ -57,7 +58,7 @@ fun ClashDecksScreen(
             ClashScreen.MENU -> MenuScreen(model, onBack, onSetDifficulty, onStartDuel, onOpenCodex)
             ClashScreen.CODEX -> CodexScreen(onClose = onCloseCodex)
             ClashScreen.DUEL -> model.duel?.let {
-                DuelScreen(it, model.cpuThinking, onPlayCard, onEndTurn, onOpenCodex)
+                DuelScreen(it, model.cpuThinking, model.effects, onPlayCard, onEndTurn, onOpenCodex)
             }
             ClashScreen.RESULT -> model.duel?.let {
                 ResultScreen(it, onRematch, onBackToMenu, onOpenCodex)
@@ -109,11 +110,13 @@ private fun MenuScreen(
 private fun DuelScreen(
     duel: DuelState,
     cpuThinking: Boolean,
+    effects: List<com.baraka.game.clashdecks.VfxEmission>,
     onPlayCard: (String) -> Unit,
     onEndTurn: () -> Unit,
     onOpenCodex: () -> Unit
 ) {
     val playerTurn = duel.phase == DuelPhase.PLAYER_TURN && duel.winner == null && !cpuThinking
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -132,7 +135,7 @@ private fun DuelScreen(
                     .padding(horizontal = 12.dp, vertical = 6.dp))
         }
 
-        DuelistPanel(duel.cpu, "Opponent")
+        DuelistPanel(duel.cpu, "Opponent", VfxSide.CPU, effects)
 
         Box(
             modifier = Modifier
@@ -151,7 +154,7 @@ private fun DuelScreen(
             }
         }
 
-        DuelistPanel(duel.player, "You")
+        DuelistPanel(duel.player, "You", VfxSide.PLAYER, effects)
         EnergyPips(duel.player.energy, duel.player.maxEnergyThisTurn)
 
         if (duel.phase == DuelPhase.PLAYER_TURN && duel.activeStunned && duel.winner == null) {
@@ -178,6 +181,9 @@ private fun DuelScreen(
             onClick = onEndTurn,
             enabled = playerTurn
         )
+    }
+
+        DuelVfxLayer(effects)
     }
 }
 

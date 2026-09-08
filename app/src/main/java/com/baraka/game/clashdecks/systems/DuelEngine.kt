@@ -7,6 +7,7 @@ import com.baraka.game.clashdecks.model.DuelLogEntry
 import com.baraka.game.clashdecks.model.DuelPhase
 import com.baraka.game.clashdecks.model.DuelSound
 import com.baraka.game.clashdecks.model.DuelState
+import com.baraka.game.clashdecks.model.DuelVfx
 import com.baraka.game.clashdecks.model.DuelWinner
 import com.baraka.game.clashdecks.model.Duelist
 import com.baraka.game.clashdecks.model.Effect
@@ -65,6 +66,7 @@ object DuelEngine {
             activeRooted = false,
             log = listOf(DuelLogEntry("Duel start — you go first.", LogKind.SYSTEM)),
             pendingSounds = listOf(DuelSound.TURN_START),
+            pendingVfx = emptyList(),
             winner = null
         )
     }
@@ -87,6 +89,7 @@ object DuelEngine {
         var s = state.withActive(spent)
             .log("${me.does("play")} ${card.name}.", LogKind.NEUTRAL)
             .sound(card.type.playSound())
+            .vfx(DuelVfx.CardPlayed(state.activeSide, card.type))
 
         for (effect in card.effects) {
             s = applyEffect(s, effect, rng)
@@ -109,12 +112,14 @@ object DuelEngine {
             is Effect.Block ->
                 s.withActive(me.copy(block = me.block + effect.amount))
                     .log("${me.does("gain")} ${effect.amount} Block.", LogKind.NEUTRAL)
+                    .vfx(DuelVfx.BlockGain(s.activeSide, effect.amount))
 
             is Effect.Heal -> {
                 val healed = (me.hp + effect.amount).coerceAtMost(me.maxHp)
                 s.withActive(me.copy(hp = healed))
                     .log("${me.does("heal")} ${healed - me.hp}.", LogKind.HEAL)
                     .sound(DuelSound.HEAL)
+                    .vfx(DuelVfx.Heal(s.activeSide, healed - me.hp))
             }
 
             is Effect.DrawCards ->
@@ -136,11 +141,13 @@ object DuelEngine {
                 )
                 val next = if (toSelf) s.withActive(updated) else s.withInactive(updated)
                 val verb = if (effect.kind.isDebuff) "suffer" else "gain"
+                val targetSide = if (toSelf) s.activeSide else s.inactiveSide
                 next.log("${target.does(verb)} ${effect.kind.displayName} (${effect.turns}).", LogKind.STATUS)
                     .sound(if (effect.kind == StatusKind.STUN) DuelSound.STUN
                            else if (effect.kind == StatusKind.FREEZE) DuelSound.FREEZE
                            else if (effect.kind.isDebuff) DuelSound.DEBUFF
                            else DuelSound.BUFF)
+                    .vfx(DuelVfx.StatusApplied(targetSide, effect.kind))
             }
 
             is Effect.Cleanse -> {
@@ -156,7 +163,9 @@ object DuelEngine {
                 val opp = s.inactive
                 val broken = opp.copy(block = 0)
                 var s2 = s.withInactive(broken).sound(DuelSound.SHATTER)
-                if (opp.block > 0) s2 = s2.log("${opp.possessive()} ${opp.block} Block is shattered.", LogKind.DAMAGE)
+                if (opp.block > 0) s2 = s2
+                    .log("${opp.possessive()} ${opp.block} Block is shattered.", LogKind.DAMAGE)
+                    .vfx(DuelVfx.BlockShattered(s.inactiveSide, opp.block))
                 dealDamage(s2, effect.bonusDamage, fromActive = true)
             }
 
@@ -193,12 +202,16 @@ object DuelEngine {
         }
 
         var s2 = putSides(s, fromActive, newAttacker, newDefender)
+        val defenderSide = if (fromActive) s.inactiveSide else s.activeSide
+        val attackerSide = if (fromActive) s.activeSide else s.inactiveSide
         s2 = s2.log(
             "${attacker.does("hit")} ${defender.name} for $toHp" +
                 (if (absorbed > 0) " ($absorbed blocked)" else "") + ".",
             LogKind.DAMAGE
-        )
-        if (reflected > 0) s2 = s2.log("${defender.possessive()} riposte deals $reflected.", LogKind.DAMAGE)
+        ).vfx(DuelVfx.Hit(defenderSide, toHp, absorbed))
+        if (reflected > 0) s2 = s2
+            .log("${defender.possessive()} riposte deals $reflected.", LogKind.DAMAGE)
+            .vfx(DuelVfx.Hit(attackerSide, reflected, 0))
         return s2
     }
 
@@ -225,6 +238,7 @@ object DuelEngine {
             val frozenMsg = if (me.isCpu) "${me.name} is frozen and skips the turn!"
                             else "${me.name} are frozen and skip the turn!"
             s = s.withActive(me).log(frozenMsg, LogKind.STATUS).sound(DuelSound.FREEZE)
+                .vfx(DuelVfx.Frozen(s.activeSide))
             return endTurn(s, rng)
         }
 
@@ -235,6 +249,7 @@ object DuelEngine {
             s = s.withActive(me)
                 .log("${me.does("take")} $poison poison damage.", LogKind.DAMAGE)
                 .sound(DuelSound.POISON_TICK)
+                .vfx(DuelVfx.Hit(s.activeSide, poison, 0))
             val dead = checkWinner(s)
             if (dead.winner != null) return dead
         }
