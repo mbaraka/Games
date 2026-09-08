@@ -46,6 +46,10 @@ enum class WeaponKind(
     val splashSlowMultiplier: Float = 1f,
     /** A NEAREST_ENEMY projectile that flies out, then homes back through the player's position — Boomerang only. */
     val returnsToPlayer: Boolean = false,
+    /** NOISE_POP/WHOOSH only: how much a 1-pole low-pass filters the noise. Lower = duller/wetter, higher = crisper. */
+    val noiseFilterAlpha: Double = 0.35,
+    /** NOISE_POP only: how many discrete pops make up the burst — 1 for a single splat, more for an actual crackle (Firecracker String). */
+    val noisePopCount: Int = 1,
     val maxLevel: Int = 5
 ) {
     SWORD_SLASH(
@@ -168,7 +172,9 @@ enum class WeaponKind(
         fireSoundHz = 700.0,
         fireSoundWaveform = Waveform.SQUARE,
         fireSoundStyle = WeaponFireSoundStyle.NOISE_POP,
-        fireSoundDurationMs = 90,
+        fireSoundDurationMs = 140,
+        noiseFilterAlpha = 0.6, // crisp/sharp
+        noisePopCount = 3, // an actual crackle, not one thud
         splashRadius = 45f,
         splashDamageFraction = 0.5f
     ),
@@ -181,7 +187,8 @@ enum class WeaponKind(
         fireSoundHz = 380.0,
         fireSoundWaveform = Waveform.SINE,
         fireSoundStyle = WeaponFireSoundStyle.NOISE_POP,
-        fireSoundDurationMs = 110,
+        fireSoundDurationMs = 130,
+        noiseFilterAlpha = 0.15, // dull/wet
         splashRadius = 50f,
         splashSlowDurationMs = 1500L,
         splashSlowMultiplier = 0.5f

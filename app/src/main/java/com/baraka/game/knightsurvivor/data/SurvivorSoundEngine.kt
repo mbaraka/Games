@@ -51,7 +51,7 @@ class SurvivorSoundEngine {
             )
             WeaponFireSoundStyle.QUACK -> quack(kind.fireSoundHz, kind.fireSoundEndHz ?: kind.fireSoundHz * 0.5, durationMs, WEAPON_FIRE_VOLUME)
             WeaponFireSoundStyle.CHIME -> metallic(kind.fireSoundHz, durationMs, WEAPON_FIRE_VOLUME, inharmonic = false)
-            WeaponFireSoundStyle.NOISE_POP -> noiseBurst(durationMs, WEAPON_FIRE_VOLUME, lowPassAlpha = 0.35)
+            WeaponFireSoundStyle.NOISE_POP -> crackle(durationMs, WEAPON_FIRE_VOLUME, kind.noiseFilterAlpha, kind.fireSoundHz, kind.noisePopCount)
             WeaponFireSoundStyle.WHOOSH -> whoosh(durationMs, WEAPON_FIRE_VOLUME)
             WeaponFireSoundStyle.PULSE -> pulse(kind.fireSoundHz, durationMs, kind.fireSoundWaveform, WEAPON_FIRE_VOLUME)
         }
@@ -178,6 +178,37 @@ class SurvivorSoundEngine {
         val sampleCount = millisToSampleCount(durationMs)
         val raw = DoubleArray(sampleCount) { noiseRandom.nextDouble(-1.0, 1.0) }
         val filtered = lowPass(raw, lowPassAlpha)
+        return normalizeToPcm16(filtered, volume, attackFraction = 0.01f)
+    }
+
+    /**
+     * [popCount] short noise pops scattered across the buffer (1 = a single splat, more = an
+     * actual crackle), each independently decaying, filtered by [lowPassAlpha], with a bit
+     * of [toneHz] mixed in so e.g. Firecracker (high fireSoundHz) and Egg Toss (low
+     * fireSoundHz) are audibly different pitches of pop rather than identical noise.
+     */
+    private fun crackle(durationMs: Int, volume: Float, lowPassAlpha: Double, toneHz: Double, popCount: Int): ShortArray {
+        val totalSamples = millisToSampleCount(durationMs)
+        val raw = DoubleArray(totalSamples)
+        val slotSamples = (totalSamples / popCount).coerceAtLeast(1)
+
+        repeat(popCount) { popIndex ->
+            val jitter = if (slotSamples > 4) noiseRandom.nextInt(0, (slotSamples * 0.3).toInt().coerceAtLeast(1)) else 0
+            val startSample = popIndex * slotSamples + jitter
+            val popSamples = (slotSamples * 0.85).toInt().coerceAtLeast(4)
+            for (i in 0 until popSamples) {
+                val sampleIndex = startSample + i
+                if (sampleIndex >= totalSamples) break
+                val decay = exp(-i.toDouble() / popSamples * 4.5)
+                raw[sampleIndex] += noiseRandom.nextDouble(-1.0, 1.0) * decay
+            }
+        }
+
+        val filtered = lowPass(raw, lowPassAlpha)
+        for (i in 0 until totalSamples) {
+            val toneDecay = exp(-i.toDouble() / totalSamples * 3.5)
+            filtered[i] += 0.25 * sin(2 * PI * toneHz * i / sampleRateHz) * toneDecay
+        }
         return normalizeToPcm16(filtered, volume, attackFraction = 0.01f)
     }
 
