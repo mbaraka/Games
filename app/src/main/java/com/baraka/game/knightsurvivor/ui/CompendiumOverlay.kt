@@ -42,6 +42,7 @@ import com.baraka.game.knightsurvivor.model.WeaponInstance
 import com.baraka.game.knightsurvivor.model.WeaponKind
 import com.baraka.game.knightsurvivor.render.drawKnightIcon
 import com.baraka.game.knightsurvivor.render.drawVectorIcon
+import com.baraka.game.ui.theme.GameColors
 
 private enum class CompendiumTab(val label: String) {
     KNIGHT("Knight"), ENEMIES("Enemies"), WEAPONS("Weapons"), ACHIEVEMENTS("Achievements")
@@ -68,14 +69,14 @@ fun CompendiumOverlay(
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "Compendium",
-                    color = Color.White,
+                    color = GameColors.TextPrimary,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
                     text = "Close ✕",
-                    color = Color.White,
+                    color = GameColors.TextPrimary,
                     fontSize = 14.sp,
                     modifier = Modifier
                         .background(Color(0xFF2D2D2D), RoundedCornerShape(8.dp))
@@ -115,11 +116,11 @@ fun CompendiumOverlay(
 private fun TabChip(text: String, selected: Boolean, onClick: () -> Unit) {
     Text(
         text = text,
-        color = if (selected) Color.Black else Color.White,
+        color = if (selected) Color.Black else GameColors.TextPrimary,
         fontSize = 14.sp,
         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
         modifier = Modifier
-            .background(if (selected) Color(0xFFFFD54F) else Color(0xFF2D2D2D), RoundedCornerShape(20.dp))
+            .background(if (selected) GameColors.Accent else Color(0xFF2D2D2D), RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp)
     )
@@ -139,7 +140,7 @@ private fun KnightSummaryCard(player: PlayerState, difficulty: Difficulty) {
             }
             Spacer(Modifier.width(12.dp))
             Column {
-                Text("Your Knight", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("Your Knight", color = GameColors.TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text("Level ${player.level} · ${difficulty.displayName}", color = Color.Cyan, fontSize = 14.sp)
             }
         }
@@ -151,12 +152,12 @@ private fun KnightSummaryCard(player: PlayerState, difficulty: Difficulty) {
         StatLine("Cooldown", "×${"%.2f".format(player.cooldownMultiplier)} (lower = faster)")
 
         Spacer(Modifier.height(12.dp))
-        Text("Equipped Weapons", color = Color.Gray, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text("Equipped Weapons", color = GameColors.TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         if (player.weapons.isEmpty()) {
-            Text("None yet", color = Color.DarkGray, fontSize = 13.sp)
+            Text("None yet", color = GameColors.TextMuted, fontSize = 13.sp)
         } else {
             player.weapons.forEach { weapon ->
-                Text("• ${weapon.kind.displayName} — Lv.${weapon.level}", color = Color.White, fontSize = 13.sp)
+                Text("• ${weapon.kind.displayName} — Lv.${weapon.level}", color = GameColors.TextPrimary, fontSize = 13.sp)
             }
         }
     }
@@ -171,9 +172,9 @@ private fun EnemyEntryCard(kind: EnemyKind) {
             }
             Spacer(Modifier.width(12.dp))
             Column {
-                Text(kind.displayName, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(kind.displayName, color = GameColors.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 if (kind.isBoss) {
-                    Text("BOSS", color = Color(0xFFFFD54F), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("BOSS", color = GameColors.Accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -185,7 +186,7 @@ private fun EnemyEntryCard(kind: EnemyKind) {
         Spacer(Modifier.height(4.dp))
         Text(
             text = "Base stats at run start — every enemy grows tougher the longer you survive.",
-            color = Color.DarkGray,
+            color = GameColors.TextMuted,
             fontSize = 11.sp
         )
     }
@@ -200,16 +201,16 @@ private fun WeaponEntryCard(kind: WeaponKind, owned: WeaponInstance?) {
             }
             Spacer(Modifier.width(12.dp))
             Column {
-                Text(kind.displayName, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(kind.displayName, color = GameColors.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Text(
                     text = if (owned != null) "Equipped — Lv.${owned.level}" else "Not yet unlocked",
-                    color = if (owned != null) Color(0xFF66BB6A) else Color.Gray,
+                    color = if (owned != null) GameColors.Success else GameColors.TextSecondary,
                     fontSize = 12.sp
                 )
             }
         }
         Spacer(Modifier.height(8.dp))
-        Text(kind.description, color = Color.Gray, fontSize = 13.sp)
+        Text(kind.description, color = GameColors.TextSecondary, fontSize = 13.sp)
         Spacer(Modifier.height(6.dp))
         val level = owned?.level ?: 1
         val levelSuffix = if (owned == null) " (Lv.1)" else ""
@@ -232,13 +233,13 @@ private fun AchievementEntryCard(achievement: Achievement, unlocked: Boolean) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = achievement.displayName,
-                    color = if (unlocked) Color(0xFFFFD54F) else Color.White,
+                    color = if (unlocked) GameColors.Accent else GameColors.TextPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = achievement.description,
-                    color = if (unlocked) Color.Gray else Color.DarkGray,
+                    color = if (unlocked) GameColors.TextSecondary else GameColors.TextMuted,
                     fontSize = 13.sp
                 )
             }
@@ -249,8 +250,8 @@ private fun AchievementEntryCard(achievement: Achievement, unlocked: Boolean) {
 @Composable
 private fun StatLine(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = Color.Gray, fontSize = 13.sp)
-        Text(value, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = GameColors.TextSecondary, fontSize = 13.sp)
+        Text(value, color = GameColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
 }
 

@@ -119,6 +119,7 @@ fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
                     .padding(bottom = 8.dp)
             )
         }
@@ -126,9 +127,9 @@ fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
         Column(
             modifier = Modifier
                 .padding(padding)
+                .padding(horizontal = 6.dp)
                 .fillMaxSize()
                 .background(Color(0xFF1E1E1E))
-                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .verticalScroll(rememberScrollState())
                 ,
             horizontalAlignment = Alignment.CenterHorizontally,
