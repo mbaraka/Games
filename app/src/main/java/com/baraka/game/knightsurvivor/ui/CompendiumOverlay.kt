@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.baraka.game.knightsurvivor.model.Achievement
 import com.baraka.game.knightsurvivor.model.Difficulty
 import com.baraka.game.knightsurvivor.model.EnemyKind
 import com.baraka.game.knightsurvivor.model.PlayerState
@@ -41,17 +42,23 @@ import com.baraka.game.knightsurvivor.render.drawKnightIcon
 import com.baraka.game.knightsurvivor.render.drawVectorIcon
 
 private enum class CompendiumTab(val label: String) {
-    KNIGHT("Knight"), ENEMIES("Enemies"), WEAPONS("Weapons")
+    KNIGHT("Knight"), ENEMIES("Enemies"), WEAPONS("Weapons"), ACHIEVEMENTS("Achievements")
 }
 
 /**
- * An in-game reference screen: the current knight build, every enemy's base stats, and
- * every weapon's stats/unlock status — so a player can check "how strong is this thing"
- * without leaving the run. Reads entirely from the static [EnemyKind]/[WeaponKind] enums
- * plus the current [PlayerState]; needs no new systems/model state of its own.
+ * An in-game reference screen: the current knight build, every enemy's base stats, every
+ * weapon's stats/unlock status, and earned achievements — so a player can check "how
+ * strong is this thing" or "what am I working toward" without leaving the run. Reads
+ * entirely from the static [EnemyKind]/[WeaponKind]/[Achievement] enums plus the current
+ * [PlayerState] and unlocked set; needs no new systems/model state of its own.
  */
 @Composable
-fun CompendiumOverlay(player: PlayerState, difficulty: Difficulty, onClose: () -> Unit) {
+fun CompendiumOverlay(
+    player: PlayerState,
+    difficulty: Difficulty,
+    unlockedAchievements: Set<Achievement>,
+    onClose: () -> Unit
+) {
     var tab by remember { mutableStateOf(CompendiumTab.KNIGHT) }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.94f))) {
@@ -90,6 +97,9 @@ fun CompendiumOverlay(player: PlayerState, difficulty: Difficulty, onClose: () -
                     CompendiumTab.KNIGHT -> item { KnightSummaryCard(player, difficulty) }
                     CompendiumTab.ENEMIES -> items(EnemyKind.entries) { kind -> EnemyEntryCard(kind) }
                     CompendiumTab.WEAPONS -> items(WeaponKind.entries) { kind -> WeaponEntryCard(kind, player.weaponOf(kind)) }
+                    CompendiumTab.ACHIEVEMENTS -> items(Achievement.entries) { achievement ->
+                        AchievementEntryCard(achievement, unlocked = achievement in unlockedAchievements)
+                    }
                 }
             }
         }
@@ -200,6 +210,32 @@ private fun WeaponEntryCard(kind: WeaponKind, owned: WeaponInstance?) {
         val levelSuffix = if (owned == null) " (Lv.1)" else ""
         StatLine("Damage$levelSuffix", "${kind.damageAtLevel(level)}")
         StatLine("Cooldown$levelSuffix", "${kind.cooldownMsAtLevel(level)} ms")
+    }
+}
+
+@Composable
+private fun AchievementEntryCard(achievement: Achievement, unlocked: Boolean) {
+    CompendiumCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = if (unlocked) "✓" else "🔒",
+                fontSize = 20.sp,
+                modifier = Modifier.width(32.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = achievement.displayName,
+                    color = if (unlocked) Color(0xFFFFD54F) else Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = achievement.description,
+                    color = if (unlocked) Color.Gray else Color.DarkGray,
+                    fontSize = 13.sp
+                )
+            }
+        }
     }
 }
 

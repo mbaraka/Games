@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.knightsurvivor.balance.GameTunables
+import com.baraka.game.knightsurvivor.data.AchievementRepository
 import com.baraka.game.knightsurvivor.data.SettingsRepository
 import com.baraka.game.knightsurvivor.data.SurvivorSoundEngine
 import com.baraka.game.knightsurvivor.data.SurvivorStatsRepository
@@ -39,6 +40,7 @@ import com.baraka.game.knightsurvivor.model.Vec2
 import com.baraka.game.knightsurvivor.model.WeaponInstance
 import com.baraka.game.knightsurvivor.model.WeaponKind
 import com.baraka.game.knightsurvivor.render.GameCanvas
+import com.baraka.game.knightsurvivor.systems.AchievementSystem
 import com.baraka.game.knightsurvivor.systems.GameLoopOrchestrator
 import kotlinx.coroutines.delay
 
@@ -55,6 +57,7 @@ fun KnightSurvivorScreen() {
     val context = LocalContext.current
     val statsRepository = remember { SurvivorStatsRepository.getInstance(context) }
     val settingsRepository = remember { SettingsRepository.getInstance(context) }
+    val achievementRepository = remember { AchievementRepository.getInstance(context) }
     val soundEngine = remember { SurvivorSoundEngine() }
     DisposableEffect(Unit) {
         onDispose { soundEngine.release() }
@@ -64,6 +67,7 @@ fun KnightSurvivorScreen() {
     var difficulty by remember { mutableStateOf(settingsRepository.difficulty()) }
     var gameState by remember { mutableStateOf(createInitialGameState(statsRepository.bestSurvivalTimeMs(), difficulty = difficulty)) }
     var hasRecordedThisRun by remember { mutableStateOf(false) }
+    var unlockedAchievements by remember { mutableStateOf(achievementRepository.unlockedAchievements()) }
     var showCompendium by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     val isRunning = gameState.phase == GamePhase.RUNNING && !showCompendium && !showSettings
@@ -80,6 +84,12 @@ fun KnightSurvivorScreen() {
                 ticked
             } else {
                 ticked.copy(pendingSoundCues = emptyList(), pendingWeaponFireSounds = emptyList())
+            }
+
+            val newlyUnlocked = AchievementSystem.evaluate(gameState) - unlockedAchievements
+            if (newlyUnlocked.isNotEmpty()) {
+                unlockedAchievements = unlockedAchievements + newlyUnlocked
+                achievementRepository.unlock(newlyUnlocked)
             }
         }
     }
@@ -135,7 +145,12 @@ fun KnightSurvivorScreen() {
             }
 
             if (showCompendium) {
-                CompendiumOverlay(player = gameState.player, difficulty = gameState.difficulty, onClose = { showCompendium = false })
+                CompendiumOverlay(
+                    player = gameState.player,
+                    difficulty = gameState.difficulty,
+                    unlockedAchievements = unlockedAchievements,
+                    onClose = { showCompendium = false }
+                )
             }
 
             if (showSettings) {

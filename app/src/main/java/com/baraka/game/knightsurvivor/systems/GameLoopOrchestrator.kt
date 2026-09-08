@@ -75,7 +75,8 @@ object GameLoopOrchestrator {
             pendingSoundCues = soundCues,
             pendingWeaponFireSounds = firing.firedWeaponKinds,
             elapsedMs = newElapsedMs,
-            killCount = state.killCount + collision.killsThisTick
+            killCount = state.killCount + collision.killsThisTick,
+            bossDefeatedThisRun = state.bossDefeatedThisRun || collision.deathFeedback.any { it.isBoss }
         )
 
         return when {

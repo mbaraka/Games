@@ -36,6 +36,8 @@ data class GameState(
     val killCount: Int = 0,
     /** Fixed for the whole run — chosen from settings when the run starts, see ui/KnightSurvivorScreen.kt. */
     val difficulty: Difficulty = Difficulty.NORMAL,
+    /** Once true for a run, stays true — whether any boss has died this run, for the BOSS_SLAYER achievement. */
+    val bossDefeatedThisRun: Boolean = false,
     /** The best survival time persisted from previous runs, loaded once at game start purely for HUD/end-screen display and comparison — this state layer never writes to storage itself, see data/SurvivorStatsRepository.kt. */
     val bestSurvivalTimeMsAtStart: Long = 0L
 ) {

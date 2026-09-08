@@ -57,7 +57,7 @@ object CollisionSystem {
             if (newHp <= 0) {
                 kills++
                 newXpGems += XpGem(id = EntityIdGenerator.next(), position = enemy.position, value = enemy.kind.xpValue)
-                deathFeedback += HitFeedback(enemy.position, enemy.kind.colorArgb)
+                deathFeedback += HitFeedback(enemy.position, enemy.kind.colorArgb, isBoss = enemy.isBoss)
             } else {
                 survivingEnemies += enemy.copy(
                     hp = newHp,
