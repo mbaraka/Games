@@ -66,12 +66,16 @@ object GameTunables {
     private val enemyUnlockSeconds: Map<EnemyKind, Float> = mapOf(
         EnemyKind.SKELETON to 0f,
         EnemyKind.GOBLIN to 20f,
-        EnemyKind.ORC to 50f
+        EnemyKind.BAT to 35f,
+        EnemyKind.ORC to 50f,
+        EnemyKind.OGRE to 75f
     )
     private val enemySpawnWeights: Map<EnemyKind, Float> = mapOf(
         EnemyKind.SKELETON to 5f,
         EnemyKind.GOBLIN to 3f,
-        EnemyKind.ORC to 2f
+        EnemyKind.BAT to 3f,
+        EnemyKind.ORC to 2f,
+        EnemyKind.OGRE to 1.5f
     )
 
     /** The [EnemyKind, weight] pairs currently eligible to spawn at [elapsedSeconds]. Always non-empty (skeleton unlocks at 0s). */

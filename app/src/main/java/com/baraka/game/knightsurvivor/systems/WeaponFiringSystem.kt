@@ -63,10 +63,10 @@ object WeaponFiringSystem {
 
             when (spinningWeapon.kind.targeting) {
                 WeaponTargeting.NEAREST_ENEMY -> {
-                    nearestEnemyWithinRange(player.position, enemies)?.let { target ->
-                        newProjectiles += fireProjectileAt(player.position, target, spinningWeapon)
-                        firedWeaponKinds += spinningWeapon.kind
-                    }
+                    val shotCount = spinningWeapon.kind.projectileCountAtLevel(spinningWeapon.level)
+                    val targets = nearestEnemiesWithinRange(player.position, enemies, shotCount)
+                    targets.forEach { target -> newProjectiles += fireProjectileAt(player.position, target, spinningWeapon) }
+                    if (targets.isNotEmpty()) firedWeaponKinds += spinningWeapon.kind
                 }
 
                 WeaponTargeting.AREA_AROUND_PLAYER -> {
@@ -113,12 +113,14 @@ object WeaponFiringSystem {
         }
     }
 
-    private fun nearestEnemyWithinRange(playerPosition: Vec2, enemies: List<EnemyInstance>): EnemyInstance? =
+    /** The [count] nearest enemies within range, closest first — so a multi-shot weapon spreads across distinct targets instead of dogpiling one. */
+    private fun nearestEnemiesWithinRange(playerPosition: Vec2, enemies: List<EnemyInstance>, count: Int): List<EnemyInstance> =
         enemies
             .map { enemy -> enemy to enemy.position.distanceTo(playerPosition) }
             .filter { (_, distance) -> distance <= GameTunables.WEAPON_TARGETING_RANGE }
-            .minByOrNull { (_, distance) -> distance }
-            ?.first
+            .sortedBy { (_, distance) -> distance }
+            .take(count)
+            .map { (enemy, _) -> enemy }
 
     private fun fireProjectileAt(from: Vec2, target: EnemyInstance, weapon: WeaponInstance): Projectile {
         val direction = (target.position - from).normalized()

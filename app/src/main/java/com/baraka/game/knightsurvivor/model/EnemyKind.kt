@@ -63,6 +63,26 @@ enum class EnemyKind(
         colorArgb = 0xFFD7CCC8, // pale bone tan — a purple head read oddly on a "skull" face
         icon = VectorIcon.Face(eyeStyle = VectorIcon.EyeStyle.HOLLOW_SOCKET, hasCrown = true),
         isBoss = true
+    ),
+    BAT(
+        displayName = "Bat",
+        baseHp = 7,
+        baseSpeed = 150f,
+        baseDamage = 4,
+        xpValue = 3,
+        radius = 10f,
+        colorArgb = 0xFF4A148C,
+        icon = VectorIcon.Face(earStyle = VectorIcon.EarStyle.POINTY)
+    ),
+    OGRE(
+        displayName = "Ogre",
+        baseHp = 90,
+        baseSpeed = 35f,
+        baseDamage = 20,
+        xpValue = 16,
+        radius = 26f,
+        colorArgb = 0xFF5D4037,
+        icon = VectorIcon.Face(earStyle = VectorIcon.EarStyle.ROUND, hasTusks = true)
     );
 
     companion object {

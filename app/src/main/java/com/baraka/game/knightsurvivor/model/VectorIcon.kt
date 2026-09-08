@@ -23,6 +23,9 @@ sealed class VectorIcon {
     /** A bladed weapon: pointed blade, crossguard, grip, and pommel — not just an elongated diamond. [lengthRatio] (relative to radius) differentiates a short dagger from a longer sword. */
     data class Blade(val lengthRatio: Float = 2.2f) : VectorIcon()
 
+    /** A handle with a crescent axe-head — distinct from [Blade] so a thrown axe doesn't just look like another dagger. */
+    data class Axe(val lengthRatio: Float = 1.6f) : VectorIcon()
+
     /**
      * A simple creature face: a round head plus optional features. New monsters can
      * usually be described by mixing these flags rather than needing a whole new

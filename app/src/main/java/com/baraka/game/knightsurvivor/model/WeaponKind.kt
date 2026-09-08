@@ -47,6 +47,24 @@ enum class WeaponKind(
         icon = VectorIcon.Shield,
         fireSoundHz = 540.0, // soft, sustained — a magical hum (not currently triggered; ORBIT ticks too often to sound a fire cue without spamming, see WeaponFiringSystem)
         fireSoundWaveform = Waveform.SINE
+    ),
+    THROWING_AXE(
+        displayName = "Throwing Axe",
+        description = "Hurls a cleaving axe that pierces through multiple enemies.",
+        targeting = WeaponTargeting.NEAREST_ENEMY,
+        colorArgb = 0xFFA1887F,
+        icon = VectorIcon.Axe(lengthRatio = 1.6f),
+        fireSoundHz = 240.0,
+        fireSoundWaveform = Waveform.SAWTOOTH
+    ),
+    HOLY_AURA(
+        displayName = "Holy Aura",
+        description = "A radiant field that repeatedly scorches every enemy nearby.",
+        targeting = WeaponTargeting.AREA_AROUND_PLAYER,
+        colorArgb = 0xFFFFF59D,
+        icon = VectorIcon.Star(points = 4, innerRadiusRatio = 0.4f),
+        fireSoundHz = 1200.0,
+        fireSoundWaveform = Waveform.SINE
     );
 
     /** Damage dealt per hit at [level] (1..[maxLevel]). */
@@ -54,6 +72,8 @@ enum class WeaponKind(
         SWORD_SLASH -> 16 + (level - 1) * 7
         DAGGER_THROW -> 10 + (level - 1) * 5
         ORBIT_SHIELD -> 8 + (level - 1) * 4
+        THROWING_AXE -> 15 + (level - 1) * 7
+        HOLY_AURA -> 4 + (level - 1) * 2
     }
 
     /**
@@ -65,13 +85,16 @@ enum class WeaponKind(
         SWORD_SLASH -> (900 - (level - 1) * 80).coerceAtLeast(450).toLong()
         DAGGER_THROW -> (650 - (level - 1) * 60).coerceAtLeast(300).toLong()
         ORBIT_SHIELD -> (350 - (level - 1) * 20).coerceAtLeast(220).toLong()
+        THROWING_AXE -> (820 - (level - 1) * 70).coerceAtLeast(420).toLong()
+        HOLY_AURA -> (420 - (level - 1) * 30).coerceAtLeast(220).toLong()
     }
 
     /** Hit radius in px. Used as the AoE radius for AREA_AROUND_PLAYER and the orbit radius for ORBIT. */
     fun radiusAtLevel(level: Int): Float = when (this) {
         SWORD_SLASH -> 70f + (level - 1) * 10f
         ORBIT_SHIELD -> 60f + (level - 1) * 4f
-        DAGGER_THROW -> 0f
+        HOLY_AURA -> 50f + (level - 1) * 8f
+        DAGGER_THROW, THROWING_AXE -> 0f
     }
 
     /** Number of simultaneous orbiting instances (ORBIT_SHIELD only, 0 for every other kind). */
@@ -80,16 +103,25 @@ enum class WeaponKind(
         else -> 0
     }
 
-    /** Enemies a single projectile can pierce through before it's consumed (DAGGER_THROW only). */
+    /** Enemies a single projectile can pierce through before it's consumed. */
     fun pierceAtLevel(level: Int): Int = when (this) {
         DAGGER_THROW -> if (level >= 4) 1 else 0
+        THROWING_AXE -> (level - 1) / 2 // L1-2: 0, L3-4: 1, L5: 2
         else -> 0
+    }
+
+    /** Projectiles fired per activation (NEAREST_ENEMY only), each aimed at a different nearby enemy. Defaults to 1 so this is opt-in per weapon. */
+    fun projectileCountAtLevel(level: Int): Int = when (this) {
+        DAGGER_THROW -> 1 + (level - 1) / 2 // L1-2: 1, L3-4: 2, L5: 3
+        THROWING_AXE -> 1 + (level - 1) / 3 // L1-3: 1, L4-5: 2
+        else -> 1
     }
 
     /** Projectile travel speed in px/s (only meaningful for NEAREST_ENEMY weapons). */
     val projectileSpeed: Float
         get() = when (this) {
             DAGGER_THROW -> 260f
+            THROWING_AXE -> 190f
             else -> 0f
         }
 }

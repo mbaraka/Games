@@ -1,10 +1,10 @@
 package com.baraka.game.knightsurvivor.systems
 
+import com.baraka.game.knightsurvivor.balance.GameTunables
 import com.baraka.game.knightsurvivor.model.Achievement
 import com.baraka.game.knightsurvivor.model.Difficulty
 import com.baraka.game.knightsurvivor.model.GamePhase
 import com.baraka.game.knightsurvivor.model.GameState
-import com.baraka.game.knightsurvivor.model.WeaponKind
 
 /**
  * Decides which [Achievement]s the *current* [GameState] qualifies for — a pure read, not
@@ -24,7 +24,7 @@ object AchievementSystem {
         if (state.player.level >= 10) add(Achievement.BATTLE_HARDENED)
         if (state.bossDefeatedThisRun) add(Achievement.BOSS_SLAYER)
         if (state.killCount >= 100) add(Achievement.CENTURY)
-        if (state.player.weapons.size >= WeaponKind.entries.size) add(Achievement.FULL_ARSENAL)
+        if (state.player.weapons.size >= GameTunables.MAX_ACTIVE_WEAPONS) add(Achievement.FULL_ARSENAL)
         if (state.difficulty == Difficulty.HARD && state.phase == GamePhase.VICTORY) add(Achievement.BATTLE_TESTED)
     }
 

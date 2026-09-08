@@ -35,6 +35,7 @@ fun DrawScope.drawVectorIcon(
         )
         VectorIcon.Shield -> drawShield(center, radius, color, outlineColor, outlineWidth)
         is VectorIcon.Blade -> drawBlade(center, radius, icon.lengthRatio, color, outlineColor, outlineWidth)
+        is VectorIcon.Axe -> drawAxe(center, radius, icon.lengthRatio, color, outlineColor, outlineWidth)
         is VectorIcon.Face -> drawFace(center, radius, color, icon, outlineColor, outlineWidth)
     }
 }

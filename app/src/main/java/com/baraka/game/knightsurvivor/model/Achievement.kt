@@ -16,6 +16,6 @@ enum class Achievement(val displayName: String, val description: String) {
     BATTLE_HARDENED("Battle Hardened", "Reach level 10 in a single run."),
     BOSS_SLAYER("Boss Slayer", "Defeat the Bone King."),
     CENTURY("Century", "Defeat 100 enemies in a single run."),
-    FULL_ARSENAL("Full Arsenal", "Equip every weapon at once."),
+    FULL_ARSENAL("Full Arsenal", "Fill every weapon slot at once."),
     BATTLE_TESTED("Battle-Tested", "Win a run on Hard difficulty.")
 }

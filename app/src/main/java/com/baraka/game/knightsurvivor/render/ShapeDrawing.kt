@@ -1,6 +1,7 @@
 package com.baraka.game.knightsurvivor.render
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -178,6 +179,44 @@ fun DrawScope.drawBlade(
     val pommelCenter = Offset(center.x, gripBottom + radius * 0.12f)
     drawCircle(color = bladeColor, radius = radius * 0.16f, center = pommelCenter)
     drawCircle(color = outlineColor, radius = radius * 0.16f, center = pommelCenter, style = Stroke(width = outlineWidth))
+}
+
+/** A handle with a crescent axe-head — distinct silhouette from [drawBlade] so a thrown axe reads as an axe, not another dagger. */
+fun DrawScope.drawAxe(
+    center: Offset,
+    radius: Float,
+    lengthRatio: Float,
+    headColor: Color,
+    outlineColor: Color = Color.White,
+    outlineWidth: Float = 1.5f
+) {
+    val handleTop = center.y - radius * lengthRatio * 0.5f
+    val handleBottom = center.y + radius * 0.6f
+    drawLine(
+        color = GRIP_COLOR,
+        start = Offset(center.x, handleTop),
+        end = Offset(center.x, handleBottom),
+        strokeWidth = radius * 0.16f,
+        cap = StrokeCap.Round
+    )
+
+    val headCenter = Offset(center.x + radius * 0.1f, handleTop)
+    val headRadius = radius * 0.6f
+    val headPath = Path().apply {
+        addArc(
+            Rect(headCenter.x - headRadius, headCenter.y - headRadius, headCenter.x + headRadius, headCenter.y + headRadius),
+            startAngleDegrees = -110f,
+            sweepAngleDegrees = 220f
+        )
+        lineTo(center.x, handleTop - radius * 0.1f)
+        close()
+    }
+    drawPath(headPath, color = headColor)
+    drawPath(headPath, color = outlineColor, style = Stroke(width = outlineWidth))
+
+    val pommelCenter = Offset(center.x, handleBottom + radius * 0.1f)
+    drawCircle(color = headColor, radius = radius * 0.14f, center = pommelCenter)
+    drawCircle(color = outlineColor, radius = radius * 0.14f, center = pommelCenter, style = Stroke(width = outlineWidth))
 }
 
 private val GRIP_COLOR = Color(0xFF6D4C41)
