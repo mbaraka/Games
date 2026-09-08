@@ -183,6 +183,7 @@ private fun EnemyEntryCard(kind: EnemyKind) {
         StatLine("Speed", "${kind.baseSpeed.toInt()} px/s")
         StatLine("Damage", "${kind.baseDamage}")
         StatLine("XP reward", "${kind.xpValue}")
+        StatLine("Heal drop chance", "${(kind.healthDropChance * 100).toInt()}%")
         Spacer(Modifier.height(4.dp))
         Text(
             text = "Base stats at run start — every enemy grows tougher the longer you survive.",

@@ -22,8 +22,8 @@ enum class EnemyKind(
     val colorArgb: Long,
     val icon: VectorIcon,
     val isBoss: Boolean = false,
-    /** Chance this kind drops a heal pickup alongside its XP gem on death. */
-    val healthDropChance: Float = 0f
+    /** Chance this kind drops a heal pickup alongside its XP gem on death. 30% is the baseline for regular/weak mobs — tankier kinds override it higher. */
+    val healthDropChance: Float = 0.3f
 ) {
     SKELETON(
         displayName = "Skeleton",
@@ -33,8 +33,7 @@ enum class EnemyKind(
         xpValue = 3,
         radius = 14f,
         colorArgb = 0xFFE0E0E0,
-        icon = VectorIcon.Face(eyeStyle = VectorIcon.EyeStyle.HOLLOW_SOCKET),
-        healthDropChance = 0.05f
+        icon = VectorIcon.Face(eyeStyle = VectorIcon.EyeStyle.HOLLOW_SOCKET)
     ),
     GOBLIN(
         displayName = "Goblin",
@@ -55,7 +54,7 @@ enum class EnemyKind(
         radius = 20f,
         colorArgb = 0xFF8D6E63,
         icon = VectorIcon.Face(earStyle = VectorIcon.EarStyle.ROUND, hasTusks = true),
-        healthDropChance = 0.12f
+        healthDropChance = 0.45f
     ),
     BONE_KING(
         displayName = "Bone King",
@@ -88,7 +87,7 @@ enum class EnemyKind(
         radius = 26f,
         colorArgb = 0xFF5D4037,
         icon = VectorIcon.Face(earStyle = VectorIcon.EarStyle.ROUND, hasTusks = true),
-        healthDropChance = 0.18f
+        healthDropChance = 0.55f
     );
 
     companion object {
