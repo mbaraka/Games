@@ -96,6 +96,12 @@ object GameLoopOrchestrator {
             bossDefeatedThisRun = state.bossDefeatedThisRun || collision.deathFeedback.any { it.isBoss }
         )
 
+        // If every weapon in the deck is maxed and every passive is at its max stacks, the
+        // pool is legitimately empty — pausing for a choice that doesn't exist would
+        // softlock the run (no cards to tap, nothing ever resumes it). Skip the pause
+        // rather than get stuck; the level-up sound still played above.
+        val upgradeChoices = if (xpStep.leveledUp) UpgradeChoiceSystem.rollChoices(nextState.player, state.weaponDeck, random) else emptyList()
+
         return when {
             nextState.player.hp <= 0 ->
                 nextState.copy(phase = GamePhase.GAME_OVER, pendingSoundCues = soundCues + SoundCue.GAME_OVER)
@@ -103,11 +109,8 @@ object GameLoopOrchestrator {
             nextState.elapsedMs >= GameTunables.VICTORY_SURVIVAL_TIME_MS ->
                 nextState.copy(phase = GamePhase.VICTORY, pendingSoundCues = soundCues + SoundCue.VICTORY)
 
-            xpStep.leveledUp ->
-                nextState.copy(
-                    phase = GamePhase.LEVEL_UP_PAUSE,
-                    pendingUpgradeChoices = UpgradeChoiceSystem.rollChoices(nextState.player, state.weaponDeck, random)
-                )
+            xpStep.leveledUp && upgradeChoices.isNotEmpty() ->
+                nextState.copy(phase = GamePhase.LEVEL_UP_PAUSE, pendingUpgradeChoices = upgradeChoices)
 
             else -> nextState
         }
