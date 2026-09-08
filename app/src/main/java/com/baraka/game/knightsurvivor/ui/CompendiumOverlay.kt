@@ -59,7 +59,12 @@ private enum class CompendiumTab(val label: String) {
  * screen.
  */
 @Composable
-fun CompendiumContent(player: PlayerState, difficulty: Difficulty, unlockedAchievements: Set<Achievement>) {
+fun CompendiumContent(
+    player: PlayerState,
+    difficulty: Difficulty,
+    unlockedAchievements: Set<Achievement>,
+    onWeaponCardClick: (WeaponKind) -> Unit = {}
+) {
     var tab by remember { mutableStateOf(CompendiumTab.KNIGHT) }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -78,7 +83,9 @@ fun CompendiumContent(player: PlayerState, difficulty: Difficulty, unlockedAchie
             when (tab) {
                 CompendiumTab.KNIGHT -> item { KnightSummaryCard(player, difficulty) }
                 CompendiumTab.ENEMIES -> items(EnemyKind.entries.filter { it.directlySpawnable }) { kind -> EnemyEntryCard(kind) }
-                CompendiumTab.WEAPONS -> items(WeaponKind.entries) { kind -> WeaponEntryCard(kind, player.weaponOf(kind)) }
+                CompendiumTab.WEAPONS -> items(WeaponKind.entries) { kind ->
+                    WeaponEntryCard(kind, player.weaponOf(kind), onClick = { onWeaponCardClick(kind) })
+                }
                 CompendiumTab.ACHIEVEMENTS -> items(Achievement.entries) { achievement ->
                     AchievementEntryCard(achievement, unlocked = achievement in unlockedAchievements)
                 }
@@ -169,8 +176,8 @@ private fun EnemyEntryCard(kind: EnemyKind) {
 }
 
 @Composable
-private fun WeaponEntryCard(kind: WeaponKind, owned: WeaponInstance?) {
-    CompendiumCard {
+private fun WeaponEntryCard(kind: WeaponKind, owned: WeaponInstance?, onClick: () -> Unit) {
+    CompendiumCard(onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconSwatch {
                 drawVectorIcon(icon = kind.icon, center = center, radius = size.minDimension * 0.4f, color = Color(kind.colorArgb))
@@ -239,11 +246,12 @@ private fun StatLine(label: String, value: String) {
 }
 
 @Composable
-private fun CompendiumCard(content: @Composable ColumnScope.() -> Unit) {
+private fun CompendiumCard(onClick: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color(0xFF1C2029), RoundedCornerShape(12.dp))
+            .let { if (onClick != null) it.clickable(onClick = onClick) else it }
             .padding(14.dp),
         content = content
     )

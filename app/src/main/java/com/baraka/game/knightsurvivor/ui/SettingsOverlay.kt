@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import com.baraka.game.knightsurvivor.model.Achievement
 import com.baraka.game.knightsurvivor.model.Difficulty
 import com.baraka.game.knightsurvivor.model.PlayerState
+import com.baraka.game.knightsurvivor.model.WeaponKind
 import com.baraka.game.ui.theme.GameColors
 
 private enum class SettingsTab(val label: String) {
@@ -52,7 +53,8 @@ fun SettingsScreen(
     onDifficultyChanged: (Difficulty) -> Unit,
     player: PlayerState,
     unlockedAchievements: Set<Achievement>,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onWeaponCardClick: (WeaponKind) -> Unit = {}
 ) {
     BackHandler(onBack = onClose)
 
@@ -103,7 +105,8 @@ fun SettingsScreen(
                         SettingsTab.GUIDE -> CompendiumContent(
                             player = player,
                             difficulty = difficulty,
-                            unlockedAchievements = unlockedAchievements
+                            unlockedAchievements = unlockedAchievements,
+                            onWeaponCardClick = onWeaponCardClick
                         )
                     }
                 }

@@ -172,7 +172,8 @@ fun KnightSurvivorScreen() {
                     },
                     player = gameState.player,
                     unlockedAchievements = unlockedAchievements,
-                    onClose = { showSettings = false }
+                    onClose = { showSettings = false },
+                    onWeaponCardClick = { kind -> if (soundEnabled) soundEngine.playWeaponFire(kind) }
                 )
             }
 
