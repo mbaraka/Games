@@ -37,6 +37,7 @@ import com.baraka.game.knightsurvivor.model.Achievement
 import com.baraka.game.knightsurvivor.model.Difficulty
 import com.baraka.game.knightsurvivor.model.EnemyKind
 import com.baraka.game.knightsurvivor.model.KnightDesign
+import com.baraka.game.knightsurvivor.model.PassiveKind
 import com.baraka.game.knightsurvivor.model.PlayerState
 import com.baraka.game.knightsurvivor.model.WeaponInstance
 import com.baraka.game.knightsurvivor.model.WeaponKind
@@ -45,7 +46,7 @@ import com.baraka.game.knightsurvivor.render.drawVectorIcon
 import com.baraka.game.ui.theme.GameColors
 
 private enum class CompendiumTab(val label: String) {
-    KNIGHT("Knight"), ENEMIES("Enemies"), WEAPONS("Weapons"), ACHIEVEMENTS("Achievements")
+    KNIGHT("Knight"), ENEMIES("Enemies"), WEAPONS("Weapons"), PASSIVES("Passives")
 }
 
 /**
@@ -63,7 +64,6 @@ private enum class CompendiumTab(val label: String) {
 fun CompendiumContent(
     player: PlayerState,
     difficulty: Difficulty,
-    unlockedAchievements: Set<Achievement>,
     knightDesign: KnightDesign,
     onWeaponCardClick: (WeaponKind) -> Unit = {}
 ) {
@@ -88,8 +88,8 @@ fun CompendiumContent(
                 CompendiumTab.WEAPONS -> items(WeaponKind.entries) { kind ->
                     WeaponEntryCard(kind, player.weaponOf(kind), onClick = { onWeaponCardClick(kind) })
                 }
-                CompendiumTab.ACHIEVEMENTS -> items(Achievement.entries) { achievement ->
-                    AchievementEntryCard(achievement, unlocked = achievement in unlockedAchievements)
+                CompendiumTab.PASSIVES -> items(PassiveKind.entries) { kind ->
+                    PassiveEntryCard(kind, currentStacks = player.passiveStackCount(kind))
                 }
             }
         }
@@ -209,6 +209,51 @@ private fun WeaponEntryCard(kind: WeaponKind, owned: WeaponInstance?, onClick: (
                 color = GameColors.TextMuted,
                 fontSize = 11.sp
             )
+        }
+    }
+}
+
+/**
+ * Passives are a separate system from weapons entirely — no [com.baraka.game.knightsurvivor.balance.GameTunables.MAX_ACTIVE_WEAPONS]
+ * cap applies to them, and stacking one never takes a weapon slot.
+ */
+@Composable
+private fun PassiveEntryCard(kind: PassiveKind, currentStacks: Int) {
+    CompendiumCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(kind.displayName, color = GameColors.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (currentStacks > 0) "Owned — $currentStacks/${kind.maxStacks} stacks" else "Not yet owned",
+                    color = if (currentStacks > 0) GameColors.Success else GameColors.TextSecondary,
+                    fontSize = 12.sp
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(kind.description, color = GameColors.TextSecondary, fontSize = 13.sp)
+        Spacer(Modifier.height(6.dp))
+        StatLine("Current effect", formatPassiveMagnitude(kind, currentStacks))
+        if (currentStacks < kind.maxStacks) {
+            StatLine("At max (${kind.maxStacks} stacks)", formatPassiveMagnitude(kind, kind.maxStacks))
+        }
+    }
+}
+
+private fun formatPassiveMagnitude(kind: PassiveKind, stacks: Int): String {
+    val magnitude = kind.magnitudeAtStacks(stacks)
+    return when (kind) {
+        PassiveKind.MAX_HP -> "+${magnitude.toInt()} HP"
+        else -> "×${"%.2f".format(magnitude)}"
+    }
+}
+
+/** The full achievements list — its own Settings tab (see ui/SettingsOverlay.kt) rather than folded into the Guide, since it's about progress across runs, not reference material for the current one. */
+@Composable
+fun AchievementsContent(unlockedAchievements: Set<Achievement>) {
+    LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        items(Achievement.entries) { achievement ->
+            AchievementEntryCard(achievement, unlocked = achievement in unlockedAchievements)
         }
     }
 }

@@ -41,7 +41,7 @@ import com.baraka.game.knightsurvivor.render.drawKnightIcon
 import com.baraka.game.ui.theme.GameColors
 
 private enum class SettingsTab(val label: String) {
-    GENERAL("General"), KNIGHT("Knight"), GUIDE("Guide")
+    GENERAL("General"), KNIGHT("Knight"), GUIDE("Guide"), ACHIEVEMENTS("Achievements")
 }
 
 /**
@@ -117,10 +117,10 @@ fun SettingsScreen(
                         SettingsTab.GUIDE -> CompendiumContent(
                             player = player,
                             difficulty = difficulty,
-                            unlockedAchievements = unlockedAchievements,
                             knightDesign = knightDesign,
                             onWeaponCardClick = onWeaponCardClick
                         )
+                        SettingsTab.ACHIEVEMENTS -> AchievementsContent(unlockedAchievements = unlockedAchievements)
                     }
                 }
             }
