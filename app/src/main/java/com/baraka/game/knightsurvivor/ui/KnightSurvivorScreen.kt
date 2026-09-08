@@ -65,12 +65,14 @@ fun KnightSurvivorScreen() {
 
     var soundEnabled by remember { mutableStateOf(settingsRepository.isSoundEnabled()) }
     var difficulty by remember { mutableStateOf(settingsRepository.difficulty()) }
-    var gameState by remember { mutableStateOf(createInitialGameState(statsRepository.bestSurvivalTimeMs(), difficulty = difficulty)) }
+    var weaponDeck by remember { mutableStateOf(settingsRepository.weaponDeck()) }
+    var showDeckPicker by remember { mutableStateOf(true) }
+    var gameState by remember { mutableStateOf(createInitialGameState(statsRepository.bestSurvivalTimeMs(), difficulty = difficulty, weaponDeck = weaponDeck)) }
     var hasRecordedThisRun by remember { mutableStateOf(false) }
     var unlockedAchievements by remember { mutableStateOf(achievementRepository.unlockedAchievements()) }
     var showCompendium by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
-    val isRunning = gameState.phase == GamePhase.RUNNING && !showCompendium && !showSettings
+    val isRunning = gameState.phase == GamePhase.RUNNING && !showCompendium && !showSettings && !showDeckPicker
 
     LaunchedEffect(isRunning) {
         while (isRunning) {
@@ -105,6 +107,20 @@ fun KnightSurvivorScreen() {
             )
             hasRecordedThisRun = true
         }
+    }
+
+    if (showDeckPicker) {
+        WeaponDeckPickerScreen(
+            initialSelection = weaponDeck,
+            onConfirm = { chosen ->
+                weaponDeck = chosen
+                settingsRepository.setWeaponDeck(chosen)
+                gameState = createInitialGameState(statsRepository.bestSurvivalTimeMs(), difficulty = difficulty, weaponDeck = chosen)
+                hasRecordedThisRun = false
+                showDeckPicker = false
+            }
+        )
+        return
     }
 
     Column(
@@ -185,10 +201,7 @@ fun KnightSurvivorScreen() {
                     levelReached = gameState.player.level,
                     killCount = gameState.killCount,
                     isNewBestTime = gameState.isNewBestTime,
-                    onPlayAgain = {
-                        gameState = createInitialGameState(statsRepository.bestSurvivalTimeMs(), gameState.arenaSize, difficulty)
-                        hasRecordedThisRun = false
-                    }
+                    onPlayAgain = { showDeckPicker = true }
                 )
             }
         }
@@ -212,15 +225,23 @@ private fun TopBarChip(text: String, onClick: () -> Unit, modifier: Modifier = M
 private fun createInitialGameState(
     bestSurvivalTimeMs: Long,
     arenaSize: ArenaSize = ArenaSize(GameTunables.DEFAULT_ARENA_WIDTH, GameTunables.DEFAULT_ARENA_HEIGHT),
-    difficulty: Difficulty = Difficulty.NORMAL
+    difficulty: Difficulty = Difficulty.NORMAL,
+    weaponDeck: Set<WeaponKind> = WeaponKind.entries.toSet()
 ): GameState {
     val maxHp = (GameTunables.PLAYER_BASE_MAX_HP * difficulty.playerMaxHpMultiplier).toInt()
+    val startingWeapon = if (WeaponKind.SWORD_SLASH in weaponDeck) WeaponKind.SWORD_SLASH else weaponDeck.first()
     val player = PlayerState(
         position = Vec2(arenaSize.width / 2f, arenaSize.height / 2f),
         hp = maxHp,
         baseMaxHp = maxHp,
         xpToNextLevel = GameTunables.xpRequiredForLevel(1),
-        weapons = listOf(WeaponInstance(kind = WeaponKind.SWORD_SLASH, level = 1))
+        weapons = listOf(WeaponInstance(kind = startingWeapon, level = 1))
     )
-    return GameState(player = player, arenaSize = arenaSize, bestSurvivalTimeMsAtStart = bestSurvivalTimeMs, difficulty = difficulty)
+    return GameState(
+        player = player,
+        arenaSize = arenaSize,
+        bestSurvivalTimeMsAtStart = bestSurvivalTimeMs,
+        difficulty = difficulty,
+        weaponDeck = weaponDeck
+    )
 }

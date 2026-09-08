@@ -93,7 +93,7 @@ object GameLoopOrchestrator {
             xpStep.leveledUp ->
                 nextState.copy(
                     phase = GamePhase.LEVEL_UP_PAUSE,
-                    pendingUpgradeChoices = UpgradeChoiceSystem.rollChoices(nextState.player, random)
+                    pendingUpgradeChoices = UpgradeChoiceSystem.rollChoices(nextState.player, state.weaponDeck, random)
                 )
 
             else -> nextState

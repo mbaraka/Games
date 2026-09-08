@@ -11,19 +11,20 @@ import kotlin.random.Random
 /**
  * Rolls the level-up choices and applies whichever one the player picks.
  *
- * The pool is simply every currently-legal option — an unowned weapon while there's a
- * free slot, an owned weapon below its max level, a passive below its max stacks —
- * uniformly shuffled down to [GameTunables.UPGRADE_CHOICES_PER_LEVEL_UP]. No separate
- * weighting table to keep in sync: the pool construction already guarantees at most one
- * entry per kind, so there's nothing to weight.
+ * The pool is simply every currently-legal option — an unowned weapon from the player's
+ * chosen [weaponDeck] while there's a free slot, an owned weapon below its max level, a
+ * passive below its max stacks — uniformly shuffled down to
+ * [GameTunables.UPGRADE_CHOICES_PER_LEVEL_UP]. No separate weighting table to keep in
+ * sync: the pool construction already guarantees at most one entry per kind, so there's
+ * nothing to weight.
  */
 object UpgradeChoiceSystem {
 
-    fun rollChoices(player: PlayerState, random: Random = Random.Default): List<UpgradeOption> {
+    fun rollChoices(player: PlayerState, weaponDeck: Set<WeaponKind>, random: Random = Random.Default): List<UpgradeOption> {
         val pool = mutableListOf<UpgradeOption>()
 
         if (player.weapons.size < GameTunables.MAX_ACTIVE_WEAPONS) {
-            WeaponKind.entries
+            weaponDeck
                 .filter { kind -> player.weaponOf(kind) == null }
                 .forEach { kind -> pool += UpgradeOption.NewWeapon(kind) }
         }

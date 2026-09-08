@@ -3,6 +3,7 @@ package com.baraka.game.knightsurvivor.data
 import android.content.Context
 import android.content.SharedPreferences
 import com.baraka.game.knightsurvivor.model.Difficulty
+import com.baraka.game.knightsurvivor.model.WeaponKind
 
 /**
  * Persists the player's sound and difficulty preferences across app restarts, same
@@ -33,10 +34,22 @@ class SettingsRepository private constructor(
         preferences.edit().putString(KEY_DIFFICULTY, difficulty.name).apply()
     }
 
+    /** Which weapons the player has chosen as eligible to appear during a run. Defaults to every weapon so first-run behavior is unchanged. */
+    fun weaponDeck(): Set<WeaponKind> {
+        val saved = preferences.getStringSet(KEY_WEAPON_DECK, null) ?: return WeaponKind.entries.toSet()
+        val deck = saved.mapNotNull { name -> runCatching { WeaponKind.valueOf(name) }.getOrNull() }.toSet()
+        return deck.ifEmpty { WeaponKind.entries.toSet() }
+    }
+
+    fun setWeaponDeck(deck: Set<WeaponKind>) {
+        preferences.edit().putStringSet(KEY_WEAPON_DECK, deck.map { it.name }.toSet()).apply()
+    }
+
     companion object {
         private const val PREF_FILE = "knight_survivor_settings"
         private const val KEY_SOUND_ENABLED = "sound_enabled"
         private const val KEY_DIFFICULTY = "difficulty"
+        private const val KEY_WEAPON_DECK = "weapon_deck"
 
         @Volatile
         private var instance: SettingsRepository? = null
