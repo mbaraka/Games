@@ -4,16 +4,19 @@ import com.baraka.game.knightsurvivor.balance.GameTunables
 import com.baraka.game.knightsurvivor.model.DamageEvent
 import com.baraka.game.knightsurvivor.model.EnemyInstance
 import com.baraka.game.knightsurvivor.model.EntityIdGenerator
+import com.baraka.game.knightsurvivor.model.HealthPickup
 import com.baraka.game.knightsurvivor.model.HitFeedback
 import com.baraka.game.knightsurvivor.model.PlayerState
 import com.baraka.game.knightsurvivor.model.Projectile
 import com.baraka.game.knightsurvivor.model.XpGem
+import kotlin.random.Random
 
 /** Everything one tick of collision resolution produced, for GameLoopOrchestrator to fold into the next GameState. */
 data class CollisionResult(
     val enemies: List<EnemyInstance>,
     val projectiles: List<Projectile>,
     val newXpGems: List<XpGem>,
+    val newHealthPickups: List<HealthPickup>,
     val killsThisTick: Int,
     val player: PlayerState,
     /** An enemy that took damage and survived — GameLoopOrchestrator turns each into a small spark burst. */
@@ -37,7 +40,8 @@ object CollisionSystem {
         projectiles: List<Projectile>,
         player: PlayerState,
         externalDamageEvents: List<DamageEvent>,
-        nowMs: Long
+        nowMs: Long,
+        random: Random = Random.Default
     ): CollisionResult {
         val (survivingProjectiles, projectileDamageEvents) = resolveProjectileHits(projectiles, enemies)
 
@@ -47,6 +51,7 @@ object CollisionSystem {
 
         val survivingEnemies = mutableListOf<EnemyInstance>()
         val newXpGems = mutableListOf<XpGem>()
+        val newHealthPickups = mutableListOf<HealthPickup>()
         val hitFeedback = mutableListOf<HitFeedback>()
         val deathFeedback = mutableListOf<HitFeedback>()
         var kills = 0
@@ -57,6 +62,13 @@ object CollisionSystem {
             if (newHp <= 0) {
                 kills++
                 newXpGems += XpGem(id = EntityIdGenerator.next(), position = enemy.position, value = enemy.kind.xpValue)
+                if (random.nextFloat() < enemy.kind.healthDropChance) {
+                    newHealthPickups += HealthPickup(
+                        id = EntityIdGenerator.next(),
+                        position = enemy.position,
+                        healAmount = GameTunables.HEALTH_PICKUP_HEAL_AMOUNT
+                    )
+                }
                 deathFeedback += HitFeedback(enemy.position, enemy.kind.colorArgb, isBoss = enemy.isBoss)
             } else {
                 survivingEnemies += enemy.copy(
@@ -73,6 +85,7 @@ object CollisionSystem {
             enemies = survivingEnemies,
             projectiles = survivingProjectiles,
             newXpGems = newXpGems,
+            newHealthPickups = newHealthPickups,
             killsThisTick = kills,
             player = updatedPlayer,
             hitFeedback = hitFeedback,

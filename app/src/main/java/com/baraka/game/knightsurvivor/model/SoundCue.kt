@@ -17,6 +17,7 @@ enum class SoundCue {
     ENEMY_HIT,
     ENEMY_DEATH,
     PLAYER_HURT,
+    HEALTH_PICKUP,
     LEVEL_UP,
     GAME_OVER,
     VICTORY

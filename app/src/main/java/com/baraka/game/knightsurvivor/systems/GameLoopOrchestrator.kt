@@ -37,7 +37,8 @@ object GameLoopOrchestrator {
             projectiles = movedProjectiles,
             player = playerWithWeapons,
             externalDamageEvents = firing.directDamageEvents,
-            nowMs = newElapsedMs
+            nowMs = newElapsedMs,
+            random = random
         )
 
         val spawnedEnemies = EnemySpawnSystem.step(
@@ -50,6 +51,7 @@ object GameLoopOrchestrator {
         )
 
         val xpStep = XpAndLevelingSystem.step(collision.player, state.xpGems + collision.newXpGems, dtSeconds)
+        val healthStep = HealthPickupSystem.step(xpStep.player, state.healthPickups + collision.newHealthPickups, dtSeconds)
 
         val prunedActivations = (state.recentWeaponActivations + firing.newActivationEvents)
             .filter { event -> newElapsedMs - event.activatedAtMs <= GameTunables.WEAPON_EFFECT_VISIBLE_MS }
@@ -62,14 +64,16 @@ object GameLoopOrchestrator {
             if (collision.hitFeedback.isNotEmpty()) add(SoundCue.ENEMY_HIT)
             if (collision.deathFeedback.isNotEmpty()) add(SoundCue.ENEMY_DEATH)
             if (collision.player.hp < playerWithWeapons.hp) add(SoundCue.PLAYER_HURT)
+            if (healthStep.player.hp > xpStep.player.hp) add(SoundCue.HEALTH_PICKUP)
             if (xpStep.leveledUp) add(SoundCue.LEVEL_UP)
         }
 
         val nextState = state.copy(
-            player = xpStep.player,
+            player = healthStep.player,
             enemies = collision.enemies + spawnedEnemies,
             projectiles = collision.projectiles,
             xpGems = xpStep.xpGems,
+            healthPickups = healthStep.pickups,
             particles = updatedParticles,
             recentWeaponActivations = prunedActivations,
             pendingSoundCues = soundCues,

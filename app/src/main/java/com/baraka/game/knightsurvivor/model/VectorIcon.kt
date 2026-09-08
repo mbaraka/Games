@@ -26,6 +26,9 @@ sealed class VectorIcon {
     /** A handle with a crescent axe-head — distinct from [Blade] so a thrown axe doesn't just look like another dagger. */
     data class Axe(val lengthRatio: Float = 1.6f) : VectorIcon()
 
+    /** A heart — health pickups, so they read as "heal" instead of another gem. */
+    data object Heart : VectorIcon()
+
     /**
      * A simple creature face: a round head plus optional features. New monsters can
      * usually be described by mixing these flags rather than needing a whole new

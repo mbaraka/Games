@@ -76,6 +76,7 @@ class SurvivorSoundEngine {
         SoundCue.ENEMY_HIT -> tone(frequencyHz = 180.0, durationMs = 45, waveform = Waveform.SQUARE, volume = 0.28f)
         SoundCue.ENEMY_DEATH -> sweep(startHz = 420.0, endHz = 120.0, durationMs = 160, waveform = Waveform.SAWTOOTH, volume = 0.28f)
         SoundCue.PLAYER_HURT -> tone(frequencyHz = 140.0, durationMs = 140, waveform = Waveform.SQUARE, volume = 0.32f)
+        SoundCue.HEALTH_PICKUP -> sweep(startHz = 500.0, endHz = 800.0, durationMs = 150, waveform = Waveform.SINE, volume = 0.28f)
         SoundCue.LEVEL_UP -> arpeggio(frequenciesHz = listOf(523.25, 659.25, 783.99), noteDurationMs = 90, waveform = Waveform.SINE, volume = 0.28f)
         SoundCue.GAME_OVER -> sweep(startHz = 300.0, endHz = 80.0, durationMs = 500, waveform = Waveform.SINE, volume = 0.32f)
         SoundCue.VICTORY -> arpeggio(frequenciesHz = listOf(523.25, 659.25, 783.99, 1046.5), noteDurationMs = 130, waveform = Waveform.SINE, volume = 0.32f)

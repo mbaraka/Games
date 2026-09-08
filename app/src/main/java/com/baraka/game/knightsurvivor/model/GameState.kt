@@ -22,6 +22,7 @@ data class GameState(
     val enemies: List<EnemyInstance> = emptyList(),
     val projectiles: List<Projectile> = emptyList(),
     val xpGems: List<XpGem> = emptyList(),
+    val healthPickups: List<HealthPickup> = emptyList(),
     val particles: List<Particle> = emptyList(),
     val recentWeaponActivations: List<WeaponActivationEvent> = emptyList(),
     /** Sounds to play for what just happened this tick. Drained and cleared by ui/KnightSurvivorScreen.kt every tick — never accumulates. */

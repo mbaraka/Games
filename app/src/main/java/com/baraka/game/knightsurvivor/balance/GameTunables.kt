@@ -27,6 +27,9 @@ object GameTunables {
     const val PLAYER_BASE_PICKUP_RADIUS = 55f
     const val PLAYER_INVULNERABILITY_MS = 500L
 
+    // --- Health pickups ---------------------------------------------------------------------
+    const val HEALTH_PICKUP_HEAL_AMOUNT = 15
+
     // --- XP / leveling ----------------------------------------------------------------------
     /** XP required to go from [level] to level+1. */
     fun xpRequiredForLevel(level: Int): Int = 10 + (level - 1) * 8

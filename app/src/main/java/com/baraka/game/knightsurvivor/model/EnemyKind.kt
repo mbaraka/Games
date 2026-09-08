@@ -21,7 +21,9 @@ enum class EnemyKind(
     val radius: Float,
     val colorArgb: Long,
     val icon: VectorIcon,
-    val isBoss: Boolean = false
+    val isBoss: Boolean = false,
+    /** Chance this kind drops a heal pickup alongside its XP gem on death. */
+    val healthDropChance: Float = 0f
 ) {
     SKELETON(
         displayName = "Skeleton",
@@ -31,7 +33,8 @@ enum class EnemyKind(
         xpValue = 3,
         radius = 14f,
         colorArgb = 0xFFE0E0E0,
-        icon = VectorIcon.Face(eyeStyle = VectorIcon.EyeStyle.HOLLOW_SOCKET)
+        icon = VectorIcon.Face(eyeStyle = VectorIcon.EyeStyle.HOLLOW_SOCKET),
+        healthDropChance = 0.05f
     ),
     GOBLIN(
         displayName = "Goblin",
@@ -51,7 +54,8 @@ enum class EnemyKind(
         xpValue = 10,
         radius = 20f,
         colorArgb = 0xFF8D6E63,
-        icon = VectorIcon.Face(earStyle = VectorIcon.EarStyle.ROUND, hasTusks = true)
+        icon = VectorIcon.Face(earStyle = VectorIcon.EarStyle.ROUND, hasTusks = true),
+        healthDropChance = 0.12f
     ),
     BONE_KING(
         displayName = "Bone King",
@@ -62,7 +66,8 @@ enum class EnemyKind(
         radius = 32f,
         colorArgb = 0xFFD7CCC8, // pale bone tan — a purple head read oddly on a "skull" face
         icon = VectorIcon.Face(eyeStyle = VectorIcon.EyeStyle.HOLLOW_SOCKET, hasCrown = true),
-        isBoss = true
+        isBoss = true,
+        healthDropChance = 1f
     ),
     BAT(
         displayName = "Bat",
@@ -82,7 +87,8 @@ enum class EnemyKind(
         xpValue = 16,
         radius = 26f,
         colorArgb = 0xFF5D4037,
-        icon = VectorIcon.Face(earStyle = VectorIcon.EarStyle.ROUND, hasTusks = true)
+        icon = VectorIcon.Face(earStyle = VectorIcon.EarStyle.ROUND, hasTusks = true),
+        healthDropChance = 0.18f
     );
 
     companion object {

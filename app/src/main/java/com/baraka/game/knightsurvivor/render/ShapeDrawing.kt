@@ -219,5 +219,31 @@ fun DrawScope.drawAxe(
     drawCircle(color = outlineColor, radius = radius * 0.14f, center = pommelCenter, style = Stroke(width = outlineWidth))
 }
 
+/** A heart via two symmetric cubic beziers meeting at a bottom point. */
+fun DrawScope.drawHeart(
+    center: Offset,
+    radius: Float,
+    color: Color,
+    outlineColor: Color = Color.White,
+    outlineWidth: Float = 1.5f
+) {
+    val path = Path().apply {
+        moveTo(center.x, center.y + radius * 0.7f)
+        cubicTo(
+            center.x - radius * 1.3f, center.y - radius * 0.1f,
+            center.x - radius * 0.5f, center.y - radius * 1.1f,
+            center.x, center.y - radius * 0.3f
+        )
+        cubicTo(
+            center.x + radius * 0.5f, center.y - radius * 1.1f,
+            center.x + radius * 1.3f, center.y - radius * 0.1f,
+            center.x, center.y + radius * 0.7f
+        )
+        close()
+    }
+    drawPath(path, color = color)
+    drawPath(path, color = outlineColor, style = Stroke(width = outlineWidth))
+}
+
 private val GRIP_COLOR = Color(0xFF6D4C41)
 private val HALF_PI = (Math.PI / 2).toFloat()
