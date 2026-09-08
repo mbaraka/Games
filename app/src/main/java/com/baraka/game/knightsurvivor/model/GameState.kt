@@ -21,6 +21,8 @@ data class GameState(
     val player: PlayerState,
     val enemies: List<EnemyInstance> = emptyList(),
     val projectiles: List<Projectile> = emptyList(),
+    /** Fired by enemies (currently just the Imp) at the player — see systems/EnemyRangedAttackSystem.kt. */
+    val enemyProjectiles: List<EnemyProjectile> = emptyList(),
     val xpGems: List<XpGem> = emptyList(),
     val healthPickups: List<HealthPickup> = emptyList(),
     val particles: List<Particle> = emptyList(),

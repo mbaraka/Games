@@ -77,7 +77,7 @@ fun CompendiumContent(player: PlayerState, difficulty: Difficulty, unlockedAchie
         LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             when (tab) {
                 CompendiumTab.KNIGHT -> item { KnightSummaryCard(player, difficulty) }
-                CompendiumTab.ENEMIES -> items(EnemyKind.entries) { kind -> EnemyEntryCard(kind) }
+                CompendiumTab.ENEMIES -> items(EnemyKind.entries.filter { it.directlySpawnable }) { kind -> EnemyEntryCard(kind) }
                 CompendiumTab.WEAPONS -> items(WeaponKind.entries) { kind -> WeaponEntryCard(kind, player.weaponOf(kind)) }
                 CompendiumTab.ACHIEVEMENTS -> items(Achievement.entries) { achievement ->
                     AchievementEntryCard(achievement, unlocked = achievement in unlockedAchievements)

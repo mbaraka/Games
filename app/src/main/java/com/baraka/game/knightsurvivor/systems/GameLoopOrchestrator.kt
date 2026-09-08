@@ -1,10 +1,13 @@
 package com.baraka.game.knightsurvivor.systems
 
 import com.baraka.game.knightsurvivor.balance.GameTunables
+import com.baraka.game.knightsurvivor.model.EnemyDebuff
+import com.baraka.game.knightsurvivor.model.EnemyInstance
 import com.baraka.game.knightsurvivor.model.GamePhase
 import com.baraka.game.knightsurvivor.model.GameState
 import com.baraka.game.knightsurvivor.model.SoundCue
 import com.baraka.game.knightsurvivor.model.UpgradeOption
+import com.baraka.game.knightsurvivor.model.Vec2
 import kotlin.random.Random
 
 /**
@@ -23,26 +26,35 @@ object GameLoopOrchestrator {
         val dtSeconds = dtMs / 1000f
         val newElapsedMs = state.elapsedMs + dtMs
 
-        val movedPlayer = PlayerMovementSystem.step(state.player, state.joystickInput, state.arenaSize, dtSeconds)
+        val movedPlayer = PlayerMovementSystem.step(state.player, state.joystickInput, state.arenaSize, newElapsedMs, dtSeconds)
 
-        val firing = WeaponFiringSystem.step(movedPlayer, state.enemies, newElapsedMs, dtMs)
+        val firing = WeaponFiringSystem.step(movedPlayer, state.enemies, newElapsedMs, dtMs, random)
         val playerWithWeapons = movedPlayer.copy(weapons = firing.weapons)
 
-        val movedEnemies = EnemyMovementSystem.step(state.enemies, playerWithWeapons.position, dtSeconds)
+        val movedEnemies = EnemyMovementSystem.step(state.enemies, playerWithWeapons.position, newElapsedMs, dtSeconds)
+        val rangedAttack = EnemyRangedAttackSystem.step(movedEnemies, playerWithWeapons.position, dtMs)
+
         val movedProjectiles =
-            ProjectileMovementSystem.step(state.projectiles + firing.newProjectiles, state.arenaSize, dtSeconds)
+            ProjectileMovementSystem.step(state.projectiles + firing.newProjectiles, state.arenaSize, playerWithWeapons.position, dtSeconds)
+        val movedEnemyProjectiles =
+            EnemyProjectileMovementSystem.step(state.enemyProjectiles + rangedAttack.newProjectiles, state.arenaSize, dtSeconds)
 
         val collision = CollisionSystem.resolve(
-            enemies = movedEnemies,
+            enemies = rangedAttack.enemies,
             projectiles = movedProjectiles,
+            enemyProjectiles = movedEnemyProjectiles,
             player = playerWithWeapons,
             externalDamageEvents = firing.directDamageEvents,
             nowMs = newElapsedMs,
             random = random
         )
 
+        val mergedDebuffs = mergeDebuffs(firing.enemyDebuffs, collision.enemyDebuffs)
+        val enemiesWithEffects = collision.enemies.map { enemy -> applyPullAndDebuff(enemy, firing.enemyPulls[enemy.id], mergedDebuffs[enemy.id]) } +
+            collision.newEnemies
+
         val spawnedEnemies = EnemySpawnSystem.step(
-            currentEnemyCount = collision.enemies.size,
+            currentEnemyCount = enemiesWithEffects.size,
             arenaSize = state.arenaSize,
             previousElapsedMs = state.elapsedMs,
             newElapsedMs = newElapsedMs,
@@ -70,8 +82,9 @@ object GameLoopOrchestrator {
 
         val nextState = state.copy(
             player = healthStep.player,
-            enemies = collision.enemies + spawnedEnemies,
+            enemies = enemiesWithEffects + spawnedEnemies,
             projectiles = collision.projectiles,
+            enemyProjectiles = collision.enemyProjectiles,
             xpGems = xpStep.xpGems,
             healthPickups = healthStep.pickups,
             particles = updatedParticles,
@@ -108,5 +121,37 @@ object GameLoopOrchestrator {
             phase = GamePhase.RUNNING,
             pendingUpgradeChoices = emptyList()
         )
+    }
+
+    /** Combines this tick's weapon-inflicted debuffs (Frying Pan's stun) with collision-inflicted ones (Egg Toss's splash slow), keeping the stronger of each per enemy. */
+    private fun mergeDebuffs(a: Map<Long, EnemyDebuff>, b: Map<Long, EnemyDebuff>): Map<Long, EnemyDebuff> {
+        if (a.isEmpty()) return b
+        if (b.isEmpty()) return a
+        val merged = a.toMutableMap()
+        b.forEach { (id, debuff) ->
+            val existing = merged[id]
+            merged[id] = if (existing == null) {
+                debuff
+            } else {
+                EnemyDebuff(
+                    stunUntilMs = maxOf(existing.stunUntilMs, debuff.stunUntilMs),
+                    slowUntilMs = maxOf(existing.slowUntilMs, debuff.slowUntilMs),
+                    slowMultiplier = if (debuff.slowUntilMs >= existing.slowUntilMs) debuff.slowMultiplier else existing.slowMultiplier
+                )
+            }
+        }
+        return merged
+    }
+
+    private fun applyPullAndDebuff(enemy: EnemyInstance, pulledPosition: Vec2?, debuff: EnemyDebuff?): EnemyInstance {
+        var updated = enemy
+        if (pulledPosition != null) updated = updated.copy(position = pulledPosition)
+        if (debuff != null) {
+            if (debuff.stunUntilMs > updated.stunnedUntilMs) updated = updated.copy(stunnedUntilMs = debuff.stunUntilMs)
+            if (debuff.slowUntilMs > updated.slowUntilMs) {
+                updated = updated.copy(slowUntilMs = debuff.slowUntilMs, slowMultiplier = debuff.slowMultiplier)
+            }
+        }
+        return updated
     }
 }

@@ -35,6 +35,36 @@ sealed class VectorIcon {
     /** A hexagonal shell with radial panel lines — a heavier, sturdier read than [Shield], for a slow/tanky orbiting weapon. */
     data object TurtleShell : VectorIcon()
 
+    /** A round pan with a handle, mid-"bonk" (a few impact lines) — Frying Pan. */
+    data object FryingPan : VectorIcon()
+
+    /** A curved banana/crescent silhouette, not a straight stick — Boomerang. */
+    data object Boomerang : VectorIcon()
+
+    /** A red horseshoe magnet with silver tips, ends clearly separated. */
+    data object Magnet : VectorIcon()
+
+    /** Three small sticks bundled with a lit fuse — Firecracker String. */
+    data object Firecracker : VectorIcon()
+
+    /** A simple egg silhouette with a highlight — Egg Toss. */
+    data object Egg : VectorIcon()
+
+    /** A rounded blob with a glossy highlight and two dot eyes — Slime. */
+    data object Slime : VectorIcon()
+
+    /** A classic wavy-bottomed ghost silhouette. */
+    data object Ghost : VectorIcon()
+
+    /** A small horned grinning face — Imp. */
+    data object Imp : VectorIcon()
+
+    /** A blocky, cracked rock silhouette — Golem. */
+    data object Golem : VectorIcon()
+
+    /** A gem-lidded chest with teeth — disguises as a pickup until it ambushes. */
+    data object Mimic : VectorIcon()
+
     /**
      * A simple creature face: a round head plus optional features. New monsters can
      * usually be described by mixing these flags rather than needing a whole new

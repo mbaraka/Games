@@ -80,7 +80,8 @@ object EnemySpawnSystem {
             hp = hp,
             maxHp = hp,
             speed = kind.baseSpeed * speedMultiplier,
-            damage = (kind.baseDamage * powerMultiplier).toInt().coerceAtLeast(1)
+            damage = (kind.baseDamage * powerMultiplier).toInt().coerceAtLeast(1),
+            disguisedAsPickup = kind.disguisesAsPickup
         )
     }
 

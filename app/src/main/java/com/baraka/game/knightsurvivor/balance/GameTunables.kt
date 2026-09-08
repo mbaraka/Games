@@ -68,16 +68,26 @@ object GameTunables {
     /** How long a regular enemy has been eligible to spawn, and its relative spawn weight once it is. Skeleton is always available. */
     private val enemyUnlockSeconds: Map<EnemyKind, Float> = mapOf(
         EnemyKind.SKELETON to 0f,
+        EnemyKind.SLIME to 10f,
         EnemyKind.GOBLIN to 20f,
+        EnemyKind.IMP to 30f,
         EnemyKind.BAT to 35f,
+        EnemyKind.MIMIC to 45f,
         EnemyKind.ORC to 50f,
+        EnemyKind.GHOST to 60f,
+        EnemyKind.GOLEM to 65f,
         EnemyKind.OGRE to 75f
     )
     private val enemySpawnWeights: Map<EnemyKind, Float> = mapOf(
         EnemyKind.SKELETON to 5f,
+        EnemyKind.SLIME to 3f,
         EnemyKind.GOBLIN to 3f,
+        EnemyKind.IMP to 2.5f,
         EnemyKind.BAT to 3f,
+        EnemyKind.MIMIC to 1f,
         EnemyKind.ORC to 2f,
+        EnemyKind.GHOST to 2f,
+        EnemyKind.GOLEM to 1f,
         EnemyKind.OGRE to 1.5f
     )
 

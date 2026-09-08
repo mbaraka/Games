@@ -15,5 +15,9 @@ data class Projectile(
     val damage: Int,
     val sourceWeapon: WeaponKind,
     val pierceRemaining: Int = 0,
-    val hitEnemyIds: Set<Long> = emptySet()
+    val hitEnemyIds: Set<Long> = emptySet(),
+    /** How far this projectile has traveled since firing — only tracked for [WeaponKind.returnsToPlayer] weapons (Boomerang), to know when to turn back. */
+    val distanceTraveledPx: Float = 0f,
+    /** True once a returnsToPlayer projectile has turned around and is homing back through the player — see systems/ProjectileMovementSystem.kt. */
+    val returning: Boolean = false
 )

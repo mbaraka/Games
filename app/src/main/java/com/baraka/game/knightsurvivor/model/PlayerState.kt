@@ -15,6 +15,8 @@ data class PlayerState(
     val level: Int = 1,
     val xpToNextLevel: Int,
     val invulnerableUntilMs: Long = 0L,
+    /** While > nowMs, PlayerMovementSystem ignores joystick input — Golem's root-on-hit. */
+    val rootedUntilMs: Long = 0L,
     val weapons: List<WeaponInstance> = emptyList(),
     val passiveStacks: Map<PassiveKind, Int> = emptyMap()
 ) {
@@ -37,6 +39,8 @@ data class PlayerState(
         get() = PassiveKind.COOLDOWN_REDUCTION.magnitudeAtStacks(passiveStackCount(PassiveKind.COOLDOWN_REDUCTION))
 
     fun isInvulnerableAt(nowMs: Long): Boolean = nowMs < invulnerableUntilMs
+
+    fun isRootedAt(nowMs: Long): Boolean = nowMs < rootedUntilMs
 
     fun weaponOf(kind: WeaponKind): WeaponInstance? = weapons.find { it.kind == kind }
 

@@ -39,6 +39,16 @@ fun DrawScope.drawVectorIcon(
         VectorIcon.Heart -> drawHeart(center, radius, color, outlineColor, outlineWidth)
         VectorIcon.Duck -> drawDuck(center, radius, color, outlineColor, outlineWidth)
         VectorIcon.TurtleShell -> drawTurtleShell(center, radius, color, outlineColor, outlineWidth)
+        VectorIcon.FryingPan -> drawFryingPan(center, radius, color, outlineColor, outlineWidth)
+        VectorIcon.Boomerang -> drawBoomerang(center, radius, color, outlineColor, outlineWidth)
+        VectorIcon.Magnet -> drawMagnet(center, radius, outlineColor, outlineWidth)
+        VectorIcon.Firecracker -> drawFirecracker(center, radius, outlineColor, outlineWidth)
+        VectorIcon.Egg -> drawEgg(center, radius, color, outlineColor, outlineWidth)
+        VectorIcon.Slime -> drawSlime(center, radius, color, outlineColor, outlineWidth)
+        VectorIcon.Ghost -> drawGhost(center, radius, color, outlineColor, outlineWidth)
+        VectorIcon.Imp -> drawImp(center, radius, color, outlineColor, outlineWidth)
+        VectorIcon.Golem -> drawGolem(center, radius, color, outlineColor, outlineWidth)
+        VectorIcon.Mimic -> drawMimic(center, radius, color, outlineColor, outlineWidth)
         is VectorIcon.Face -> drawFace(center, radius, color, icon, outlineColor, outlineWidth)
     }
 }

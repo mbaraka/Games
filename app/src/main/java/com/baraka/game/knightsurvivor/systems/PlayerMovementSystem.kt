@@ -7,7 +7,8 @@ import com.baraka.game.knightsurvivor.model.Vec2
 
 /**
  * Moves the player from the current joystick input and keeps them inside the arena.
- * A pure function of its inputs — doesn't know about combat, XP, or anything else.
+ * A pure function of its inputs — doesn't know about combat, XP, or anything else, beyond
+ * respecting Golem's root (see [PlayerState.isRootedAt]).
  */
 object PlayerMovementSystem {
 
@@ -16,8 +17,11 @@ object PlayerMovementSystem {
         player: PlayerState,
         joystickInput: Vec2,
         arenaSize: ArenaSize,
+        nowMs: Long,
         dtSeconds: Float
     ): PlayerState {
+        if (player.isRootedAt(nowMs)) return player
+
         val speed = GameTunables.PLAYER_BASE_SPEED_PX_PER_SEC * player.moveSpeedMultiplier
         val newPosition = (player.position + joystickInput * speed * dtSeconds)
             .clampToArena(arenaSize.width, arenaSize.height, player.radius)

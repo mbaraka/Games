@@ -2,6 +2,7 @@ package com.baraka.game.knightsurvivor.systems
 
 import com.baraka.game.knightsurvivor.balance.GameTunables
 import com.baraka.game.knightsurvivor.model.DamageEvent
+import com.baraka.game.knightsurvivor.model.EnemyDebuff
 import com.baraka.game.knightsurvivor.model.EnemyInstance
 import com.baraka.game.knightsurvivor.model.EntityIdGenerator
 import com.baraka.game.knightsurvivor.model.PlayerState
@@ -13,6 +14,7 @@ import com.baraka.game.knightsurvivor.model.WeaponKind
 import com.baraka.game.knightsurvivor.model.WeaponTargeting
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.random.Random
 
 /** Everything one tick of weapon activity produced, for systems/GameLoopOrchestrator.kt to fold into the next GameState. */
 data class WeaponFiringResult(
@@ -21,7 +23,11 @@ data class WeaponFiringResult(
     val directDamageEvents: List<DamageEvent>,
     val newActivationEvents: List<WeaponActivationEvent>,
     /** Which weapon kind(s) actually activated this tick — lets a UI layer play that weapon's own fire sound. Excludes ORBIT, which ticks too often to sound a fire cue without spamming. */
-    val firedWeaponKinds: List<WeaponKind> = emptyList()
+    val firedWeaponKinds: List<WeaponKind> = emptyList(),
+    /** Enemy id -> its new position after Magnet Pulse yanks it closer. Applied by GameLoopOrchestrator once collision has resolved survivors. */
+    val enemyPulls: Map<Long, Vec2> = emptyMap(),
+    /** Enemy id -> stun/slow to apply — currently just Frying Pan's stun chance. */
+    val enemyDebuffs: Map<Long, EnemyDebuff> = emptyMap()
 )
 
 /**
@@ -40,13 +46,16 @@ object WeaponFiringSystem {
         player: PlayerState,
         enemies: List<EnemyInstance>,
         nowMs: Long,
-        dtMs: Long
+        dtMs: Long,
+        random: Random = Random.Default
     ): WeaponFiringResult {
         val updatedWeapons = mutableListOf<WeaponInstance>()
         val newProjectiles = mutableListOf<Projectile>()
         val damageEvents = mutableListOf<DamageEvent>()
         val activationEvents = mutableListOf<WeaponActivationEvent>()
         val firedWeaponKinds = mutableListOf<WeaponKind>()
+        val enemyPulls = mutableMapOf<Long, Vec2>()
+        val enemyDebuffs = mutableMapOf<Long, EnemyDebuff>()
 
         for (weapon in player.weapons) {
             val spinningWeapon = if (weapon.kind.targeting == WeaponTargeting.ORBIT) {
@@ -72,9 +81,20 @@ object WeaponFiringSystem {
                 WeaponTargeting.AREA_AROUND_PLAYER -> {
                     val radius = spinningWeapon.kind.radiusAtLevel(spinningWeapon.level)
                     val damage = spinningWeapon.kind.damageAtLevel(spinningWeapon.level)
-                    enemies
-                        .filter { enemy -> enemy.position.distanceTo(player.position) <= radius + enemy.radius }
-                        .forEach { enemy -> damageEvents += DamageEvent(enemy.id, damage, spinningWeapon.kind) }
+                    val hitEnemies = enemies.filter { enemy -> enemy.position.distanceTo(player.position) <= radius + enemy.radius }
+                    hitEnemies.forEach { enemy ->
+                        damageEvents += DamageEvent(enemy.id, damage, spinningWeapon.kind)
+
+                        if (spinningWeapon.kind.stunChance > 0f && random.nextFloat() < spinningWeapon.kind.stunChance) {
+                            enemyDebuffs[enemy.id] = EnemyDebuff(stunUntilMs = nowMs + spinningWeapon.kind.stunDurationMs)
+                        }
+
+                        if (spinningWeapon.kind.pullStrengthPx > 0f) {
+                            val towardPlayer = (player.position - enemy.position).normalized()
+                            val pullDistance = spinningWeapon.kind.pullStrengthPx.coerceAtMost(enemy.position.distanceTo(player.position))
+                            enemyPulls[enemy.id] = enemy.position + towardPlayer * pullDistance
+                        }
+                    }
                     activationEvents += WeaponActivationEvent(spinningWeapon.kind, player.position, radius, nowMs)
                     firedWeaponKinds += spinningWeapon.kind
                 }
@@ -97,7 +117,7 @@ object WeaponFiringSystem {
             updatedWeapons += spinningWeapon.copy(cooldownRemainingMs = freshCooldownMs)
         }
 
-        return WeaponFiringResult(updatedWeapons, newProjectiles, damageEvents, activationEvents, firedWeaponKinds)
+        return WeaponFiringResult(updatedWeapons, newProjectiles, damageEvents, activationEvents, firedWeaponKinds, enemyPulls, enemyDebuffs)
     }
 
     /**

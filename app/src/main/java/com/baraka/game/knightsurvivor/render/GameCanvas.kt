@@ -26,6 +26,7 @@ fun GameCanvas(state: GameState, onSizeMeasured: (widthPx: Float, heightPx: Floa
         drawWeaponActivationEffects(state.recentWeaponActivations, state.elapsedMs)
         drawEnemies(state.enemies, state.elapsedMs)
         drawProjectiles(state.projectiles)
+        drawEnemyProjectiles(state.enemyProjectiles)
         drawParticles(state.particles)
         drawPlayer(state.player, state.elapsedMs)
     }

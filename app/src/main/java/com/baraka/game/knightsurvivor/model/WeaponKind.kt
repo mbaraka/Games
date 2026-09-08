@@ -29,6 +29,21 @@ enum class WeaponKind(
     val baseRadius: Float = 0f,
     /** How much [baseRadius] grows per level above 1. */
     val radiusGrowthPerLevel: Float = 0f,
+    /** Chance (0..1) an AREA_AROUND_PLAYER hit also stuns the enemy — see [WeaponFiringSystem]. 0 for every weapon that doesn't stun. */
+    val stunChance: Float = 0f,
+    /** How long a successful stun lasts. */
+    val stunDurationMs: Long = 0L,
+    /** How many px an AREA_AROUND_PLAYER hit yanks the enemy toward the player — Magnet Pulse only, 0 for everything else. */
+    val pullStrengthPx: Float = 0f,
+    /** If > 0, a NEAREST_ENEMY projectile's impact also deals splash damage to other enemies within this radius. */
+    val splashRadius: Float = 0f,
+    /** Fraction of the primary hit's damage dealt to each enemy caught in the splash. */
+    val splashDamageFraction: Float = 0f,
+    /** If > 0, a NEAREST_ENEMY projectile's impact also briefly slows every enemy within [splashRadius] (Egg Toss's "puddle"). */
+    val splashSlowDurationMs: Long = 0L,
+    val splashSlowMultiplier: Float = 1f,
+    /** A NEAREST_ENEMY projectile that flies out, then homes back through the player's position — Boomerang only. */
+    val returnsToPlayer: Boolean = false,
     val maxLevel: Int = 5
 ) {
     SWORD_SLASH(
@@ -92,6 +107,64 @@ enum class WeaponKind(
         fireSoundWaveform = Waveform.SQUARE,
         fireSoundEndHz = 380.0,
         fireSoundDurationMs = 130
+    ),
+    FRYING_PAN(
+        displayName = "Frying Pan",
+        description = "Bonks every enemy in range, with a chance to stun them silly.",
+        targeting = WeaponTargeting.AREA_AROUND_PLAYER,
+        colorArgb = 0xFF78909C,
+        icon = VectorIcon.FryingPan,
+        fireSoundHz = 200.0,
+        fireSoundWaveform = Waveform.SQUARE,
+        baseRadius = 55f,
+        radiusGrowthPerLevel = 6f,
+        stunChance = 0.25f,
+        stunDurationMs = 700L
+    ),
+    BOOMERANG(
+        displayName = "Boomerang",
+        description = "Flies out through enemies, then homes back through them again.",
+        targeting = WeaponTargeting.NEAREST_ENEMY,
+        colorArgb = 0xFF8D6E63,
+        icon = VectorIcon.Boomerang,
+        fireSoundHz = 480.0,
+        fireSoundWaveform = Waveform.SAWTOOTH,
+        returnsToPlayer = true
+    ),
+    MAGNET_PULSE(
+        displayName = "Magnet Pulse",
+        description = "A light jolt that yanks nearby enemies closer, setting them up for the rest of your kit.",
+        targeting = WeaponTargeting.AREA_AROUND_PLAYER,
+        colorArgb = 0xFFE53935,
+        icon = VectorIcon.Magnet,
+        fireSoundHz = 150.0,
+        fireSoundWaveform = Waveform.SINE,
+        baseRadius = 90f,
+        radiusGrowthPerLevel = 10f,
+        pullStrengthPx = 26f
+    ),
+    FIRECRACKER_STRING(
+        displayName = "Firecracker String",
+        description = "Pops on impact into a shower of sparks that scorch nearby enemies too.",
+        targeting = WeaponTargeting.NEAREST_ENEMY,
+        colorArgb = 0xFFE53935,
+        icon = VectorIcon.Firecracker,
+        fireSoundHz = 700.0,
+        fireSoundWaveform = Waveform.SQUARE,
+        splashRadius = 45f,
+        splashDamageFraction = 0.5f
+    ),
+    EGG_TOSS(
+        displayName = "Egg Toss",
+        description = "Splats on impact, leaving nearby enemies slipping and slowed.",
+        targeting = WeaponTargeting.NEAREST_ENEMY,
+        colorArgb = 0xFFFFF8E1,
+        icon = VectorIcon.Egg,
+        fireSoundHz = 380.0,
+        fireSoundWaveform = Waveform.SINE,
+        splashRadius = 50f,
+        splashSlowDurationMs = 1500L,
+        splashSlowMultiplier = 0.5f
     );
 
     /** Damage dealt per hit at [level] (1..[maxLevel]). */
@@ -102,6 +175,11 @@ enum class WeaponKind(
         THROWING_AXE -> 15 + (level - 1) * 7
         SUNBURST -> 4 + (level - 1) * 2
         RUBBER_DUCK -> 12 + (level - 1) * 5
+        FRYING_PAN -> 14 + (level - 1) * 6
+        BOOMERANG -> 11 + (level - 1) * 5
+        MAGNET_PULSE -> 3 + (level - 1) * 2
+        FIRECRACKER_STRING -> 12 + (level - 1) * 5
+        EGG_TOSS -> 6 + (level - 1) * 3
     }
 
     /**
@@ -116,6 +194,11 @@ enum class WeaponKind(
         THROWING_AXE -> (820 - (level - 1) * 70).coerceAtLeast(420).toLong()
         SUNBURST -> (420 - (level - 1) * 30).coerceAtLeast(220).toLong()
         RUBBER_DUCK -> (700 - (level - 1) * 60).coerceAtLeast(350).toLong()
+        FRYING_PAN -> (1000 - (level - 1) * 80).coerceAtLeast(550).toLong()
+        BOOMERANG -> (900 - (level - 1) * 70).coerceAtLeast(480).toLong()
+        MAGNET_PULSE -> (1200 - (level - 1) * 90).coerceAtLeast(650).toLong()
+        FIRECRACKER_STRING -> (750 - (level - 1) * 60).coerceAtLeast(380).toLong()
+        EGG_TOSS -> (800 - (level - 1) * 60).coerceAtLeast(420).toLong()
     }
 
     /** Hit radius in px. Used as the AoE radius for AREA_AROUND_PLAYER and the orbit radius for ORBIT. Driven by [baseRadius]/[radiusGrowthPerLevel] so a new weapon needs no `when` branch here. */
@@ -131,6 +214,7 @@ enum class WeaponKind(
     fun pierceAtLevel(level: Int): Int = when (this) {
         DAGGER_THROW -> if (level >= 4) 1 else 0
         THROWING_AXE -> (level - 1) / 2 // L1-2: 0, L3-4: 1, L5: 2
+        BOOMERANG -> 1 + (level - 1) / 2 // hits multiple enemies per pass, both out and back
         else -> 0
     }
 
@@ -147,6 +231,9 @@ enum class WeaponKind(
             DAGGER_THROW -> 260f
             THROWING_AXE -> 190f
             RUBBER_DUCK -> 210f
+            BOOMERANG -> 240f
+            FIRECRACKER_STRING -> 300f
+            EGG_TOSS -> 220f
             else -> 0f
         }
 }
