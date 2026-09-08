@@ -25,7 +25,15 @@ object AchievementSystem {
         if (state.bossDefeatedThisRun) add(Achievement.BOSS_SLAYER)
         if (state.killCount >= 100) add(Achievement.CENTURY)
         if (state.player.weapons.size >= GameTunables.MAX_ACTIVE_WEAPONS) add(Achievement.FULL_ARSENAL)
-        if (state.difficulty == Difficulty.HARD && state.phase == GamePhase.VICTORY) add(Achievement.BATTLE_TESTED)
+        if (state.phase == GamePhase.VICTORY) {
+            when (state.difficulty) {
+                Difficulty.EASY -> add(Achievement.EASY_VICTORY)
+                Difficulty.NORMAL -> add(Achievement.NORMAL_VICTORY)
+                Difficulty.HARD -> add(Achievement.BATTLE_TESTED)
+            }
+        }
+        if (state.player.level >= 15) add(Achievement.UNSTOPPABLE)
+        if (state.killCount >= 250) add(Achievement.RAMPAGE)
     }
 
     private const val ONE_MINUTE_MS = 60_000L
