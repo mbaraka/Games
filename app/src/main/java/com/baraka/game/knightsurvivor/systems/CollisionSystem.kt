@@ -55,7 +55,7 @@ object CollisionSystem {
         nowMs: Long,
         random: Random = Random.Default
     ): CollisionResult {
-        val (survivingProjectiles, projectileDamageEvents, splashDebuffs) = resolveProjectileHits(projectiles, enemies, nowMs)
+        val (survivingProjectiles, projectileDamageEvents, splashDebuffs) = resolveProjectileHits(projectiles, enemies, nowMs, random)
 
         val totalDamageByEnemyId = (projectileDamageEvents + externalDamageEvents)
             .groupingBy { it.targetEnemyId }
@@ -129,11 +129,12 @@ object CollisionSystem {
         )
     }
 
-    /** Resolves projectile-vs-enemy hits, including Firecracker String's splash damage and Egg Toss's splash slow. */
+    /** Resolves projectile-vs-enemy hits, including Firecracker String's splash damage, Egg Toss's splash slow, and Static Zapper's stun-on-hit chance. */
     private fun resolveProjectileHits(
         projectiles: List<Projectile>,
         enemies: List<EnemyInstance>,
-        nowMs: Long
+        nowMs: Long,
+        random: Random
     ): Triple<List<Projectile>, List<DamageEvent>, Map<Long, EnemyDebuff>> {
         val survivingProjectiles = mutableListOf<Projectile>()
         val damageEvents = mutableListOf<DamageEvent>()
@@ -152,6 +153,12 @@ object CollisionSystem {
 
             damageEvents += DamageEvent(hitEnemy.id, projectile.damage, projectile.sourceWeapon)
 
+            val stunChance = projectile.sourceWeapon.stunChance
+            if (stunChance > 0f && random.nextFloat() < stunChance) {
+                val existing = splashDebuffs[hitEnemy.id]
+                splashDebuffs[hitEnemy.id] = (existing ?: EnemyDebuff()).copy(stunUntilMs = nowMs + projectile.sourceWeapon.stunDurationMs)
+            }
+
             val splashRadius = projectile.sourceWeapon.splashRadius
             if (splashRadius > 0f) {
                 val splashDamage = (projectile.damage * projectile.sourceWeapon.splashDamageFraction).toInt()
@@ -160,14 +167,16 @@ object CollisionSystem {
                     .forEach { other ->
                         if (splashDamage > 0) damageEvents += DamageEvent(other.id, splashDamage, projectile.sourceWeapon)
                         if (projectile.sourceWeapon.splashSlowDurationMs > 0L) {
-                            splashDebuffs[other.id] = EnemyDebuff(
+                            val existing = splashDebuffs[other.id]
+                            splashDebuffs[other.id] = (existing ?: EnemyDebuff()).copy(
                                 slowUntilMs = nowMs + projectile.sourceWeapon.splashSlowDurationMs,
                                 slowMultiplier = projectile.sourceWeapon.splashSlowMultiplier
                             )
                         }
                     }
                 if (projectile.sourceWeapon.splashSlowDurationMs > 0L) {
-                    splashDebuffs[hitEnemy.id] = EnemyDebuff(
+                    val existing = splashDebuffs[hitEnemy.id]
+                    splashDebuffs[hitEnemy.id] = (existing ?: EnemyDebuff()).copy(
                         slowUntilMs = nowMs + projectile.sourceWeapon.splashSlowDurationMs,
                         slowMultiplier = projectile.sourceWeapon.splashSlowMultiplier
                     )

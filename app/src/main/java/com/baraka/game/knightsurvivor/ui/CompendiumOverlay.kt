@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import com.baraka.game.knightsurvivor.model.Achievement
 import com.baraka.game.knightsurvivor.model.Difficulty
 import com.baraka.game.knightsurvivor.model.EnemyKind
+import com.baraka.game.knightsurvivor.model.KnightDesign
 import com.baraka.game.knightsurvivor.model.PlayerState
 import com.baraka.game.knightsurvivor.model.WeaponInstance
 import com.baraka.game.knightsurvivor.model.WeaponKind
@@ -63,6 +64,7 @@ fun CompendiumContent(
     player: PlayerState,
     difficulty: Difficulty,
     unlockedAchievements: Set<Achievement>,
+    knightDesign: KnightDesign,
     onWeaponCardClick: (WeaponKind) -> Unit = {}
 ) {
     var tab by remember { mutableStateOf(CompendiumTab.KNIGHT) }
@@ -81,7 +83,7 @@ fun CompendiumContent(
 
         LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             when (tab) {
-                CompendiumTab.KNIGHT -> item { KnightSummaryCard(player, difficulty) }
+                CompendiumTab.KNIGHT -> item { KnightSummaryCard(player, difficulty, knightDesign) }
                 CompendiumTab.ENEMIES -> items(EnemyKind.entries.filter { it.directlySpawnable }) { kind -> EnemyEntryCard(kind) }
                 CompendiumTab.WEAPONS -> items(WeaponKind.entries) { kind ->
                     WeaponEntryCard(kind, player.weaponOf(kind), onClick = { onWeaponCardClick(kind) })
@@ -114,11 +116,11 @@ private fun IconSwatch(iconSize: Dp = 48.dp, draw: DrawScope.() -> Unit) {
 }
 
 @Composable
-private fun KnightSummaryCard(player: PlayerState, difficulty: Difficulty) {
+private fun KnightSummaryCard(player: PlayerState, difficulty: Difficulty, knightDesign: KnightDesign) {
     CompendiumCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconSwatch(iconSize = 56.dp) {
-                drawKnightIcon(center = center, radius = size.minDimension * 0.42f)
+                drawKnightIcon(center = center, radius = size.minDimension * 0.42f, design = knightDesign)
             }
             Spacer(Modifier.width(12.dp))
             Column {

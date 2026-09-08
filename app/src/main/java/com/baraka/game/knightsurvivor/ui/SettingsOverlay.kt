@@ -1,6 +1,7 @@
 package com.baraka.game.knightsurvivor.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,7 +14,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -30,12 +34,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.knightsurvivor.model.Achievement
 import com.baraka.game.knightsurvivor.model.Difficulty
+import com.baraka.game.knightsurvivor.model.KnightDesign
 import com.baraka.game.knightsurvivor.model.PlayerState
 import com.baraka.game.knightsurvivor.model.WeaponKind
+import com.baraka.game.knightsurvivor.render.drawKnightIcon
 import com.baraka.game.ui.theme.GameColors
 
 private enum class SettingsTab(val label: String) {
-    GENERAL("General"), GUIDE("Guide")
+    GENERAL("General"), KNIGHT("Knight"), GUIDE("Guide")
 }
 
 /**
@@ -53,6 +59,8 @@ fun SettingsScreen(
     onDifficultyChanged: (Difficulty) -> Unit,
     player: PlayerState,
     unlockedAchievements: Set<Achievement>,
+    knightDesign: KnightDesign,
+    onKnightDesignChanged: (KnightDesign) -> Unit,
     onClose: () -> Unit,
     onWeaponCardClick: (WeaponKind) -> Unit = {}
 ) {
@@ -102,10 +110,15 @@ fun SettingsScreen(
                             difficulty = difficulty,
                             onDifficultyChanged = onDifficultyChanged
                         )
+                        SettingsTab.KNIGHT -> KnightDesignPanel(
+                            selected = knightDesign,
+                            onSelected = onKnightDesignChanged
+                        )
                         SettingsTab.GUIDE -> CompendiumContent(
                             player = player,
                             difficulty = difficulty,
                             unlockedAchievements = unlockedAchievements,
+                            knightDesign = knightDesign,
                             onWeaponCardClick = onWeaponCardClick
                         )
                     }
@@ -148,6 +161,44 @@ private fun GeneralSettingsPanel(
             text = "Takes effect on your next run — this one keeps its current difficulty.",
             color = GameColors.TextDisabled,
             fontSize = 11.sp
+        )
+    }
+}
+
+/** Lets the player pick between the 4 purely-cosmetic [KnightDesign]s — applies immediately, live, since there's no balance reason to gate a look change to the next run. */
+@Composable
+private fun KnightDesignPanel(selected: KnightDesign, onSelected: (KnightDesign) -> Unit) {
+    LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        items(KnightDesign.entries) { design ->
+            KnightDesignCard(design = design, isSelected = design == selected, onClick = { onSelected(design) })
+        }
+    }
+}
+
+@Composable
+private fun KnightDesignCard(design: KnightDesign, isSelected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(if (isSelected) Color(0xFF2A3040) else Color(0xFF1C2029), RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Canvas(modifier = Modifier.size(56.dp)) {
+            drawKnightIcon(center = center, radius = size.minDimension * 0.4f, design = design)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(design.displayName, color = GameColors.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(design.description, color = GameColors.TextSecondary, fontSize = 12.sp)
+        }
+        Text(
+            text = if (isSelected) "✓" else "",
+            color = GameColors.Accent,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(28.dp)
         )
     }
 }

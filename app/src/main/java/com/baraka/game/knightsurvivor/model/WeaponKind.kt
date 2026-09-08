@@ -192,6 +192,19 @@ enum class WeaponKind(
         splashRadius = 50f,
         splashSlowDurationMs = 1500L,
         splashSlowMultiplier = 0.5f
+    ),
+    STATIC_ZAPPER(
+        displayName = "Static Zapper",
+        description = "Fires a bolt of electricity with a chance to stun on hit.",
+        targeting = WeaponTargeting.NEAREST_ENEMY,
+        colorArgb = 0xFF40C4FF,
+        icon = VectorIcon.Bolt,
+        fireSoundHz = 1600.0,
+        fireSoundWaveform = Waveform.SQUARE,
+        fireSoundStyle = WeaponFireSoundStyle.ELECTRIC,
+        fireSoundDurationMs = 90,
+        stunChance = 0.3f,
+        stunDurationMs = 550L
     );
 
     /** Damage dealt per hit at [level] (1..[maxLevel]). */
@@ -207,6 +220,7 @@ enum class WeaponKind(
         MAGNET_PULSE -> 3 + (level - 1) * 2
         FIRECRACKER_STRING -> 12 + (level - 1) * 5
         EGG_TOSS -> 6 + (level - 1) * 3
+        STATIC_ZAPPER -> 9 + (level - 1) * 4
     }
 
     /**
@@ -226,6 +240,7 @@ enum class WeaponKind(
         MAGNET_PULSE -> (1200 - (level - 1) * 90).coerceAtLeast(650).toLong()
         FIRECRACKER_STRING -> (750 - (level - 1) * 60).coerceAtLeast(380).toLong()
         EGG_TOSS -> (800 - (level - 1) * 60).coerceAtLeast(420).toLong()
+        STATIC_ZAPPER -> (600 - (level - 1) * 50).coerceAtLeast(320).toLong()
     }
 
     /** Hit radius in px. Used as the AoE radius for AREA_AROUND_PLAYER and the orbit radius for ORBIT. Driven by [baseRadius]/[radiusGrowthPerLevel] so a new weapon needs no `when` branch here. */
@@ -261,6 +276,7 @@ enum class WeaponKind(
             BOOMERANG -> 240f
             FIRECRACKER_STRING -> 300f
             EGG_TOSS -> 220f
+            STATIC_ZAPPER -> 340f
             else -> 0f
         }
 }

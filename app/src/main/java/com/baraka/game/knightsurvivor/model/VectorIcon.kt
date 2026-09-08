@@ -65,6 +65,9 @@ sealed class VectorIcon {
     /** A gem-lidded chest with teeth — disguises as a pickup until it ambushes. */
     data object Mimic : VectorIcon()
 
+    /** A jagged lightning bolt — Static Zapper. */
+    data object Bolt : VectorIcon()
+
     /**
      * A simple creature face: a round head plus optional features. New monsters can
      * usually be described by mixing these flags rather than needing a whole new

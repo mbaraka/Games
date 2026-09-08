@@ -629,6 +629,27 @@ fun DrawScope.drawMimic(
     }
 }
 
+/** A jagged lightning bolt — Static Zapper. */
+fun DrawScope.drawBolt(
+    center: Offset,
+    radius: Float,
+    color: Color,
+    outlineColor: Color = Color.White,
+    outlineWidth: Float = 1.5f
+) {
+    val path = Path().apply {
+        moveTo(center.x + radius * 0.15f, center.y - radius)
+        lineTo(center.x - radius * 0.5f, center.y + radius * 0.1f)
+        lineTo(center.x - radius * 0.05f, center.y + radius * 0.1f)
+        lineTo(center.x - radius * 0.15f, center.y + radius)
+        lineTo(center.x + radius * 0.55f, center.y - radius * 0.15f)
+        lineTo(center.x + radius * 0.1f, center.y - radius * 0.15f)
+        close()
+    }
+    drawPath(path, color = color)
+    drawPath(path, color = outlineColor, style = Stroke(width = outlineWidth))
+}
+
 private val RIM_HIGHLIGHT_COLOR = Color(0xFF546E7A)
 private val BONK_SPARK_COLOR = Color(0xFFFFD54F)
 private val MAGNET_RED = Color(0xFFE53935)

@@ -35,6 +35,7 @@ import com.baraka.game.knightsurvivor.model.ArenaSize
 import com.baraka.game.knightsurvivor.model.Difficulty
 import com.baraka.game.knightsurvivor.model.GamePhase
 import com.baraka.game.knightsurvivor.model.GameState
+import com.baraka.game.knightsurvivor.model.KnightDesign
 import com.baraka.game.knightsurvivor.model.PlayerState
 import com.baraka.game.knightsurvivor.model.Vec2
 import com.baraka.game.knightsurvivor.model.WeaponInstance
@@ -66,6 +67,7 @@ fun KnightSurvivorScreen() {
     var soundEnabled by remember { mutableStateOf(settingsRepository.isSoundEnabled()) }
     var difficulty by remember { mutableStateOf(settingsRepository.difficulty()) }
     var weaponDeck by remember { mutableStateOf(settingsRepository.weaponDeck()) }
+    var knightDesign by remember { mutableStateOf(settingsRepository.knightDesign()) }
     var showDeckPicker by remember { mutableStateOf(true) }
     var gameState by remember { mutableStateOf(createInitialGameState(statsRepository.bestSurvivalTimeMs(), difficulty = difficulty, weaponDeck = weaponDeck)) }
     var hasRecordedThisRun by remember { mutableStateOf(false) }
@@ -139,6 +141,7 @@ fun KnightSurvivorScreen() {
         Box(modifier = Modifier.weight(1f).fillMaxSize()) {
             GameCanvas(
                 state = gameState,
+                knightDesign = knightDesign,
                 onSizeMeasured = { width, height ->
                     if (gameState.arenaSize.width != width || gameState.arenaSize.height != height) {
                         gameState = gameState.copy(arenaSize = ArenaSize(width, height))
@@ -172,6 +175,11 @@ fun KnightSurvivorScreen() {
                     },
                     player = gameState.player,
                     unlockedAchievements = unlockedAchievements,
+                    knightDesign = knightDesign,
+                    onKnightDesignChanged = { chosen ->
+                        knightDesign = chosen
+                        settingsRepository.setKnightDesign(chosen)
+                    },
                     onClose = { showSettings = false },
                     onWeaponCardClick = { kind -> if (soundEnabled) soundEngine.playWeaponFire(kind) }
                 )

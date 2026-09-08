@@ -3,6 +3,7 @@ package com.baraka.game.knightsurvivor.data
 import android.content.Context
 import android.content.SharedPreferences
 import com.baraka.game.knightsurvivor.model.Difficulty
+import com.baraka.game.knightsurvivor.model.KnightDesign
 import com.baraka.game.knightsurvivor.model.WeaponKind
 
 /**
@@ -45,11 +46,22 @@ class SettingsRepository private constructor(
         preferences.edit().putStringSet(KEY_WEAPON_DECK, deck.map { it.name }.toSet()).apply()
     }
 
+    /** Purely cosmetic — see model/KnightDesign.kt's KDoc. Applies immediately, even mid-run, unlike difficulty. */
+    fun knightDesign(): KnightDesign {
+        val name = preferences.getString(KEY_KNIGHT_DESIGN, null) ?: return KnightDesign.SWORN_BLADE
+        return runCatching { KnightDesign.valueOf(name) }.getOrDefault(KnightDesign.SWORN_BLADE)
+    }
+
+    fun setKnightDesign(design: KnightDesign) {
+        preferences.edit().putString(KEY_KNIGHT_DESIGN, design.name).apply()
+    }
+
     companion object {
         private const val PREF_FILE = "knight_survivor_settings"
         private const val KEY_SOUND_ENABLED = "sound_enabled"
         private const val KEY_DIFFICULTY = "difficulty"
         private const val KEY_WEAPON_DECK = "weapon_deck"
+        private const val KEY_KNIGHT_DESIGN = "knight_design"
 
         @Volatile
         private var instance: SettingsRepository? = null

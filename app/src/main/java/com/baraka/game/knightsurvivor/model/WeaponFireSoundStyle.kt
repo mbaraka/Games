@@ -30,5 +30,8 @@ enum class WeaponFireSoundStyle {
     WHOOSH,
 
     /** A tone with slow amplitude tremolo — a throbbing pulse rather than a flat hum. */
-    PULSE
+    PULSE,
+
+    /** A very fast, jittery square-wave tremolo with a light noise crackle mixed in — an electric zap. */
+    ELECTRIC
 }

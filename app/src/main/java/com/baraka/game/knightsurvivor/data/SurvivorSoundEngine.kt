@@ -54,6 +54,7 @@ class SurvivorSoundEngine {
             WeaponFireSoundStyle.NOISE_POP -> crackle(durationMs, WEAPON_FIRE_VOLUME, kind.noiseFilterAlpha, kind.fireSoundHz, kind.noisePopCount)
             WeaponFireSoundStyle.WHOOSH -> whoosh(durationMs, WEAPON_FIRE_VOLUME)
             WeaponFireSoundStyle.PULSE -> pulse(kind.fireSoundHz, durationMs, kind.fireSoundWaveform, WEAPON_FIRE_VOLUME)
+            WeaponFireSoundStyle.ELECTRIC -> electric(kind.fireSoundHz, durationMs, WEAPON_FIRE_VOLUME)
         }
     }
 
@@ -232,6 +233,20 @@ class SurvivorSoundEngine {
             val phaseCycles = frequencyHz * i / sampleRateHz
             val tremolo = 0.5 + 0.5 * sin(2 * PI * tremoloHz * i / sampleRateHz)
             toPcm16(waveformSample(waveform, phaseCycles) * tremolo * volume * envelopeAt(i, sampleCount))
+        }
+    }
+
+    /** A very fast, jittery square-wave tremolo with a bit of noise mixed in — an electric zap rather than a smooth buzz. */
+    private fun electric(frequencyHz: Double, durationMs: Int, volume: Float): ShortArray {
+        val sampleCount = millisToSampleCount(durationMs)
+        val tremoloHz = 340.0
+        return ShortArray(sampleCount) { i ->
+            val jitter = 1.0 + noiseRandom.nextDouble(-0.15, 0.15)
+            val phaseCycles = frequencyHz * jitter * i / sampleRateHz
+            val carrier = waveformSample(Waveform.SQUARE, phaseCycles)
+            val tremolo = if (sin(2 * PI * tremoloHz * i / sampleRateHz) > 0) 1.0 else 0.3
+            val noise = noiseRandom.nextDouble(-0.2, 0.2)
+            toPcm16((carrier * tremolo + noise) * volume * envelopeAt(i, sampleCount, attackFraction = 0.02f))
         }
     }
 

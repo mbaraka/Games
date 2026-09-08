@@ -49,6 +49,7 @@ fun DrawScope.drawVectorIcon(
         VectorIcon.Imp -> drawImp(center, radius, color, outlineColor, outlineWidth)
         VectorIcon.Golem -> drawGolem(center, radius, color, outlineColor, outlineWidth)
         VectorIcon.Mimic -> drawMimic(center, radius, color, outlineColor, outlineWidth)
+        VectorIcon.Bolt -> drawBolt(center, radius, color, outlineColor, outlineWidth)
         is VectorIcon.Face -> drawFace(center, radius, color, icon, outlineColor, outlineWidth)
     }
 }
