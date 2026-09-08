@@ -214,10 +214,11 @@ private fun createInitialGameState(
     arenaSize: ArenaSize = ArenaSize(GameTunables.DEFAULT_ARENA_WIDTH, GameTunables.DEFAULT_ARENA_HEIGHT),
     difficulty: Difficulty = Difficulty.NORMAL
 ): GameState {
+    val maxHp = (GameTunables.PLAYER_BASE_MAX_HP * difficulty.playerMaxHpMultiplier).toInt()
     val player = PlayerState(
         position = Vec2(arenaSize.width / 2f, arenaSize.height / 2f),
-        hp = GameTunables.PLAYER_BASE_MAX_HP,
-        baseMaxHp = GameTunables.PLAYER_BASE_MAX_HP,
+        hp = maxHp,
+        baseMaxHp = maxHp,
         xpToNextLevel = GameTunables.xpRequiredForLevel(1),
         weapons = listOf(WeaponInstance(kind = WeaponKind.SWORD_SLASH, level = 1))
     )
