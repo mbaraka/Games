@@ -261,6 +261,25 @@ fun DrawScope.drawDuck(
     )
 }
 
+/** A hexagonal shell: the hexagon outline plus radial lines to each corner, like turtle-shell panels. */
+fun DrawScope.drawTurtleShell(
+    center: Offset,
+    radius: Float,
+    color: Color,
+    outlineColor: Color = Color.White,
+    outlineWidth: Float = 1.5f
+) {
+    drawPolygon(center, radius, sides = 6, color = color, outlineColor = outlineColor, outlineWidth = outlineWidth)
+
+    val panelColor = outlineColor.copy(alpha = outlineColor.alpha * 0.7f)
+    val angleStep = (2.0 * Math.PI / 6).toFloat()
+    for (i in 0 until 6) {
+        val angle = -HALF_PI + i * angleStep
+        val corner = Offset(center.x + cos(angle) * radius, center.y + sin(angle) * radius)
+        drawLine(color = panelColor, start = center, end = corner, strokeWidth = outlineWidth * 0.8f)
+    }
+}
+
 private val DUCK_BEAK_COLOR = Color(0xFFFF9800)
 private val GRIP_COLOR = Color(0xFF6D4C41)
 private val HALF_PI = (Math.PI / 2).toFloat()

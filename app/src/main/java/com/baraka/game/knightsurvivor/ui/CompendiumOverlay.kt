@@ -192,8 +192,15 @@ private fun WeaponEntryCard(kind: WeaponKind, owned: WeaponInstance?) {
         val levelSuffix = if (owned == null) " (Lv.1)" else ""
         StatLine("Damage$levelSuffix", "${kind.damageAtLevel(level)}")
         StatLine("Cooldown$levelSuffix", "${kind.cooldownMsAtLevel(level)} ms")
-        val shots = kind.projectileCountAtLevel(level)
-        if (shots > 1) StatLine("Shots$levelSuffix", "$shots")
+        StatLine("Shots$levelSuffix", "${kind.projectileCountAtLevel(level)}")
+        val shotsAtMaxLevel = kind.projectileCountAtLevel(kind.maxLevel)
+        if (shotsAtMaxLevel > kind.projectileCountAtLevel(level)) {
+            Text(
+                text = "Fires $shotsAtMaxLevel shots by Lv.${kind.maxLevel}.",
+                color = GameColors.TextMuted,
+                fontSize = 11.sp
+            )
+        }
     }
 }
 

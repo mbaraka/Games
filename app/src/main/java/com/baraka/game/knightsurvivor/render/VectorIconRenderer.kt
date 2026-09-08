@@ -38,6 +38,7 @@ fun DrawScope.drawVectorIcon(
         is VectorIcon.Axe -> drawAxe(center, radius, icon.lengthRatio, color, outlineColor, outlineWidth)
         VectorIcon.Heart -> drawHeart(center, radius, color, outlineColor, outlineWidth)
         VectorIcon.Duck -> drawDuck(center, radius, color, outlineColor, outlineWidth)
+        VectorIcon.TurtleShell -> drawTurtleShell(center, radius, color, outlineColor, outlineWidth)
         is VectorIcon.Face -> drawFace(center, radius, color, icon, outlineColor, outlineWidth)
     }
 }

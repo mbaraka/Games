@@ -4,10 +4,12 @@ package com.baraka.game.knightsurvivor.model
  * Stat table for every weapon archetype in the game.
  *
  * To add a new weapon that reuses an existing [WeaponTargeting] pattern (e.g. another
- * homing projectile with different numbers), add ONE enum entry here and extend the
- * `when` in each stat function below — no other file needs to change. Only a weapon with
- * a genuinely new *firing shape* needs a new [WeaponTargeting] case, which in turn needs
- * one new `when` branch in systems/WeaponFiringSystem.kt.
+ * homing projectile with different numbers), add ONE enum entry here. Stats that are just
+ * "a base value plus linear growth per level" (like [baseRadius]) are constructor fields
+ * computed with no `when` at all; stats with per-weapon shaped curves (damage, cooldown,
+ * pierce, projectile count) still need one more `when` branch each. Only a weapon with a
+ * genuinely new *firing shape* needs a new [WeaponTargeting] case, which in turn needs one
+ * new `when` branch in systems/WeaponFiringSystem.kt.
  */
 enum class WeaponKind(
     val displayName: String,
@@ -19,6 +21,14 @@ enum class WeaponKind(
     val fireSoundHz: Double,
     /** Timbre of this weapon's own fire sound. */
     val fireSoundWaveform: Waveform,
+    /** If set, the fire sound glides from [fireSoundHz] down/up to this pitch instead of staying flat — e.g. a duck's quack. Null means a plain flat tone. */
+    val fireSoundEndHz: Double? = null,
+    /** Overrides the default fire-sound duration (see data/SurvivorSoundEngine.kt#WEAPON_FIRE_DURATION_MS) — a swept sound usually needs more time to read as its shape than a flat blip does. */
+    val fireSoundDurationMs: Int? = null,
+    /** Hit radius in px at level 1 — the AoE radius for AREA_AROUND_PLAYER, the orbit radius for ORBIT. 0 for weapons where it's meaningless (e.g. a thrown projectile). */
+    val baseRadius: Float = 0f,
+    /** How much [baseRadius] grows per level above 1. */
+    val radiusGrowthPerLevel: Float = 0f,
     val maxLevel: Int = 5
 ) {
     SWORD_SLASH(
@@ -28,7 +38,9 @@ enum class WeaponKind(
         colorArgb = 0xFFCFD8DC,
         icon = VectorIcon.Blade(lengthRatio = 2.2f),
         fireSoundHz = 320.0, // low, broad — a heavy swing
-        fireSoundWaveform = Waveform.SAWTOOTH
+        fireSoundWaveform = Waveform.SAWTOOTH,
+        baseRadius = 70f,
+        radiusGrowthPerLevel = 10f
     ),
     DAGGER_THROW(
         displayName = "Dagger Throw",
@@ -43,10 +55,12 @@ enum class WeaponKind(
         displayName = "Orbit Shield",
         description = "Shields spin around the knight, damaging anything they touch.",
         targeting = WeaponTargeting.ORBIT,
-        colorArgb = 0xFF29B6F6,
-        icon = VectorIcon.Shield,
+        colorArgb = 0xFF66BB6A,
+        icon = VectorIcon.TurtleShell,
         fireSoundHz = 540.0, // soft, sustained — a magical hum (not currently triggered; ORBIT ticks too often to sound a fire cue without spamming, see WeaponFiringSystem)
-        fireSoundWaveform = Waveform.SINE
+        fireSoundWaveform = Waveform.SINE,
+        baseRadius = 60f,
+        radiusGrowthPerLevel = 4f
     ),
     THROWING_AXE(
         displayName = "Throwing Axe",
@@ -64,7 +78,9 @@ enum class WeaponKind(
         colorArgb = 0xFFFFB300,
         icon = VectorIcon.Star(points = 8, innerRadiusRatio = 0.55f),
         fireSoundHz = 1200.0,
-        fireSoundWaveform = Waveform.SINE
+        fireSoundWaveform = Waveform.SINE,
+        baseRadius = 50f,
+        radiusGrowthPerLevel = 8f
     ),
     RUBBER_DUCK(
         displayName = "Rubber Duck Toss",
@@ -72,8 +88,10 @@ enum class WeaponKind(
         targeting = WeaponTargeting.NEAREST_ENEMY,
         colorArgb = 0xFFFFEB3B,
         icon = VectorIcon.Duck,
-        fireSoundHz = 660.0,
-        fireSoundWaveform = Waveform.SQUARE
+        fireSoundHz = 900.0, // a quack: starts high, glides down, over a slightly longer blip than other weapons
+        fireSoundWaveform = Waveform.SQUARE,
+        fireSoundEndHz = 380.0,
+        fireSoundDurationMs = 130
     );
 
     /** Damage dealt per hit at [level] (1..[maxLevel]). */
@@ -100,13 +118,8 @@ enum class WeaponKind(
         RUBBER_DUCK -> (700 - (level - 1) * 60).coerceAtLeast(350).toLong()
     }
 
-    /** Hit radius in px. Used as the AoE radius for AREA_AROUND_PLAYER and the orbit radius for ORBIT. */
-    fun radiusAtLevel(level: Int): Float = when (this) {
-        SWORD_SLASH -> 70f + (level - 1) * 10f
-        ORBIT_SHIELD -> 60f + (level - 1) * 4f
-        SUNBURST -> 50f + (level - 1) * 8f
-        DAGGER_THROW, THROWING_AXE, RUBBER_DUCK -> 0f
-    }
+    /** Hit radius in px. Used as the AoE radius for AREA_AROUND_PLAYER and the orbit radius for ORBIT. Driven by [baseRadius]/[radiusGrowthPerLevel] so a new weapon needs no `when` branch here. */
+    fun radiusAtLevel(level: Int): Float = baseRadius + (level - 1) * radiusGrowthPerLevel
 
     /** Number of simultaneous orbiting instances (ORBIT_SHIELD only, 0 for every other kind). */
     fun orbCountAtLevel(level: Int): Int = when (this) {

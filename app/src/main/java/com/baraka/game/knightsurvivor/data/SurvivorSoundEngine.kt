@@ -26,7 +26,18 @@ class SurvivorSoundEngine {
     private val sampleRateHz = 44_100
     private val cueTracks: Map<SoundCue, AudioTrack> = SoundCue.entries.associateWith { cue -> buildTrack(synthesize(cue)) }
     private val weaponFireTracks: Map<WeaponKind, AudioTrack> =
-        WeaponKind.entries.associateWith { kind -> buildTrack(tone(kind.fireSoundHz, WEAPON_FIRE_DURATION_MS, kind.fireSoundWaveform, WEAPON_FIRE_VOLUME)) }
+        WeaponKind.entries.associateWith { kind -> buildTrack(weaponFireSamples(kind)) }
+
+    /** A flat tone by default, or a pitch sweep when [WeaponKind.fireSoundEndHz] is set (e.g. the Duck's quack). */
+    private fun weaponFireSamples(kind: WeaponKind): ShortArray {
+        val durationMs = kind.fireSoundDurationMs ?: WEAPON_FIRE_DURATION_MS
+        val endHz = kind.fireSoundEndHz
+        return if (endHz != null) {
+            sweep(kind.fireSoundHz, endHz, durationMs, kind.fireSoundWaveform, WEAPON_FIRE_VOLUME)
+        } else {
+            tone(kind.fireSoundHz, durationMs, kind.fireSoundWaveform, WEAPON_FIRE_VOLUME)
+        }
+    }
 
     /** Restarts the given cue's track from the beginning — safe to call again before a previous play finished. */
     fun play(cue: SoundCue) = restart(cueTracks[cue])

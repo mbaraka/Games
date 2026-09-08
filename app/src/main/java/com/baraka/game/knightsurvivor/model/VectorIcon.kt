@@ -32,6 +32,9 @@ sealed class VectorIcon {
     /** A classic bath-toy rubber duck — round body, round head, small beak. Purely a fun/cute weapon. */
     data object Duck : VectorIcon()
 
+    /** A hexagonal shell with radial panel lines — a heavier, sturdier read than [Shield], for a slow/tanky orbiting weapon. */
+    data object TurtleShell : VectorIcon()
+
     /**
      * A simple creature face: a round head plus optional features. New monsters can
      * usually be described by mixing these flags rather than needing a whole new
