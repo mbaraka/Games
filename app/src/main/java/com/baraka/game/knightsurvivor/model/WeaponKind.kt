@@ -21,8 +21,10 @@ enum class WeaponKind(
     val fireSoundHz: Double,
     /** Timbre of this weapon's own fire sound. */
     val fireSoundWaveform: Waveform,
-    /** If set, the fire sound glides from [fireSoundHz] down/up to this pitch instead of staying flat — e.g. a duck's quack. Null means a plain flat tone. */
+    /** If set, the fire sound glides from [fireSoundHz] down/up to this pitch instead of staying flat — e.g. a duck's quack. Only meaningful with [fireSoundStyle] = SWEEP. */
     val fireSoundEndHz: Double? = null,
+    /** How the fire sound is synthesized — see data/SurvivorSoundEngine.kt. Defaults to a plain flat tone. */
+    val fireSoundStyle: WeaponFireSoundStyle = WeaponFireSoundStyle.TONE,
     /** Overrides the default fire-sound duration (see data/SurvivorSoundEngine.kt#WEAPON_FIRE_DURATION_MS) — a swept sound usually needs more time to read as its shape than a flat blip does. */
     val fireSoundDurationMs: Int? = null,
     /** Hit radius in px at level 1 — the AoE radius for AREA_AROUND_PLAYER, the orbit radius for ORBIT. 0 for weapons where it's meaningless (e.g. a thrown projectile). */
@@ -54,6 +56,7 @@ enum class WeaponKind(
         icon = VectorIcon.Blade(lengthRatio = 2.2f),
         fireSoundHz = 320.0, // low, broad — a heavy swing
         fireSoundWaveform = Waveform.SAWTOOTH,
+        fireSoundStyle = WeaponFireSoundStyle.METALLIC,
         baseRadius = 70f,
         radiusGrowthPerLevel = 10f
     ),
@@ -63,8 +66,11 @@ enum class WeaponKind(
         targeting = WeaponTargeting.NEAREST_ENEMY,
         colorArgb = 0xFFFFC107,
         icon = VectorIcon.Blade(lengthRatio = 1.5f),
-        fireSoundHz = 920.0, // high, crisp — a quick flick
-        fireSoundWaveform = Waveform.SQUARE
+        fireSoundHz = 1400.0, // high, crisp — a quick flick
+        fireSoundWaveform = Waveform.SQUARE,
+        fireSoundEndHz = 700.0,
+        fireSoundStyle = WeaponFireSoundStyle.SWEEP,
+        fireSoundDurationMs = 55
     ),
     ORBIT_SHIELD(
         displayName = "Orbit Shield",
@@ -74,6 +80,7 @@ enum class WeaponKind(
         icon = VectorIcon.TurtleShell,
         fireSoundHz = 540.0, // soft, sustained — a magical hum (not currently triggered; ORBIT ticks too often to sound a fire cue without spamming, see WeaponFiringSystem)
         fireSoundWaveform = Waveform.SINE,
+        fireSoundStyle = WeaponFireSoundStyle.METALLIC,
         baseRadius = 60f,
         radiusGrowthPerLevel = 4f
     ),
@@ -84,7 +91,8 @@ enum class WeaponKind(
         colorArgb = 0xFFA1887F,
         icon = VectorIcon.Axe(lengthRatio = 1.6f),
         fireSoundHz = 240.0,
-        fireSoundWaveform = Waveform.SAWTOOTH
+        fireSoundWaveform = Waveform.SAWTOOTH,
+        fireSoundStyle = WeaponFireSoundStyle.METALLIC
     ),
     SUNBURST(
         displayName = "Sunburst",
@@ -92,8 +100,9 @@ enum class WeaponKind(
         targeting = WeaponTargeting.AREA_AROUND_PLAYER,
         colorArgb = 0xFFFFB300,
         icon = VectorIcon.Star(points = 8, innerRadiusRatio = 0.55f),
-        fireSoundHz = 1200.0,
+        fireSoundHz = 700.0,
         fireSoundWaveform = Waveform.SINE,
+        fireSoundStyle = WeaponFireSoundStyle.CHIME,
         baseRadius = 50f,
         radiusGrowthPerLevel = 8f
     ),
@@ -103,10 +112,11 @@ enum class WeaponKind(
         targeting = WeaponTargeting.NEAREST_ENEMY,
         colorArgb = 0xFFFFEB3B,
         icon = VectorIcon.Duck,
-        fireSoundHz = 900.0, // a quack: starts high, glides down, over a slightly longer blip than other weapons
-        fireSoundWaveform = Waveform.SQUARE,
-        fireSoundEndHz = 380.0,
-        fireSoundDurationMs = 130
+        fireSoundHz = 780.0, // a quack: buzzy carrier gliding down with fast tremolo, not a smooth pitch slide
+        fireSoundWaveform = Waveform.SAWTOOTH,
+        fireSoundEndHz = 320.0,
+        fireSoundStyle = WeaponFireSoundStyle.QUACK,
+        fireSoundDurationMs = 150
     ),
     FRYING_PAN(
         displayName = "Frying Pan",
@@ -114,8 +124,10 @@ enum class WeaponKind(
         targeting = WeaponTargeting.AREA_AROUND_PLAYER,
         colorArgb = 0xFF78909C,
         icon = VectorIcon.FryingPan,
-        fireSoundHz = 200.0,
+        fireSoundHz = 190.0,
         fireSoundWaveform = Waveform.SQUARE,
+        fireSoundStyle = WeaponFireSoundStyle.METALLIC_IMPACT,
+        fireSoundDurationMs = 220,
         baseRadius = 55f,
         radiusGrowthPerLevel = 6f,
         stunChance = 0.25f,
@@ -129,6 +141,8 @@ enum class WeaponKind(
         icon = VectorIcon.Boomerang,
         fireSoundHz = 480.0,
         fireSoundWaveform = Waveform.SAWTOOTH,
+        fireSoundStyle = WeaponFireSoundStyle.WHOOSH,
+        fireSoundDurationMs = 180,
         returnsToPlayer = true
     ),
     MAGNET_PULSE(
@@ -139,6 +153,8 @@ enum class WeaponKind(
         icon = VectorIcon.Magnet,
         fireSoundHz = 150.0,
         fireSoundWaveform = Waveform.SINE,
+        fireSoundStyle = WeaponFireSoundStyle.PULSE,
+        fireSoundDurationMs = 160,
         baseRadius = 90f,
         radiusGrowthPerLevel = 10f,
         pullStrengthPx = 26f
@@ -151,6 +167,8 @@ enum class WeaponKind(
         icon = VectorIcon.Firecracker,
         fireSoundHz = 700.0,
         fireSoundWaveform = Waveform.SQUARE,
+        fireSoundStyle = WeaponFireSoundStyle.NOISE_POP,
+        fireSoundDurationMs = 90,
         splashRadius = 45f,
         splashDamageFraction = 0.5f
     ),
@@ -162,6 +180,8 @@ enum class WeaponKind(
         icon = VectorIcon.Egg,
         fireSoundHz = 380.0,
         fireSoundWaveform = Waveform.SINE,
+        fireSoundStyle = WeaponFireSoundStyle.NOISE_POP,
+        fireSoundDurationMs = 110,
         splashRadius = 50f,
         splashSlowDurationMs = 1500L,
         splashSlowMultiplier = 0.5f
