@@ -86,17 +86,26 @@ class ClashDecksViewModel : ViewModel() {
     private fun runCpuTurn() {
         viewModelScope.launch {
             _ui.update { it.copy(cpuThinking = true) }
-            delay(650)
 
-            var state = _ui.value.duel ?: return@launch
-            val plan = CpuStrategy.chooseTurn(state, _ui.value.difficulty, rng)
-            for (cardId in plan) {
-                state = DuelEngine.playCard(state, cardId, rng)
-                applyState(state)
+            // Loop so the CPU takes another turn if the player was skipped (Freeze):
+            // DuelEngine.endTurn recursively hands a frozen player's turn straight back,
+            // leaving it the CPU's turn again with nothing else to drive it.
+            var safety = 0
+            while (safety++ < 8) {
+                var state = _ui.value.duel ?: break
+                if (state.winner != null || state.activeIsPlayer) break
+
+                delay(650)
+                state = _ui.value.duel ?: break
+                val plan = CpuStrategy.chooseTurn(state, _ui.value.difficulty, rng)
+                for (cardId in plan) {
+                    state = DuelEngine.playCard(state, cardId, rng)
+                    applyState(state)
+                    if (state.winner != null) break
+                    delay(700)
+                }
                 if (state.winner != null) break
-                delay(700)
-            }
-            if (state.winner == null) {
+
                 state = DuelEngine.endTurn(state, rng)
                 applyState(state)
             }

@@ -40,6 +40,14 @@ object DuelEngine {
 
     private fun energyForRound(turnNumber: Int): Int = (2 + turnNumber).coerceAtMost(MAX_ENERGY)
 
+    // --- Log grammar helpers: names are always "You" / "Opponent", so conjugate for the player. ---
+    /** "You play Strike" / "Opponent plays Strike" — regular +s on the CPU side. */
+    private fun Duelist.does(verb: String): String = if (isCpu) "$name ${verb}s" else "$name $verb"
+    /** "You are" / "Opponent is". */
+    private fun Duelist.beVerb(): String = if (isCpu) "$name is" else "$name are"
+    /** "Your" / "Opponent's". */
+    private fun Duelist.possessive(): String = if (isCpu) "$name's" else "Your"
+
     fun startDuel(rng: Random): DuelState {
         val player = Duelist.fresh("You", isCpu = false, startHp = START_HP, deck = CardLibrary.buildDeck(rng))
             .drawCards(3, rng)
@@ -77,7 +85,7 @@ object DuelEngine {
             discard = me.discard + card
         )
         var s = state.withActive(spent)
-            .log("${me.name} plays ${card.name}.", LogKind.NEUTRAL)
+            .log("${me.does("play")} ${card.name}.", LogKind.NEUTRAL)
             .sound(card.type.playSound())
 
         for (effect in card.effects) {
@@ -100,23 +108,23 @@ object DuelEngine {
 
             is Effect.Block ->
                 s.withActive(me.copy(block = me.block + effect.amount))
-                    .log("${me.name} gains ${effect.amount} Block.", LogKind.NEUTRAL)
+                    .log("${me.does("gain")} ${effect.amount} Block.", LogKind.NEUTRAL)
 
             is Effect.Heal -> {
                 val healed = (me.hp + effect.amount).coerceAtMost(me.maxHp)
                 s.withActive(me.copy(hp = healed))
-                    .log("${me.name} heals ${healed - me.hp}.", LogKind.HEAL)
+                    .log("${me.does("heal")} ${healed - me.hp}.", LogKind.HEAL)
                     .sound(DuelSound.HEAL)
             }
 
             is Effect.DrawCards ->
                 s.withActive(me.drawCards(effect.count, rng))
-                    .log("${me.name} draws ${effect.count}.", LogKind.NEUTRAL)
+                    .log("${me.does("draw")} ${effect.count}.", LogKind.NEUTRAL)
                     .sound(DuelSound.DRAW)
 
             is Effect.GainEnergy ->
                 s.withActive(me.copy(energy = (me.energy + effect.amount).coerceAtMost(MAX_ENERGY)))
-                    .log("${me.name} gains ${effect.amount} energy.", LogKind.NEUTRAL)
+                    .log("${me.does("gain")} ${effect.amount} energy.", LogKind.NEUTRAL)
 
             is Effect.ApplyStatus -> {
                 val toSelf = effect.target == EffectTarget.SELF
@@ -127,7 +135,8 @@ object DuelEngine {
                     )
                 )
                 val next = if (toSelf) s.withActive(updated) else s.withInactive(updated)
-                next.log("${target.name}: ${effect.kind.displayName} (${effect.turns}).", LogKind.STATUS)
+                val verb = if (effect.kind.isDebuff) "suffer" else "gain"
+                next.log("${target.does(verb)} ${effect.kind.displayName} (${effect.turns}).", LogKind.STATUS)
                     .sound(if (effect.kind == StatusKind.STUN) DuelSound.STUN
                            else if (effect.kind == StatusKind.FREEZE) DuelSound.FREEZE
                            else if (effect.kind.isDebuff) DuelSound.DEBUFF
@@ -139,7 +148,7 @@ object DuelEngine {
                 val target = if (toSelf) me else s.inactive
                 val cleared = target.copy(statuses = target.statuses.filterNot { it.kind.isDebuff })
                 val next = if (toSelf) s.withActive(cleared) else s.withInactive(cleared)
-                next.log("${target.name} is cleansed of debuffs.", LogKind.STATUS)
+                next.log("${target.beVerb()} cleansed of debuffs.", LogKind.STATUS)
                     .sound(DuelSound.BUFF)
             }
 
@@ -147,13 +156,13 @@ object DuelEngine {
                 val opp = s.inactive
                 val broken = opp.copy(block = 0)
                 var s2 = s.withInactive(broken).sound(DuelSound.SHATTER)
-                if (opp.block > 0) s2 = s2.log("${opp.name}'s ${opp.block} Block is shattered.", LogKind.DAMAGE)
+                if (opp.block > 0) s2 = s2.log("${opp.possessive()} ${opp.block} Block is shattered.", LogKind.DAMAGE)
                 dealDamage(s2, effect.bonusDamage, fromActive = true)
             }
 
             is Effect.ReflectNextHit ->
                 s.withActive(me.copy(reflectPending = me.reflectPending + effect.amount))
-                    .log("${me.name} readies a riposte.", LogKind.NEUTRAL)
+                    .log("${me.does("ready")} a riposte.", LogKind.NEUTRAL)
         }
     }
 
@@ -185,11 +194,11 @@ object DuelEngine {
 
         var s2 = putSides(s, fromActive, newAttacker, newDefender)
         s2 = s2.log(
-            "${attacker.name} hits ${defender.name} for $toHp" +
+            "${attacker.does("hit")} ${defender.name} for $toHp" +
                 (if (absorbed > 0) " ($absorbed blocked)" else "") + ".",
             LogKind.DAMAGE
         )
-        if (reflected > 0) s2 = s2.log("${defender.name} riposte hits for $reflected.", LogKind.DAMAGE)
+        if (reflected > 0) s2 = s2.log("${defender.possessive()} riposte deals $reflected.", LogKind.DAMAGE)
         return s2
     }
 
@@ -213,9 +222,9 @@ object DuelEngine {
         // 1. Freeze: lose the whole turn.
         if (me.hasStatus(StatusKind.FREEZE)) {
             me = me.copy(statuses = me.statuses.filterNot { it.kind == StatusKind.FREEZE })
-            s = s.withActive(me)
-                .log("${me.name} is frozen and loses the turn!", LogKind.STATUS)
-                .sound(DuelSound.FREEZE)
+            val frozenMsg = if (me.isCpu) "${me.name} is frozen and skips the turn!"
+                            else "${me.name} are frozen and skip the turn!"
+            s = s.withActive(me).log(frozenMsg, LogKind.STATUS).sound(DuelSound.FREEZE)
             return endTurn(s, rng)
         }
 
@@ -224,7 +233,7 @@ object DuelEngine {
         if (poison > 0) {
             me = me.copy(hp = me.hp - poison)
             s = s.withActive(me)
-                .log("${me.name} takes $poison poison damage.", LogKind.DAMAGE)
+                .log("${me.does("take")} $poison poison damage.", LogKind.DAMAGE)
                 .sound(DuelSound.POISON_TICK)
             val dead = checkWinner(s)
             if (dead.winner != null) return dead
@@ -235,7 +244,7 @@ object DuelEngine {
         if (regen > 0) {
             val before = me.hp
             me = me.copy(hp = (me.hp + regen).coerceAtMost(me.maxHp))
-            s = s.withActive(me).log("${me.name} regenerates ${me.hp - before}.", LogKind.HEAL)
+            s = s.withActive(me).log("${me.does("regenerate")} ${me.hp - before}.", LogKind.HEAL)
         }
 
         // 4. Snapshot gating statuses for this turn, then age everything.
@@ -262,8 +271,8 @@ object DuelEngine {
             activeStunned = stunned,
             activeRooted = rooted
         )
-        if (stunned) s = s.log("${me.name} is stunned — no cards this turn.", LogKind.STATUS).sound(DuelSound.STUN)
-        if (rooted && !stunned) s = s.log("${me.name} is rooted — no Defense this turn.", LogKind.STATUS)
+        if (stunned) s = s.log("${me.beVerb()} stunned — no cards this turn.", LogKind.STATUS).sound(DuelSound.STUN)
+        if (rooted && !stunned) s = s.log("${me.beVerb()} rooted — no Defense this turn.", LogKind.STATUS)
         return s
     }
 

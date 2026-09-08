@@ -118,6 +118,18 @@ class DuelEngineTest {
     }
 
     @Test
+    fun freezingThePlayer_handsTheTurnBackToTheCpu_notAStuckState() {
+        // CPU's turn ends; player is frozen, so beginTurn(player) skips and endTurn again.
+        val frozenPlayer = duelist("P", false).copy(statuses = listOf(StatusEffect(StatusKind.FREEZE, 0, 1)))
+        val s = state(frozenPlayer, duelist("C", true), activeIsPlayer = false)
+        val out = DuelEngine.endTurn(s, rng)
+        assertFalse("player was skipped, so it must be the CPU's turn again", out.activeIsPlayer)
+        assertEquals(DuelPhase.CPU_TURN, out.phase)
+        assertNull(out.winner)
+        assertFalse(out.player.hasStatus(StatusKind.FREEZE))
+    }
+
+    @Test
     fun poison_ticksAtTurnStartIgnoringBlockAndCanKill() {
         val poisoned = duelist("C", true, hp = 2).copy(
             block = 5,
