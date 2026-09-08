@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.basedefender.BaseDefenderGame
 import com.baraka.game.battleship.BattleShipActivity
+import com.baraka.game.clashdecks.ClashDecksActivity
 import com.baraka.game.keyreader.KeyReaderActivity
 import com.baraka.game.knightsurvivor.KnightSurvivorActivity
 import com.baraka.game.memorymatch.MemoryMatchGame
@@ -107,6 +108,10 @@ class MainActivity : ComponentActivity() {
                                 val intent = Intent(this, KnightSurvivorActivity::class.java)
                                 startActivity(intent)
                             }
+                            GameType.CLASH_DECKS -> {
+                                val intent = Intent(this, ClashDecksActivity::class.java)
+                                startActivity(intent)
+                            }
                         }
                     }
                 )
@@ -125,7 +130,8 @@ enum class GameType {
     KEY_READER,
     SNAKES_LADDERS,
     BATTLESHIP,
-    KNIGHT_SURVIVOR
+    KNIGHT_SURVIVOR,
+    CLASH_DECKS
 }
 
 @Composable
@@ -374,5 +380,12 @@ fun ColumnScope.Favorites(onGameSelected: (GameType) -> Unit) {
         description = "2D board — 2–6 players, each human or CPU.",
         color = Color(0xFF00897B),
         onClick = { onGameSelected(GameType.SNAKES_LADDERS) }
+    )
+
+    GameCard(
+        title = "Clash Decks",
+        description = "Card duel vs computer — Attack, Defense, Support, and status-effect tactics.",
+        color = Color(0xFF3949AB),
+        onClick = { onGameSelected(GameType.CLASH_DECKS) }
     )
 }

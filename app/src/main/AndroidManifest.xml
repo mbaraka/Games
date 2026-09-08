@@ -91,6 +91,13 @@
             android:label="Knight Survivor"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
+
+        <activity
+            android:name=".clashdecks.ClashDecksActivity"
+            android:exported="false"
+            android:label="Clash Decks"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Game" />
     </application>
 
 </manifest>
