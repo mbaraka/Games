@@ -105,6 +105,13 @@
             android:label="Number Corridor"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
+
+        <activity
+            android:name=".roadrush.RoadRushActivity"
+            android:exported="false"
+            android:label="Road Rush"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Game" />
     </application>
 
 </manifest>

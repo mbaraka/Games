@@ -56,6 +56,7 @@ import com.baraka.game.memorymatch.MemoryMatchGame
 import com.baraka.game.numbercorridor.NumberCorridorActivity
 import com.baraka.game.numbercruncher.NumberCruncherGame
 import com.baraka.game.rhythmrunner.RhythmRunnerGame
+import com.baraka.game.roadrush.RoadRushActivity
 import com.baraka.game.snakeladder.SnakeLadderActivity
 import com.baraka.game.ui.theme.GameTheme
 import com.baraka.game.zombie.ZombieGame
@@ -117,6 +118,10 @@ class MainActivity : ComponentActivity() {
                                 val intent = Intent(this, NumberCorridorActivity::class.java)
                                 startActivity(intent)
                             }
+                            GameType.ROAD_RUSH -> {
+                                val intent = Intent(this, RoadRushActivity::class.java)
+                                startActivity(intent)
+                            }
                         }
                     }
                 )
@@ -137,7 +142,8 @@ enum class GameType {
     BATTLESHIP,
     KNIGHT_SURVIVOR,
     CLASH_DECKS,
-    NUMBER_CORRIDOR
+    NUMBER_CORRIDOR,
+    ROAD_RUSH
 }
 
 @Composable
@@ -353,6 +359,13 @@ fun GameCard(
 
 @Composable
 fun ColumnScope.Favorites(onGameSelected: (GameType) -> Unit) {
+    GameCard(
+        title = "Road Rush",
+        description = "Atari-style vertical racer — shift lanes to dodge oncoming traffic before you run out of lives.",
+        color = Color(0xFFE53935),
+        onClick = { onGameSelected(GameType.ROAD_RUSH) }
+    )
+
     GameCard(
         title = "Knight Survivor",
         description = "Arena survivor — auto-attack hordes, level up, and outlast the clock!",
