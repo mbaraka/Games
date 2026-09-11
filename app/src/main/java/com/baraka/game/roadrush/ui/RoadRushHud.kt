@@ -1,5 +1,6 @@
 package com.baraka.game.roadrush.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,16 +9,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun RoadRushHud(lives: Int, score: Int, bestScore: Int, modifier: Modifier = Modifier) {
+fun RoadRushHud(lives: Int, score: Int, bestScore: Int, onSettingsClick: () -> Unit, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text("❤".repeat(lives.coerceAtLeast(0)), color = Color(0xFFEF5350), fontSize = 20.sp)
         Text("Score: $score", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text("Best: $bestScore", color = Color.Gray, fontSize = 16.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Best: $bestScore", color = Color.Gray, fontSize = 16.sp)
+            Text("⚙", color = Color.White, fontSize = 20.sp, modifier = Modifier.clickable(onClick = onSettingsClick))
+        }
     }
 }

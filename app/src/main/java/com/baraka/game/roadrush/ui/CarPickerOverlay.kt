@@ -29,7 +29,13 @@ import com.baraka.game.roadrush.model.CarDesign
  * purely cosmetic, same role as numbercorridor's ui/AvatarPickerOverlay.kt.
  */
 @Composable
-fun CarPickerOverlay(selected: CarDesign, onSelected: (CarDesign) -> Unit, onStart: () -> Unit) {
+fun CarPickerOverlay(
+    selected: CarDesign,
+    onSelected: (CarDesign) -> Unit,
+    soundEnabled: Boolean,
+    onSoundEnabledChanged: (Boolean) -> Unit,
+    onStart: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -53,6 +59,11 @@ fun CarPickerOverlay(selected: CarDesign, onSelected: (CarDesign) -> Unit, onSta
                 CarDesign.entries.forEach { design ->
                     CarOptionCard(design = design, isSelected = design == selected, onClick = { onSelected(design) })
                 }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Sound", color = Color.Gray, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                SoundToggleRow(enabled = soundEnabled, onEnabledChanged = onSoundEnabledChanged)
             }
 
             Button(onClick = onStart) {

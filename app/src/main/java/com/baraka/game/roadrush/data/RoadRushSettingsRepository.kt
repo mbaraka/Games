@@ -23,10 +23,17 @@ class RoadRushSettingsRepository private constructor(
         preferences.edit().putInt(KEY_BEST_SCORE, score).apply()
     }
 
+    fun isSoundEnabled(): Boolean = preferences.getBoolean(KEY_SOUND_ENABLED, true)
+
+    fun setSoundEnabled(enabled: Boolean) {
+        preferences.edit().putBoolean(KEY_SOUND_ENABLED, enabled).apply()
+    }
+
     companion object {
         private const val PREF_FILE = "road_rush_settings"
         private const val KEY_CAR_DESIGN = "car_design"
         private const val KEY_BEST_SCORE = "best_score"
+        private const val KEY_SOUND_ENABLED = "sound_enabled"
 
         @Volatile
         private var instance: RoadRushSettingsRepository? = null

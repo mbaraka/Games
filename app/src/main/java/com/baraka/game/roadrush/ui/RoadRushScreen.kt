@@ -47,27 +47,32 @@ fun RoadRushScreen() {
 
     var carDesign by remember { mutableStateOf(settingsRepository.carDesign()) }
     var showCarPicker by remember { mutableStateOf(true) }
+    var showSettings by remember { mutableStateOf(false) }
+    var soundEnabled by remember { mutableStateOf(settingsRepository.isSoundEnabled()) }
     var roadState by remember { mutableStateOf(RoadState(bestScoreAtStart = settingsRepository.bestScore())) }
     var hasRecordedThisRun by remember { mutableStateOf(false) }
     val soundEngine = remember { RoadRushSoundEngine() }
     DisposableEffect(Unit) { onDispose { soundEngine.release() } }
+    fun playSound(cue: RoadSoundCue) {
+        if (soundEnabled) soundEngine.play(cue)
+    }
 
-    val isRunning = roadState.phase == GamePhase.RUNNING && !showCarPicker
+    val isRunning = roadState.phase == GamePhase.RUNNING && !showCarPicker && !showSettings
 
     LaunchedEffect(isRunning) {
         while (isRunning) {
             delay(TICK_MS)
             val previousLives = roadState.lives
             val next = RoadGameLoop.tick(roadState, TICK_MS / 1000f)
-            if (next.lives < previousLives) soundEngine.play(RoadSoundCue.CRASH)
-            if (next.carsDodgedThisTick > 0) soundEngine.play(RoadSoundCue.DODGE)
+            if (next.lives < previousLives) playSound(RoadSoundCue.CRASH)
+            if (next.carsDodgedThisTick > 0) playSound(RoadSoundCue.DODGE)
             roadState = next
         }
     }
 
     LaunchedEffect(roadState.phase) {
         if (roadState.phase == GamePhase.GAME_OVER && !hasRecordedThisRun) {
-            soundEngine.play(RoadSoundCue.GAME_OVER)
+            playSound(RoadSoundCue.GAME_OVER)
             if (roadState.score > settingsRepository.bestScore()) {
                 settingsRepository.setBestScore(roadState.score)
             }
@@ -81,6 +86,11 @@ fun RoadRushScreen() {
             onSelected = { design ->
                 carDesign = design
                 settingsRepository.setCarDesign(design)
+            },
+            soundEnabled = soundEnabled,
+            onSoundEnabledChanged = { enabled ->
+                soundEnabled = enabled
+                settingsRepository.setSoundEnabled(enabled)
             },
             onStart = {
                 roadState = RoadState(bestScoreAtStart = settingsRepository.bestScore())
@@ -101,6 +111,7 @@ fun RoadRushScreen() {
             lives = roadState.lives,
             score = roadState.score,
             bestScore = settingsRepository.bestScore(),
+            onSettingsClick = { showSettings = true },
             modifier = Modifier.padding(12.dp)
         )
 
@@ -119,12 +130,12 @@ fun RoadRushScreen() {
                         dragAccumulator += dragAmount
                         while (dragAccumulator > thresholdPx) {
                             roadState = RoadGameLoop.moveRight(roadState)
-                            soundEngine.play(RoadSoundCue.SWERVE)
+                            playSound(RoadSoundCue.SWERVE)
                             dragAccumulator -= thresholdPx
                         }
                         while (dragAccumulator < -thresholdPx) {
                             roadState = RoadGameLoop.moveLeft(roadState)
-                            soundEngine.play(RoadSoundCue.SWERVE)
+                            playSound(RoadSoundCue.SWERVE)
                             dragAccumulator += thresholdPx
                         }
                     }
@@ -143,16 +154,27 @@ fun RoadRushScreen() {
                     onPlayAgain = { showCarPicker = true }
                 )
             }
+
+            if (showSettings) {
+                RoadRushSettingsOverlay(
+                    soundEnabled = soundEnabled,
+                    onSoundEnabledChanged = { enabled ->
+                        soundEnabled = enabled
+                        settingsRepository.setSoundEnabled(enabled)
+                    },
+                    onClose = { showSettings = false }
+                )
+            }
         }
 
         SteeringControls(
             onLeft = {
                 roadState = RoadGameLoop.moveLeft(roadState)
-                soundEngine.play(RoadSoundCue.SWERVE)
+                playSound(RoadSoundCue.SWERVE)
             },
             onRight = {
                 roadState = RoadGameLoop.moveRight(roadState)
-                soundEngine.play(RoadSoundCue.SWERVE)
+                playSound(RoadSoundCue.SWERVE)
             }
         )
     }
