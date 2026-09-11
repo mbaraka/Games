@@ -44,6 +44,7 @@ object RoadGameLoop {
 
         var scoreGained = 0
         var livesLost = 0
+        var dodgedCount = 0
         val resolvedCars = carsWithSpawn.map { car ->
             if (car.resolved) return@map car
             val inCollisionBand = car.progress in COLLISION_BAND_START..COLLISION_BAND_END
@@ -54,6 +55,7 @@ object RoadGameLoop {
                 }
                 car.progress > COLLISION_BAND_END -> {
                     scoreGained += 5
+                    dodgedCount += 1
                     car.copy(resolved = true)
                 }
                 else -> car
@@ -74,7 +76,8 @@ object RoadGameLoop {
             speed = speed,
             nextSpawnInSeconds = nextSpawnIn,
             nextCarId = nextCarId,
-            phase = if (newLives <= 0) GamePhase.GAME_OVER else GamePhase.RUNNING
+            phase = if (newLives <= 0) GamePhase.GAME_OVER else GamePhase.RUNNING,
+            carsDodgedThisTick = dodgedCount
         )
     }
 

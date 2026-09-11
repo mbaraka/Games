@@ -44,7 +44,9 @@ data class RoadState(
     val phase: GamePhase = GamePhase.RUNNING,
     val bestScoreAtStart: Int = 0,
     /** Monotonically increasing id source for spawned cars, threaded through state to keep tick() a pure function. */
-    val nextCarId: Long = 0L
+    val nextCarId: Long = 0L,
+    /** How many cars were successfully dodged on the tick that produced this state — a transient event flag, not persisted gameplay data, read once by ui/RoadRushScreen.kt to trigger a sound cue then discarded. */
+    val carsDodgedThisTick: Int = 0
 ) {
     val isNewBest: Boolean get() = score > bestScoreAtStart
 

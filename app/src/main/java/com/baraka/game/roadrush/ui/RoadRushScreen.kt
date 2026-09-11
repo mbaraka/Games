@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,6 +22,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.baraka.game.roadrush.data.RoadRushSettingsRepository
+import com.baraka.game.roadrush.data.RoadRushSoundEngine
+import com.baraka.game.roadrush.data.RoadSoundCue
 import com.baraka.game.roadrush.model.CarDesign
 import com.baraka.game.roadrush.model.GamePhase
 import com.baraka.game.roadrush.model.RoadState
@@ -46,18 +49,25 @@ fun RoadRushScreen() {
     var showCarPicker by remember { mutableStateOf(true) }
     var roadState by remember { mutableStateOf(RoadState(bestScoreAtStart = settingsRepository.bestScore())) }
     var hasRecordedThisRun by remember { mutableStateOf(false) }
+    val soundEngine = remember { RoadRushSoundEngine() }
+    DisposableEffect(Unit) { onDispose { soundEngine.release() } }
 
     val isRunning = roadState.phase == GamePhase.RUNNING && !showCarPicker
 
     LaunchedEffect(isRunning) {
         while (isRunning) {
             delay(TICK_MS)
-            roadState = RoadGameLoop.tick(roadState, TICK_MS / 1000f)
+            val previousLives = roadState.lives
+            val next = RoadGameLoop.tick(roadState, TICK_MS / 1000f)
+            if (next.lives < previousLives) soundEngine.play(RoadSoundCue.CRASH)
+            if (next.carsDodgedThisTick > 0) soundEngine.play(RoadSoundCue.DODGE)
+            roadState = next
         }
     }
 
     LaunchedEffect(roadState.phase) {
         if (roadState.phase == GamePhase.GAME_OVER && !hasRecordedThisRun) {
+            soundEngine.play(RoadSoundCue.GAME_OVER)
             if (roadState.score > settingsRepository.bestScore()) {
                 settingsRepository.setBestScore(roadState.score)
             }
@@ -109,10 +119,12 @@ fun RoadRushScreen() {
                         dragAccumulator += dragAmount
                         while (dragAccumulator > thresholdPx) {
                             roadState = RoadGameLoop.moveRight(roadState)
+                            soundEngine.play(RoadSoundCue.SWERVE)
                             dragAccumulator -= thresholdPx
                         }
                         while (dragAccumulator < -thresholdPx) {
                             roadState = RoadGameLoop.moveLeft(roadState)
+                            soundEngine.play(RoadSoundCue.SWERVE)
                             dragAccumulator += thresholdPx
                         }
                     }
@@ -134,8 +146,14 @@ fun RoadRushScreen() {
         }
 
         SteeringControls(
-            onLeft = { roadState = RoadGameLoop.moveLeft(roadState) },
-            onRight = { roadState = RoadGameLoop.moveRight(roadState) }
+            onLeft = {
+                roadState = RoadGameLoop.moveLeft(roadState)
+                soundEngine.play(RoadSoundCue.SWERVE)
+            },
+            onRight = {
+                roadState = RoadGameLoop.moveRight(roadState)
+                soundEngine.play(RoadSoundCue.SWERVE)
+            }
         )
     }
 }
