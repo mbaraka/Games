@@ -104,12 +104,18 @@ fun NumberCorridorScreen() {
                     if (canvasWidthPx <= 0f) return@pointerInput
                     val corridorWidth = canvasWidthPx * 0.94f
                     val laneWidth = corridorWidth / WallRow.LANE_COUNT
+                    // Accumulates fractional lanes dragged since the last whole-lane move — a single
+                    // onDrag callback's delta is usually much smaller than one lane, so without this
+                    // running total every event gets truncated to zero and the squad never moves.
+                    var draggedLanes = 0f
                     detectDragGestures { change, dragAmount ->
                         change.consume()
-                        val laneDelta = dragAmount.x / laneWidth
-                        val currentCenter = gameState.player.laneStart + gameState.player.squadCount / 2f
-                        val targetStart = (currentCenter + laneDelta - gameState.player.squadCount / 2f).toInt()
-                        gameState = GameLoopOrchestrator.moveSquad(gameState, targetStart)
+                        draggedLanes += dragAmount.x / laneWidth
+                        val wholeLanes = draggedLanes.toInt()
+                        if (wholeLanes != 0) {
+                            draggedLanes -= wholeLanes
+                            gameState = GameLoopOrchestrator.moveSquad(gameState, gameState.player.laneStart + wholeLanes)
+                        }
                     }
                 }
         ) {
