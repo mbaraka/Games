@@ -53,6 +53,7 @@ import com.baraka.game.clashdecks.ClashDecksActivity
 import com.baraka.game.keyreader.KeyReaderActivity
 import com.baraka.game.knightsurvivor.KnightSurvivorActivity
 import com.baraka.game.memorymatch.MemoryMatchGame
+import com.baraka.game.numbercorridor.NumberCorridorActivity
 import com.baraka.game.numbercruncher.NumberCruncherGame
 import com.baraka.game.rhythmrunner.RhythmRunnerGame
 import com.baraka.game.snakeladder.SnakeLadderActivity
@@ -112,6 +113,10 @@ class MainActivity : ComponentActivity() {
                                 val intent = Intent(this, ClashDecksActivity::class.java)
                                 startActivity(intent)
                             }
+                            GameType.NUMBER_CORRIDOR -> {
+                                val intent = Intent(this, NumberCorridorActivity::class.java)
+                                startActivity(intent)
+                            }
                         }
                     }
                 )
@@ -131,7 +136,8 @@ enum class GameType {
     SNAKES_LADDERS,
     BATTLESHIP,
     KNIGHT_SURVIVOR,
-    CLASH_DECKS
+    CLASH_DECKS,
+    NUMBER_CORRIDOR
 }
 
 @Composable
@@ -352,6 +358,13 @@ fun ColumnScope.Favorites(onGameSelected: (GameType) -> Unit) {
         description = "Arena survivor — auto-attack hordes, level up, and outlast the clock!",
         color = Color(0xFF7B1FA2),
         onClick = { onGameSelected(GameType.KNIGHT_SURVIVOR) }
+    )
+
+    GameCard(
+        title = "Number Corridor",
+        description = "Forward-scrolling shooter — blast obstacle walls, grab +/-/x/÷ buff walls for damage, fire rate, and squad size.",
+        color = Color(0xFF00ACC1),
+        onClick = { onGameSelected(GameType.NUMBER_CORRIDOR) }
     )
 
     GameCard(
