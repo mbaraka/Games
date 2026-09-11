@@ -159,7 +159,7 @@ private fun DrawScope.drawRivalCar(car: ObstacleCar) {
     val cx = geometry.roadLeft + geometry.laneWidth * (car.lane + 0.5f)
     val cy = geometry.screenY - geometry.laneWidth * 0.35f
     val color = Color(RIVAL_CAR_COLORS[car.colorSeed % RIVAL_CAR_COLORS.size])
-    drawCartoonCar(cx, cy, geometry.laneWidth * 0.44f, color, facingUp = false)
+    drawCartoonCar(cx, cy, geometry.laneWidth * 0.33f, color, facingUp = false)
 }
 
 private fun DrawScope.drawPlayerCar(player: PlayerCarState, carDesign: CarDesign) {
@@ -168,7 +168,7 @@ private fun DrawScope.drawPlayerCar(player: PlayerCarState, carDesign: CarDesign
     val cy = geometry.screenY - geometry.laneWidth * 0.4f
     val flashing = player.invincibleSeconds > 0f && (player.invincibleSeconds * 10).toInt() % 2 == 0
     val color = if (flashing) Color.White else Color(carDesign.colorArgb)
-    drawCartoonCar(cx, cy, geometry.laneWidth * 0.5f, color, facingUp = true)
+    drawCartoonCar(cx, cy, geometry.laneWidth * 0.37f, color, facingUp = true)
 }
 
 /**
@@ -183,7 +183,7 @@ private fun DrawScope.drawCartoonCar(cx: Float, cy: Float, halfWidth: Float, col
     val dir = if (facingUp) -1f else 1f
     val bodyWidth = halfWidth * 1.9f
     val bodyHeight = halfWidth * 2.5f
-    val outline = (halfWidth * 0.07f).coerceAtLeast(2f)
+    val outline = (halfWidth * 0.09f).coerceAtLeast(1.5f)
 
     // Round bubble wheels with hubcaps, peeking out past the body sides.
     val wheelRadius = halfWidth * 0.34f
@@ -210,35 +210,49 @@ private fun DrawScope.drawCartoonCar(cx: Float, cy: Float, halfWidth: Float, col
         size = Size(bodyWidth, bodyHeight),
         cornerRadius = CornerRadius(bodyWidth * 0.4f)
     )
+    // Darker two-tone skirt along the bottom edge (relative to travel direction) for a hint of depth.
+    val skirtHeight = bodyHeight * 0.16f
+    drawRoundRect(
+        color = Color.Black.copy(alpha = 0.16f),
+        topLeft = Offset(cx - bodyWidth / 2f, cy + dir * (bodyHeight / 2f - skirtHeight)),
+        size = Size(bodyWidth, skirtHeight),
+        cornerRadius = CornerRadius(bodyWidth * 0.2f)
+    )
     // Glossy highlight stripe for a toy-like shine.
     drawRoundRect(
         color = Color.White.copy(alpha = 0.3f),
         topLeft = Offset(cx - bodyWidth * 0.34f, cy - bodyHeight * 0.42f),
-        size = Size(bodyWidth * 0.16f, bodyHeight * 0.5f),
-        cornerRadius = CornerRadius(bodyWidth * 0.08f)
+        size = Size(bodyWidth * 0.14f, bodyHeight * 0.5f),
+        cornerRadius = CornerRadius(bodyWidth * 0.07f)
     )
 
-    // Big rounded windshield bubble, offset toward the front (direction of travel).
-    val cabinCenterY = cy + dir * bodyHeight * 0.08f
-    val cabinWidth = bodyWidth * 0.62f
-    val cabinHeight = bodyHeight * 0.4f
-    drawRoundRect(
-        color = Color.Black,
-        topLeft = Offset(cx - cabinWidth / 2f - outline * 0.7f, cabinCenterY - cabinHeight / 2f - outline * 0.7f),
-        size = Size(cabinWidth + outline * 1.4f, cabinHeight + outline * 1.4f),
-        cornerRadius = CornerRadius(cabinWidth * 0.45f)
-    )
-    drawRoundRect(
-        color = Color(0xFF81D4FA),
-        topLeft = Offset(cx - cabinWidth / 2f, cabinCenterY - cabinHeight / 2f),
-        size = Size(cabinWidth, cabinHeight),
-        cornerRadius = CornerRadius(cabinWidth * 0.45f)
-    )
+    // Side mirrors, poking out near the front windshield.
+    val mirrorY = cy + dir * bodyHeight * 0.02f
+    listOf(-1f, 1f).forEach { side ->
+        drawRoundRect(
+            color = Color.Black,
+            topLeft = Offset(cx + side * (bodyWidth / 2f - outline * 0.3f), mirrorY - halfWidth * 0.07f),
+            size = Size(halfWidth * 0.16f, halfWidth * 0.14f),
+            cornerRadius = CornerRadius(halfWidth * 0.05f)
+        )
+    }
+
+    // Front windshield bubble, offset toward the direction of travel.
+    val frontCenterY = cy + dir * bodyHeight * 0.18f
+    val frontWidth = bodyWidth * 0.62f
+    val frontHeight = bodyHeight * 0.32f
+    drawRoundedGlass(cx, frontCenterY, frontWidth, frontHeight, outline)
     drawCircle(
         Color.White.copy(alpha = 0.7f),
-        radius = cabinWidth * 0.14f,
-        center = Offset(cx - cabinWidth * 0.15f, cabinCenterY - dir * cabinHeight * 0.1f)
+        radius = frontWidth * 0.14f,
+        center = Offset(cx - frontWidth * 0.15f, frontCenterY - dir * frontHeight * 0.1f)
     )
+
+    // Smaller rear window at the back, so the cabin reads as a full bubble, not just a windshield.
+    val rearCenterY = cy - dir * bodyHeight * 0.26f
+    val rearWidth = bodyWidth * 0.46f
+    val rearHeight = bodyHeight * 0.2f
+    drawRoundedGlass(cx, rearCenterY, rearWidth, rearHeight, outline * 0.8f)
 
     // Round headlight/taillight dots at the leading and trailing edges.
     val lightY = cy - dir * bodyHeight / 2f + dir * halfWidth * 0.22f
@@ -248,4 +262,20 @@ private fun DrawScope.drawCartoonCar(cx: Float, cy: Float, halfWidth: Float, col
     drawCircle(Color(0xFFFFF59D), radius = lightRadius, center = Offset(cx + bodyWidth * 0.3f, lightY))
     drawCircle(Color(0xFFEF5350), radius = lightRadius * 0.8f, center = Offset(cx - bodyWidth * 0.3f, tailY))
     drawCircle(Color(0xFFEF5350), radius = lightRadius * 0.8f, center = Offset(cx + bodyWidth * 0.3f, tailY))
+}
+
+/** A rounded glass panel (windshield or rear window) with a thin black outline. */
+private fun DrawScope.drawRoundedGlass(cx: Float, centerY: Float, width: Float, height: Float, outline: Float) {
+    drawRoundRect(
+        color = Color.Black,
+        topLeft = Offset(cx - width / 2f - outline * 0.7f, centerY - height / 2f - outline * 0.7f),
+        size = Size(width + outline * 1.4f, height + outline * 1.4f),
+        cornerRadius = CornerRadius(width * 0.45f)
+    )
+    drawRoundRect(
+        color = Color(0xFF81D4FA),
+        topLeft = Offset(cx - width / 2f, centerY - height / 2f),
+        size = Size(width, height),
+        cornerRadius = CornerRadius(width * 0.45f)
+    )
 }
