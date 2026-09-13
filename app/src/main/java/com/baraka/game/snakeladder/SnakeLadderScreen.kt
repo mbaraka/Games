@@ -95,7 +95,6 @@ private val AvatarEmojis = listOf(
     "🦊", // fox
     "🐼", // panda
     "🦄", // unicorn
-    "🐷", // pig
     "🐙", // octopus
     "🐰", // rabbit
     "🦕"  // t-rex

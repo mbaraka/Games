@@ -53,7 +53,7 @@ enum class SnakeLadderPhase {
 }
 
 /** Fallback avatars if the menu doesn't supply one per player (kept in sync with the picker in SnakeLadderScreen). */
-private val DefaultAvatars = listOf("🦁", "🐵", "🐸", "🐶", "🐱", "🦊", "🐼", "🦄", "🐷", "🐙", "🐰", "🦕")
+private val DefaultAvatars = listOf("🦁", "🐵", "🐸", "🐶", "🐱", "🦊", "🐼", "🦄", "🐙", "🐰", "🦕")
 
 class SnakeLadderViewModel : ViewModel() {
 
