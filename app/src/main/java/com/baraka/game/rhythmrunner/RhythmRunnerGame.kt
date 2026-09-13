@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.ui.components.GameScreenContainer
+import com.baraka.game.ui.theme.GameColors
 import com.baraka.game.ui.theme.GameTheme
 import kotlinx.coroutines.delay
 import kotlin.random.Random
@@ -68,7 +69,7 @@ fun RhythmRunnerGameScreen() {
         // Game title
         Text(
             text = "Rhythm Runner",
-            color = Color.White,
+            color = GameColors.TextPrimary,
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -81,53 +82,53 @@ fun RhythmRunnerGameScreen() {
         ) {
             Text(
                 text = "Score: ${gameState.score}",
-                color = Color.White,
+                color = GameColors.TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 text = "Lives: ${gameState.lives}",
-                color = Color.White,
+                color = GameColors.TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
         }
-        
+
         Text(
             text = "Combo: ${gameState.combo}x",
-            color = Color(0xFFFFD700),
+            color = GameColors.Accent,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(top = 8.dp)
         )
-        
+
         Text(
             text = "Tap the game area to jump over red obstacles!",
-            color = Color.Gray,
+            color = GameColors.TextSecondary,
             fontSize = 14.sp,
             modifier = Modifier.padding(top = 4.dp)
         )
-        
+
         Text(
             text = "Collect gold circles for points!",
-            color = Color(0xFFFFD700),
+            color = GameColors.Accent,
             fontSize = 12.sp,
             modifier = Modifier.padding(top = 2.dp)
         )
-        
+
         Text(
             text = "Player Y: ${gameState.playerY.toInt()}, Jumping: ${gameState.isJumping}",
-            color = Color.Cyan,
+            color = GameColors.TextMuted,
             fontSize = 10.sp,
             modifier = Modifier.padding(top = 2.dp)
         )
-        
+
         if (isGameRunning && gameState.playerY <= 120f) {
             Button(
-                onClick = { 
+                onClick = {
                     gameState = gameState.resetPlayer()
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5722)),
+                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Danger),
                 modifier = Modifier.padding(top = 4.dp)
             ) {
                 Text("Reset Stuck Player", fontSize = 12.sp)
@@ -171,9 +172,9 @@ fun RhythmRunnerGameScreen() {
                         .size(20.dp)
                         .background(
                             color = when {
-                                isCurrentBeat -> Color(0xFFFFD700)
-                                isActiveBeat -> Color(0xFF4CAF50)
-                                else -> Color(0xFF666666)
+                                isCurrentBeat -> GameColors.Accent
+                                isActiveBeat -> GameColors.Success
+                                else -> MaterialTheme.colorScheme.surfaceVariant
                             },
                             shape = RoundedCornerShape(10.dp)
                         )
@@ -191,7 +192,7 @@ fun RhythmRunnerGameScreen() {
                     gameState = RhythmGameState().resetPlayer()  // Reset player to safe position
                     showGameOver = false
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Start Game", fontSize = 18.sp)
@@ -200,7 +201,7 @@ fun RhythmRunnerGameScreen() {
 
         if (showGameOver) {
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -209,31 +210,31 @@ fun RhythmRunnerGameScreen() {
                 ) {
                     Text(
                         text = "Game Over!",
-                        color = Color(0xFFFF5722),
+                        color = GameColors.Danger,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = "Final Score: ${gameState.score}",
-                        color = Color.White,
+                        color = GameColors.TextPrimary,
                         fontSize = 18.sp,
                         modifier = Modifier.padding(top = 8.dp)
                     )
                     Text(
                         text = "Best Combo: ${gameState.bestCombo}x",
-                        color = Color(0xFFFFD700),
+                        color = GameColors.Accent,
                         fontSize = 16.sp,
                         modifier = Modifier.padding(top = 4.dp)
                     )
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Button(
-                        onClick = { 
+                        onClick = {
                             showGameOver = false
                             gameState = RhythmGameState()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                        colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success)
                     ) {
                         Text("Play Again")
                     }

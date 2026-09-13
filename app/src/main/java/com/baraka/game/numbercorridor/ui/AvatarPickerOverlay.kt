@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.numbercorridor.model.AvatarDesign
+import com.baraka.game.ui.theme.GameColors
 
 /**
  * Shown before a run starts so the player can pick which of up to [AvatarDesign.entries]
@@ -39,7 +41,7 @@ fun AvatarPickerOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF12141A)),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -47,13 +49,13 @@ fun AvatarPickerOverlay(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text("Number Corridor", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text("Number Corridor", color = GameColors.TextPrimary, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             Text(
                 "3 lanes, 3 jobs: left grows or shrinks your squad with math, middle is enemies to shoot down, right upgrades your weapon.",
-                color = Color.Gray,
+                color = GameColors.TextSecondary,
                 fontSize = 14.sp
             )
-            Text("Choose your squad", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("Choose your squad", color = GameColors.TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 AvatarDesign.entries.forEach { design ->
@@ -67,7 +69,7 @@ fun AvatarPickerOverlay(
 
             Text(
                 text = "How do the lanes work?",
-                color = Color(0xFF29B6F6),
+                color = GameColors.Accent,
                 fontSize = 13.sp,
                 modifier = Modifier.clickable(onClick = onOpenGuide)
             )
@@ -82,7 +84,7 @@ private fun AvatarOptionCard(design: AvatarDesign, isSelected: Boolean, onClick:
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .background(Color(0xFF1D1F27), RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
             .border(
                 width = if (isSelected) 2.dp else 0.dp,
                 color = if (isSelected) avatarColor else Color.Transparent,
@@ -98,9 +100,9 @@ private fun AvatarOptionCard(design: AvatarDesign, isSelected: Boolean, onClick:
                         .size(28.dp)
                         .background(avatarColor, CircleShape)
                 )
-                Text(design.displayName, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(design.displayName, color = GameColors.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
-            Text(design.description, color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+            Text(design.description, color = GameColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }

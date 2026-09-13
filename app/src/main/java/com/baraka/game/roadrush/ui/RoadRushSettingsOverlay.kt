@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -16,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.baraka.game.ui.theme.GameColors
 
 /** A small pause-and-tweak panel, reachable mid-run from the gear button in [RoadRushHud] — currently just the sound toggle, but its own screen so more options have somewhere to go later. */
 @Composable
@@ -28,15 +30,15 @@ fun RoadRushSettingsOverlay(soundEnabled: Boolean, onSoundEnabledChanged: (Boole
     ) {
         Column(
             modifier = Modifier
-                .background(Color(0xFF1D1D1D), RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Text("Settings", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("Settings", color = GameColors.TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Sound", color = Color.Gray, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text("Sound", color = GameColors.TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 SoundToggleRow(enabled = soundEnabled, onEnabledChanged = onSoundEnabledChanged)
             }
 

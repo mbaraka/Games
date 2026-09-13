@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,7 +69,7 @@ fun SettingsScreen(
 
     var tab by remember { mutableStateOf(SettingsTab.GENERAL) }
 
-    Scaffold(containerColor = Color(0xFF12141A)) { padding ->
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -83,7 +84,7 @@ fun SettingsScreen(
                     color = GameColors.TextPrimary,
                     fontSize = 14.sp,
                     modifier = Modifier
-                        .background(Color(0xFF2D2D2D), RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
                         .clickable(onClick = onClose)
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 )
@@ -180,7 +181,7 @@ private fun KnightDesignCard(design: KnightDesign, isSelected: Boolean, onClick:
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (isSelected) Color(0xFF2A3040) else Color(0xFF1C2029), RoundedCornerShape(12.dp))
+            .background(if (isSelected) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -212,7 +213,7 @@ private fun SettingsRailTab(text: String, selected: Boolean, onClick: () -> Unit
         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (selected) GameColors.Accent else Color(0xFF2D2D2D), RoundedCornerShape(10.dp))
+            .background(if (selected) GameColors.Accent else MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     )
@@ -226,7 +227,7 @@ private fun SettingChip(text: String, selected: Boolean, onClick: () -> Unit) {
         fontSize = 14.sp,
         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
         modifier = Modifier
-            .background(if (selected) GameColors.Accent else Color(0xFF2D2D2D), RoundedCornerShape(20.dp))
+            .background(if (selected) GameColors.Accent else MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp)
     )

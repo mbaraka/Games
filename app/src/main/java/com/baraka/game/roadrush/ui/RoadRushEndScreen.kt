@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.baraka.game.ui.theme.GameColors
 
 @Composable
 fun RoadRushEndScreen(score: Int, isNewBest: Boolean, onPlayAgain: () -> Unit) {
@@ -32,7 +33,7 @@ fun RoadRushEndScreen(score: Int, isNewBest: Boolean, onPlayAgain: () -> Unit) {
             Text("Wrecked!", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
             Text("Score: $score", color = Color.White, fontSize = 20.sp)
             if (isNewBest) {
-                Text("New Best!", color = Color(0xFFFFD54F), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("New Best!", color = GameColors.Warning, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             Button(onClick = onPlayAgain) {
                 Text("Play Again")

@@ -12,6 +12,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+// This HUD is overlaid on RoadRushScreen's fixed-dark play-area backdrop (not the themed
+// app background), so its text intentionally stays light-on-dark in both Light and Dark theme
+// rather than switching to theme-aware GameColors, which would go near-invisible in Light theme.
 @Composable
 fun RoadRushHud(lives: Int, score: Int, bestScore: Int, onSettingsClick: () -> Unit, modifier: Modifier = Modifier) {
     Row(

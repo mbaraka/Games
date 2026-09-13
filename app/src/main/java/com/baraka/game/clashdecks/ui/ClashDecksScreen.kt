@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -130,7 +131,7 @@ private fun DuelScreen(
             Text("Codex", color = GameColors.Accent, fontSize = 13.sp,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF2D323D))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { onOpenCodex() }
                     .padding(horizontal = 12.dp, vertical = 6.dp))
         }
@@ -142,7 +143,7 @@ private fun DuelScreen(
                 .fillMaxWidth()
                 .weight(1f)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF15181F))
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(10.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {

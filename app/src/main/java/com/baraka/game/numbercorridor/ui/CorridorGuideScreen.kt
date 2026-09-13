@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.numbercorridor.model.MathOp
 import com.baraka.game.numbercorridor.model.WeaponTier
+import com.baraka.game.ui.theme.GameColors
 
 private enum class GuideTab(val label: String) {
     LANES("Lanes")
@@ -40,11 +42,8 @@ private enum class GuideTab(val label: String) {
     // see SettingsTab in knightsurvivor's SettingsOverlay.kt for the same shape.
 }
 
-private val GUIDE_BACKGROUND = Color(0xFF12141A)
-private val TEXT_PRIMARY = Color.White
-private val TEXT_SECONDARY = Color(0xFFB0B3BE)
-private val CARD_BACKGROUND = Color(0xFF1C2029)
-
+// Lane-identity colors: these mirror the corridor's actual lane wall colors (game art), not
+// UI chrome, so they stay fixed rather than becoming theme-aware.
 private val SQUAD_LANE_COLOR = Color(0xFF66BB6A)
 private val ENEMY_LANE_COLOR = Color(0xFF7C4DA8)
 private val WEAPON_LANE_COLOR = Color(0xFFFFB300)
@@ -60,22 +59,22 @@ fun CorridorGuideScreen(onClose: () -> Unit) {
 
     var tab by remember { mutableStateOf(GuideTab.LANES) }
 
-    Scaffold(containerColor = GUIDE_BACKGROUND) { padding ->
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "Guide",
-                    color = TEXT_PRIMARY,
+                    color = GameColors.TextPrimary,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
                     text = "Close ✕",
-                    color = TEXT_PRIMARY,
+                    color = GameColors.TextPrimary,
                     fontSize = 14.sp,
                     modifier = Modifier
-                        .background(Color(0xFF2D2D2D), RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
                         .clickable(onClick = onClose)
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 )
@@ -103,11 +102,11 @@ fun CorridorGuideScreen(onClose: () -> Unit) {
 private fun GuideTabChip(text: String, selected: Boolean, onClick: () -> Unit) {
     Text(
         text = text,
-        color = if (selected) Color.Black else TEXT_PRIMARY,
+        color = if (selected) Color.Black else GameColors.TextPrimary,
         fontSize = 14.sp,
         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
         modifier = Modifier
-            .background(if (selected) Color(0xFF29B6F6) else Color(0xFF2D2D2D), RoundedCornerShape(20.dp))
+            .background(if (selected) GameColors.Accent else MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp)
     )
@@ -122,7 +121,7 @@ private fun LanesGuideContent() {
         item {
             Text(
                 text = "The corridor has 3 lanes and each one always does the same job, left to right. Drag your squad into the lane whose wall you want to hit.",
-                color = TEXT_SECONDARY,
+                color = GameColors.TextSecondary,
                 fontSize = 13.sp
             )
         }
@@ -152,7 +151,7 @@ private fun LanesGuideContent() {
         item {
             Text(
                 text = "Squad math symbols",
-                color = TEXT_PRIMARY,
+                color = GameColors.TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -162,7 +161,7 @@ private fun LanesGuideContent() {
         item {
             Text(
                 text = "Weapon tiers, weakest to strongest",
-                color = TEXT_PRIMARY,
+                color = GameColors.TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -179,10 +178,10 @@ private fun LaneCard(color: Color, title: String, description: String) {
                 drawRoundRect(color = color, cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f))
             }
             Spacer(Modifier.width(12.dp))
-            Text(title, color = TEXT_PRIMARY, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(title, color = GameColors.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(8.dp))
-        Text(description, color = TEXT_SECONDARY, fontSize = 13.sp)
+        Text(description, color = GameColors.TextSecondary, fontSize = 13.sp)
     }
 }
 
@@ -190,8 +189,8 @@ private fun LaneCard(color: Color, title: String, description: String) {
 private fun MathOpCard(op: MathOp) {
     GuideCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(op.symbol, color = TEXT_PRIMARY, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(32.dp))
-            Text(opDescription(op), color = TEXT_SECONDARY, fontSize = 13.sp)
+            Text(op.symbol, color = GameColors.TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(32.dp))
+            Text(opDescription(op), color = GameColors.TextSecondary, fontSize = 13.sp)
         }
     }
 }
@@ -211,10 +210,10 @@ private fun WeaponTierCard(tier: WeaponTier) {
                 drawCircle(color = Color(tier.colorArgb))
             }
             Spacer(Modifier.width(12.dp))
-            Text(tier.displayName, color = TEXT_PRIMARY, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text(tier.displayName, color = GameColors.TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(6.dp))
-        Text("Damage ${tier.damage.toInt()} · Fire rate x${"%.2f".format(tier.fireRateMultiplier)}", color = TEXT_SECONDARY, fontSize = 12.sp)
+        Text("Damage ${tier.damage.toInt()} · Fire rate x${"%.2f".format(tier.fireRateMultiplier)}", color = GameColors.TextSecondary, fontSize = 12.sp)
     }
 }
 
@@ -223,7 +222,7 @@ private fun GuideCard(content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CARD_BACKGROUND, RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
             .padding(14.dp),
         content = content
     )

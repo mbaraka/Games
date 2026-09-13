@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -47,8 +48,6 @@ import com.baraka.game.knightsurvivor.render.GameCanvas
 import com.baraka.game.knightsurvivor.systems.AchievementSystem
 import com.baraka.game.knightsurvivor.systems.GameLoopOrchestrator
 import kotlinx.coroutines.delay
-
-private val BACKGROUND_COLOR = Color(0xFF12141A)
 
 /**
  * Owns the run's [GameState] and the ~60fps game loop, and lays out canvas + joystick +
@@ -149,7 +148,7 @@ fun KnightSurvivorScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BACKGROUND_COLOR)
+            .background(MaterialTheme.colorScheme.background)
             .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
         Hud(

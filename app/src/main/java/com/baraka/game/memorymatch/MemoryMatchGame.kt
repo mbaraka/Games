@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.ui.components.Section
+import com.baraka.game.ui.theme.GameColors
 import com.baraka.game.ui.theme.GameTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -70,33 +71,33 @@ fun DifficultySelectScreen(onSelect: (Difficulty) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF1E1E1E))
+            .background(MaterialTheme.colorScheme.background)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
             text = "Memory Match",
-            color = Color.White,
+            color = GameColors.TextPrimary,
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
         )
         Text(
             text = "Choose a difficulty",
-            color = Color.Gray,
+            color = GameColors.TextSecondary,
             fontSize = 16.sp,
             modifier = Modifier.padding(bottom = 24.dp)
         )
         Difficulty.entries.forEach { diff ->
             Button(
                 onClick = { onSelect(diff) },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A2A2A)),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 6.dp)
             ) {
-                Text("${diff.label} (${diff.pairs} pairs)", fontSize = 18.sp, color = Color.White)
+                Text("${diff.label} (${diff.pairs} pairs)", fontSize = 18.sp, color = GameColors.TextPrimary)
             }
         }
     }
@@ -131,7 +132,7 @@ fun MemoryGamePlayScreen(difficulty: Difficulty, onChangeDifficulty: () -> Unit)
               Column(
          modifier = Modifier
              .fillMaxSize()
-             .background(Color(0xFF1E1E1E))
+             .background(MaterialTheme.colorScheme.background)
              .windowInsetsPadding(WindowInsets.safeDrawing)
              .padding(16.dp),
          horizontalAlignment = Alignment.CenterHorizontally
@@ -139,7 +140,7 @@ fun MemoryGamePlayScreen(difficulty: Difficulty, onChangeDifficulty: () -> Unit)
          // Top Bar
          Surface(
              modifier = Modifier.fillMaxWidth(),
-             color = Color(0xFF2A2A2A)
+             color = MaterialTheme.colorScheme.surface
          ) {
              Section(
                  text = "Memory Match",
@@ -157,7 +158,7 @@ fun MemoryGamePlayScreen(difficulty: Difficulty, onChangeDifficulty: () -> Unit)
          // Game description
          Text(
              text = "Find matching pairs of gaming cards!",
-             color = Color.Gray,
+             color = GameColors.TextSecondary,
              fontSize = 16.sp,
              modifier = Modifier.padding(bottom = 16.dp)
          )
@@ -221,7 +222,7 @@ fun MemoryGamePlayScreen(difficulty: Difficulty, onChangeDifficulty: () -> Unit)
                      selectedCards = emptyList()
                      isProcessing = false
                  },
-                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                 colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success),
                  modifier = Modifier.weight(1f)
              ) {
                  Text("New Game", fontSize = 18.sp)
@@ -229,7 +230,7 @@ fun MemoryGamePlayScreen(difficulty: Difficulty, onChangeDifficulty: () -> Unit)
              Spacer(modifier = Modifier.width(8.dp))
              Button(
                  onClick = onChangeDifficulty,
-                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A2A2A)),
+                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                  modifier = Modifier.weight(1f)
              ) {
                  Text("Difficulty", fontSize = 18.sp)
@@ -237,11 +238,11 @@ fun MemoryGamePlayScreen(difficulty: Difficulty, onChangeDifficulty: () -> Unit)
          }
 
          Spacer(modifier = Modifier.height(16.dp))
-         
+
          // Bottom Score Bar
          Surface(
              modifier = Modifier.fillMaxWidth(),
-             color = Color(0xFF2A2A2A)
+             color = MaterialTheme.colorScheme.surface
          ) {
              Row(
                  modifier = Modifier
@@ -250,8 +251,8 @@ fun MemoryGamePlayScreen(difficulty: Difficulty, onChangeDifficulty: () -> Unit)
                  horizontalArrangement = Arrangement.SpaceEvenly,
                  verticalAlignment = Alignment.CenterVertically
              ) {
-                 ScoreCard("Moves", gameState.moves.toString(), Color(0xFF4CAF50))
-                 ScoreCard("Pairs", "${gameState.matchedPairs}/${gameState.cards.size / 2}", Color(0xFFFF5722))
+                 ScoreCard("Moves", gameState.moves.toString(), GameColors.Success)
+                 ScoreCard("Pairs", "${gameState.matchedPairs}/${gameState.cards.size / 2}", GameColors.Accent)
              }
          }
      }
@@ -274,13 +275,13 @@ fun MemoryCard(
             .size(70.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(
-                if (isMatched) Color(0xFF4CAF50)
-                else if (isSelected) Color(0xFFFF5722)
-                else Color(0xFF2A2A2A)
+                if (isMatched) GameColors.Success
+                else if (isSelected) GameColors.Accent
+                else MaterialTheme.colorScheme.surfaceVariant
             )
             .border(
                 width = 2.dp,
-                color = if (isMatched) Color(0xFF4CAF50) else Color(0xFF444444),
+                color = if (isMatched) GameColors.Success else MaterialTheme.colorScheme.outline,
                 shape = RoundedCornerShape(8.dp)
             )
             .clickable(onClick = onClick),
@@ -289,14 +290,14 @@ fun MemoryCard(
         if (isSelected || isMatched) {
             Text(
                 text = card.symbol,
-                color = Color.White,
+                color = GameColors.TextPrimary,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold
             )
         } else {
             Text(
                 text = "?",
-                color = Color.Gray,
+                color = GameColors.TextMuted,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -307,7 +308,7 @@ fun MemoryCard(
 @Composable
 fun ScoreCard(label: String, value: String, color: Color) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.padding(8.dp)
     ) {
         Column(
@@ -316,7 +317,7 @@ fun ScoreCard(label: String, value: String, color: Color) {
         ) {
             Text(
                 text = label,
-                color = Color.Gray,
+                color = GameColors.TextSecondary,
                 fontSize = 14.sp
             )
             Text(

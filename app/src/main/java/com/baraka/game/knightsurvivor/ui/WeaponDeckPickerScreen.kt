@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,11 +38,6 @@ import com.baraka.game.knightsurvivor.model.WeaponKind
 import com.baraka.game.knightsurvivor.render.drawVectorIcon
 import com.baraka.game.ui.theme.GameColors
 
-private val BACKGROUND_COLOR = Color(0xFF12141A)
-private val CARD_COLOR = Color(0xFF1C2029)
-private val CARD_SELECTED_COLOR = Color(0xFF2A3040)
-private val CHIP_COLOR = Color(0xFF2D2D2D)
-
 /**
  * Shown before every run starts: which weapons are eligible to be offered as "New Weapon"
  * level-up picks (see systems/UpgradeChoiceSystem.kt). Fixes two real complaints — a
@@ -57,7 +53,7 @@ fun WeaponDeckPickerScreen(initialSelection: Set<WeaponKind>, onConfirm: (Set<We
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BACKGROUND_COLOR)
+            .background(MaterialTheme.colorScheme.background)
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(16.dp)
     ) {
@@ -99,7 +95,7 @@ fun WeaponDeckPickerScreen(initialSelection: Set<WeaponKind>, onConfirm: (Set<We
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .background(if (canStart) GameColors.Accent else CHIP_COLOR, RoundedCornerShape(12.dp))
+                .background(if (canStart) GameColors.Accent else MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
                 .let { if (canStart) it.clickable { onConfirm(selected) } else it }
                 .padding(vertical = 14.dp)
         )
@@ -113,7 +109,7 @@ private fun QuickActionChip(text: String, onClick: () -> Unit) {
         color = GameColors.TextPrimary,
         fontSize = 13.sp,
         modifier = Modifier
-            .background(CHIP_COLOR, RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp)
     )
@@ -124,7 +120,7 @@ private fun WeaponDeckCard(kind: WeaponKind, selected: Boolean, onClick: () -> U
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (selected) CARD_SELECTED_COLOR else CARD_COLOR, RoundedCornerShape(12.dp))
+            .background(if (selected) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically

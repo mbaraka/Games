@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,8 +45,10 @@ import com.baraka.game.knightsurvivor.render.drawKnightIcon
 import com.baraka.game.knightsurvivor.render.drawVectorIcon
 import com.baraka.game.ui.theme.GameColors
 
-internal val PanelBg = Color(0xFF1C2029)
-internal val ScreenBg = Color(0xFF12141A)
+internal val PanelBg: Color
+    @Composable get() = MaterialTheme.colorScheme.surfaceVariant
+internal val ScreenBg: Color
+    @Composable get() = MaterialTheme.colorScheme.background
 
 @Composable
 internal fun AvatarCanvas(design: KnightDesign, frozen: Boolean, flash: Color) {
@@ -53,7 +56,7 @@ internal fun AvatarCanvas(design: KnightDesign, frozen: Boolean, flash: Color) {
         modifier = Modifier
             .size(40.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(if (frozen) Color(0xFF16303D) else Color(0xFF161A22)),
+            .background(if (frozen) Color(0xFF16303D) else MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.size(34.dp)) {
@@ -89,7 +92,7 @@ internal fun HpBar(current: Int, max: Int, modifier: Modifier = Modifier) {
         modifier = modifier
             .height(18.dp)
             .clip(RoundedCornerShape(9.dp))
-            .background(Color(0xFF33161A))
+            .background(GameColors.Danger.copy(alpha = 0.22f))
     ) {
         Box(
             modifier = Modifier
@@ -118,7 +121,7 @@ internal fun EnergyPips(current: Int, max: Int) {
                 modifier = Modifier
                     .size(12.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(if (i < current) GameColors.Accent else Color(0xFF3A3F44))
+                    .background(if (i < current) GameColors.Accent else MaterialTheme.colorScheme.surfaceVariant)
             )
         }
         Spacer(Modifier.width(4.dp))
@@ -135,7 +138,7 @@ internal fun StatusRow(statuses: List<StatusEffect>) {
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF262B36))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(horizontal = 6.dp, vertical = 3.dp)
             ) {
                 IconSwatch(st.kind.icon, Color(st.kind.colorArgb), size = 16.dp)
@@ -226,8 +229,8 @@ internal fun CardView(
             .width(120.dp)
             .height(164.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(if (enabled) Color(0xFF232833) else Color(0xFF1A1D24))
-            .border(1.dp, if (enabled) stripe.copy(alpha = 0.7f) else Color(0xFF2E323B), RoundedCornerShape(10.dp))
+            .background(if (enabled) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface)
+            .border(1.dp, if (enabled) stripe.copy(alpha = 0.7f) else MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -272,7 +275,7 @@ internal fun TabChip(text: String, selected: Boolean, onClick: () -> Unit) {
         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(if (selected) GameColors.Accent else Color(0xFF2D2D2D))
+            .background(if (selected) GameColors.Accent else MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp)
     )
@@ -288,8 +291,8 @@ internal fun PillButton(text: String, onClick: () -> Unit, primary: Boolean = tr
         modifier = Modifier
             .clip(RoundedCornerShape(24.dp))
             .background(
-                if (!enabled) Color(0xFF2A2E37)
-                else if (primary) GameColors.Accent else Color(0xFF2D323D)
+                if (!enabled) MaterialTheme.colorScheme.surface
+                else if (primary) GameColors.Accent else MaterialTheme.colorScheme.surfaceVariant
             )
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 22.dp, vertical = 12.dp)

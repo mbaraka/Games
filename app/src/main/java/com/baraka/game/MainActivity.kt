@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -63,6 +64,7 @@ import com.baraka.game.rhythmrunner.RhythmRunnerGame
 import com.baraka.game.roadrush.RoadRushActivity
 import com.baraka.game.snakeladder.SnakeLadderActivity
 import com.baraka.game.ui.components.Section
+import com.baraka.game.ui.theme.GameColors
 import com.baraka.game.ui.theme.GameTheme
 import com.baraka.game.zombie.ZombieGame
 
@@ -224,7 +226,7 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
         topBar = {
             Text(
                 text = "Game Hub",
-                color = Color.White,
+                color = GameColors.TextPrimary,
                 fontSize = 36.sp,
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Bold,
@@ -238,9 +240,8 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
         Column(
             modifier = Modifier
                 .padding(padding)
-                .padding(horizontal = 6.dp)
                 .fillMaxSize()
-                .background(Color(0xFF1E1E1E))
+                .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
                 ,
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -248,13 +249,13 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
         ) {
             Text(
                 text = "Choose Your Adventure",
-                color = Color.Gray,
+                color = GameColors.TextSecondary,
                 fontSize = 18.sp,
                 modifier = Modifier
             )
 
             if (mostPlayed.isNotEmpty()) {
-                Section(text = "Most Played", textColor = Color.Gray, fontSize = 18.sp, fontWeight = FontWeight.Normal)
+                Section(text = "Most Played", textColor = GameColors.TextSecondary, fontSize = 18.sp, fontWeight = FontWeight.Normal)
 
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -278,7 +279,7 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
 
             Section(
                 text = if (mostPlayed.isEmpty()) "All Games" else "Other Games",
-                textColor = Color.Gray,
+                textColor = GameColors.TextSecondary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Normal,
                 modifier = Modifier.clickable { allGamesExpanded = !allGamesExpanded },
@@ -319,6 +320,7 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
  */
 @Composable
 private fun ExpandChevron(expanded: Boolean, modifier: Modifier = Modifier) {
+    val strokeColor = GameColors.TextPrimary
     Canvas(modifier = modifier.size(20.dp)) {
         val path = Path().apply {
             if (expanded) {
@@ -333,7 +335,7 @@ private fun ExpandChevron(expanded: Boolean, modifier: Modifier = Modifier) {
         }
         drawPath(
             path = path,
-            color = Color.White,
+            color = strokeColor,
             style = Stroke(width = 3f, cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
     }
@@ -353,7 +355,7 @@ fun GameCard(
             .height(120.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (enabled) Color(0xFF2D2D2D) else Color(0xFF1A1A1A)
+            containerColor = if (enabled) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.background
         ),
         onClick = if (enabled) onClick else { {} }
     ) {
@@ -368,7 +370,7 @@ fun GameCard(
                 modifier = Modifier
                     .size(60.dp)
                     .background(
-                        color = if (enabled) color else Color.Gray,
+                        color = if (enabled) color else GameColors.TextDisabled,
                         shape = RoundedCornerShape(12.dp)
                     )
             )
@@ -381,7 +383,7 @@ fun GameCard(
             ) {
                 Text(
                     text = title,
-                    color = if (enabled) Color.White else Color.Gray,
+                    color = if (enabled) GameColors.TextPrimary else GameColors.TextDisabled,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -390,7 +392,7 @@ fun GameCard(
 
                 Text(
                     text = description,
-                    color = if (enabled) Color.Gray else Color.DarkGray,
+                    color = if (enabled) GameColors.TextSecondary else GameColors.TextDisabled,
                     fontSize = 14.sp
                 )
             }
@@ -399,7 +401,7 @@ fun GameCard(
             if (enabled) {
                 Text(
                     text = "→",
-                    color = Color.White,
+                    color = GameColors.TextPrimary,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold
                 )

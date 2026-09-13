@@ -19,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -104,7 +105,7 @@ private fun TabChip(text: String, selected: Boolean, onClick: () -> Unit) {
         fontSize = 14.sp,
         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
         modifier = Modifier
-            .background(if (selected) GameColors.Accent else Color(0xFF2D2D2D), RoundedCornerShape(20.dp))
+            .background(if (selected) GameColors.Accent else MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp)
     )
@@ -125,7 +126,7 @@ private fun KnightSummaryCard(player: PlayerState, difficulty: Difficulty, knigh
             Spacer(Modifier.width(12.dp))
             Column {
                 Text("Your Knight", color = GameColors.TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("Level ${player.level} · ${difficulty.displayName}", color = Color.Cyan, fontSize = 14.sp)
+                Text("Level ${player.level} · ${difficulty.displayName}", color = GameColors.Accent, fontSize = 14.sp)
             }
         }
         Spacer(Modifier.height(10.dp))
@@ -297,7 +298,7 @@ private fun CompendiumCard(onClick: (() -> Unit)? = null, content: @Composable C
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF1C2029), RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
             .let { if (onClick != null) it.clickable(onClick = onClick) else it }
             .padding(14.dp),
         content = content

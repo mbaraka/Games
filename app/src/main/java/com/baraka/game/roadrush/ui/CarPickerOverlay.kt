@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.roadrush.model.CarDesign
 import com.baraka.game.roadrush.model.Difficulty
+import com.baraka.game.ui.theme.GameColors
 
 /**
  * Shown before a run starts so the player can pick which [CarDesign] their car wears, plus
@@ -46,7 +48,7 @@ fun CarPickerOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF121212)),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -56,15 +58,15 @@ fun CarPickerOverlay(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text("Road Rush", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text("Road Rush", color = GameColors.TextPrimary, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             Text(
                 "Dodge oncoming traffic by shifting lanes. The road only gets faster.",
-                color = Color.Gray,
+                color = GameColors.TextSecondary,
                 fontSize = 14.sp
             )
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Difficulty", color = Color.Gray, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text("Difficulty", color = GameColors.TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Difficulty.entries.forEach { candidate ->
                         DifficultyChip(
@@ -74,10 +76,10 @@ fun CarPickerOverlay(
                         )
                     }
                 }
-                Text(difficulty.description, color = Color.DarkGray, fontSize = 12.sp)
+                Text(difficulty.description, color = GameColors.TextMuted, fontSize = 12.sp)
             }
 
-            Text("Choose your car", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("Choose your car", color = GameColors.TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 CarDesign.entries.forEach { design ->
@@ -86,7 +88,7 @@ fun CarPickerOverlay(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Sound", color = Color.Gray, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text("Sound", color = GameColors.TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 SoundToggleRow(enabled = soundEnabled, onEnabledChanged = onSoundEnabledChanged)
             }
 
@@ -101,11 +103,11 @@ fun CarPickerOverlay(
 private fun DifficultyChip(text: String, selected: Boolean, onClick: () -> Unit) {
     Text(
         text = text,
-        color = if (selected) Color.Black else Color.White,
+        color = if (selected) Color.Black else GameColors.TextPrimary,
         fontSize = 14.sp,
         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
         modifier = Modifier
-            .background(if (selected) Color(0xFF4FC3F7) else Color(0xFF2D2D2D), RoundedCornerShape(20.dp))
+            .background(if (selected) GameColors.Accent else MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp)
     )
@@ -118,7 +120,7 @@ private fun CarOptionCard(design: CarDesign, isSelected: Boolean, onClick: () ->
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .background(Color(0xFF1D1D1D), RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
             .border(
                 width = if (isSelected) 2.dp else 0.dp,
                 color = if (isSelected) carColor else Color.Transparent,
@@ -134,9 +136,9 @@ private fun CarOptionCard(design: CarDesign, isSelected: Boolean, onClick: () ->
                         .size(28.dp)
                         .background(carColor, CircleShape)
                 )
-                Text(design.displayName, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(design.displayName, color = GameColors.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
-            Text(design.description, color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+            Text(design.description, color = GameColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }

@@ -34,6 +34,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.ui.components.GameScreenContainer
+import com.baraka.game.ui.theme.GameColors
 import com.baraka.game.ui.theme.GameTheme
 import kotlinx.coroutines.delay
 import kotlin.random.Random
@@ -1503,7 +1505,7 @@ fun LazyListScope.upgradeShopOverlay(
     item {
         Button(
             onClick = onClose,
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Text("Close")
         }
@@ -1527,7 +1529,7 @@ fun UpgradeOption(
             .fillMaxWidth()
             .padding(8.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (enabled) Color(0xFF3D3D3D) else Color(0xFF2A2A2A)
+            containerColor = if (enabled) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
         )
     ) {
         Row(
@@ -1745,12 +1747,12 @@ fun GameOverOverlay(gameState: BaseDefenderGameState) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp)
-                .background(Color(0xFF2D2D2D), RoundedCornerShape(16.dp)),
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp)),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "GAME OVER",
-                color = Color.Red,
+                color = GameColors.Danger,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(16.dp)
@@ -1853,7 +1855,7 @@ fun GameStatsCard(
             .fillMaxWidth()
             .padding(8.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF3D3D3D)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Row(

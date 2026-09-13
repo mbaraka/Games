@@ -31,6 +31,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +50,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.baraka.game.ui.theme.GameColors
 import com.baraka.game.ui.theme.GameTheme
 import kotlinx.coroutines.delay
 import kotlin.random.Random
@@ -66,12 +68,12 @@ fun VictoryOverlay(gameState: BaseDefenderGameState) {
                 .fillMaxWidth()
                 .padding(24.dp)
                 .verticalScroll(rememberScrollState())
-                .background(Color(0xFF2D2D2D), RoundedCornerShape(16.dp)),
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp)),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "🎉 VICTORY! 🎉",
-                color = Color.Green,
+                color = GameColors.Success,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(16.dp)
@@ -79,7 +81,7 @@ fun VictoryOverlay(gameState: BaseDefenderGameState) {
 
             Text(
                 text = "You've defended your base through all 20 waves!",
-                color = Color.White,
+                color = GameColors.TextPrimary,
                 fontSize = 18.sp,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.padding(16.dp)

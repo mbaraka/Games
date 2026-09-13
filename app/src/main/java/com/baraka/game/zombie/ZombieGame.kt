@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.ui.components.GameScreenContainer
+import com.baraka.game.ui.theme.GameColors
 import com.baraka.game.ui.theme.GameTheme
 import com.baraka.game.zombie.engine.ZombieGLSurfaceView
 import android.view.ViewGroup
@@ -90,20 +91,20 @@ fun ZombieMainMenu(
     onExit: () -> Unit
 ) {
     GameScreenContainer(
-        backgroundColor = Color(0xFF1A1A1A),
+        backgroundColor = MaterialTheme.colorScheme.background,
         contentPadding = PaddingValues(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
             text = "ZOMBIE SURVIVAL",
-            color = Color(0xFFFF4444),
+            color = GameColors.Danger,
             fontSize = 36.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(bottom = 48.dp)
         )
-        
+
         Button(
             onClick = onStartGame,
             modifier = Modifier
@@ -111,7 +112,7 @@ fun ZombieMainMenu(
                 .height(56.dp)
                 .padding(bottom = 16.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFFF4444)
+                containerColor = GameColors.Danger
             )
         ) {
             Text(
@@ -120,7 +121,7 @@ fun ZombieMainMenu(
                 fontWeight = FontWeight.Bold
             )
         }
-        
+
         Button(
             onClick = onSettings,
             modifier = Modifier
@@ -128,7 +129,7 @@ fun ZombieMainMenu(
                 .height(56.dp)
                 .padding(bottom = 16.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF666666)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         ) {
             Text(
@@ -137,14 +138,14 @@ fun ZombieMainMenu(
                 fontWeight = FontWeight.Bold
             )
         }
-        
+
         Button(
             onClick = onExit,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF444444)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         ) {
             Text(
@@ -194,7 +195,7 @@ fun ZombieGameplayScreen(
             ) {
                 Text(
                     text = "ZOMBIE SURVIVAL",
-                    color = Color.White,
+                    color = GameColors.TextPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -276,7 +277,7 @@ fun ZombiePauseMenu(
     ) {
         Text(
             text = "GAME PAUSED",
-            color = Color.White,
+            color = GameColors.TextPrimary,
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 48.dp)
@@ -309,14 +310,14 @@ fun ZombieGameOverScreen(
     onMainMenu: () -> Unit
 ) {
     GameScreenContainer(
-        backgroundColor = Color(0xFF1A1A1A),
+        backgroundColor = MaterialTheme.colorScheme.background,
         contentPadding = PaddingValues(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
             text = "GAME OVER",
-            color = Color(0xFFFF4444),
+            color = GameColors.Danger,
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 48.dp)
@@ -348,12 +349,12 @@ fun ZombieSettingsScreen(
     onBack: () -> Unit
 ) {
     GameScreenContainer(
-        backgroundColor = Color(0xFF1A1A1A),
+        backgroundColor = MaterialTheme.colorScheme.background,
         contentPadding = PaddingValues(32.dp)
     ) {
         Text(
             text = "SETTINGS",
-            color = Color.White,
+            color = GameColors.TextPrimary,
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 32.dp)

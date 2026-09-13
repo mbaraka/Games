@@ -107,9 +107,9 @@ private data class Floater(
 private fun floaterFor(e: VfxEmission): Floater? = when (val v = e.vfx) {
     is DuelVfx.Hit -> {
         val text = if (v.blocked > 0) "-${v.toHp}  (${v.blocked} blocked)" else "-${v.toHp}"
-        Floater(e.id, v.side, text, GameColors.Danger, if (v.toHp >= 6) 26 else 20)
+        Floater(e.id, v.side, text, Color(0xFFE53935), if (v.toHp >= 6) 26 else 20)
     }
-    is DuelVfx.Heal -> if (v.amount > 0) Floater(e.id, v.side, "+${v.amount}", GameColors.Success, 20) else null
+    is DuelVfx.Heal -> if (v.amount > 0) Floater(e.id, v.side, "+${v.amount}", Color(0xFF66BB6A), 20) else null
     is DuelVfx.BlockGain -> Floater(e.id, v.side, "+${v.amount} block", Color(0xFF64B5F6), 18)
     is DuelVfx.BlockShattered -> Floater(e.id, v.side, "SHATTER", Color(0xFFECEFF1), 22)
     is DuelVfx.StatusApplied -> Floater(e.id, v.side, v.kind.displayName.uppercase(), Color(v.kind.colorArgb), 18)

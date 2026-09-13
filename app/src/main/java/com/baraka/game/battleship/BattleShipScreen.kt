@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.ui.components.GameScreenContainer
+import com.baraka.game.ui.theme.GameColors
 
 private val OceanDark = Color(0xFF0D47A1)
 private val OceanCell = Color(0xFF1565C0)
@@ -59,7 +61,7 @@ fun BattleShipScreen(
     onPlayAgain: () -> Unit
 ) {
     GameScreenContainer(
-        backgroundColor = Color(0xFF121212),
+        backgroundColor = MaterialTheme.colorScheme.background,
         scrollable = true
     ) {
         Row(
@@ -72,7 +74,7 @@ fun BattleShipScreen(
             }
             Text(
                 text = "Battleship",
-                color = Color.White,
+                color = GameColors.TextPrimary,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -125,7 +127,7 @@ private fun MenuContent(onChooseMode: (BattleShipGameMode) -> Unit) {
     ) {
         Text(
             text = "Choose how you want to play.",
-            color = Color.LightGray,
+            color = GameColors.TextSecondary,
             fontSize = 15.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(vertical = 12.dp)
@@ -140,7 +142,7 @@ private fun MenuContent(onChooseMode: (BattleShipGameMode) -> Unit) {
         Spacer(modifier = Modifier.height(10.dp))
         Text(
             text = "Pass the device between players. Each places ships without seeing the other’s grid.",
-            color = Color.DarkGray,
+            color = GameColors.TextMuted,
             fontSize = 12.sp,
             textAlign = TextAlign.Center
         )
@@ -155,7 +157,7 @@ private fun MenuContent(onChooseMode: (BattleShipGameMode) -> Unit) {
         Spacer(modifier = Modifier.height(10.dp))
         Text(
             text = "You place your fleet; the computer places randomly. You shoot first.",
-            color = Color.DarkGray,
+            color = GameColors.TextMuted,
             fontSize = 12.sp,
             textAlign = TextAlign.Center
         )
@@ -181,7 +183,7 @@ private fun SetupContent(
 
     Text(
         text = "$playerLabel — place ships (${BattleShipFleetLengths.joinToString(", ")} cells)",
-        color = Color.White,
+        color = GameColors.TextPrimary,
         fontSize = 16.sp,
         fontWeight = FontWeight.SemiBold
     )
@@ -189,12 +191,12 @@ private fun SetupContent(
         text = if (len != null) {
             "Current ship: $len cells — ${if (uiState.setupHorizontal) "horizontal" else "vertical"}"
         } else "",
-        color = Color.LightGray,
+        color = GameColors.TextSecondary,
         fontSize = 14.sp,
         modifier = Modifier.padding(vertical = 4.dp)
     )
     uiState.lastMessage?.let {
-        Text(text = it, color = Color(0xFFFFB74D), fontSize = 13.sp)
+        Text(text = it, color = GameColors.Warning, fontSize = 13.sp)
     }
     Spacer(modifier = Modifier.height(8.dp))
     Button(
@@ -220,9 +222,9 @@ private fun HandoffContent(
     buttonLabel: String,
     onContinue: () -> Unit
 ) {
-    Text(text = title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+    Text(text = title, color = GameColors.TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     Spacer(modifier = Modifier.height(12.dp))
-    Text(text = body, color = Color.LightGray, fontSize = 15.sp)
+    Text(text = body, color = GameColors.TextSecondary, fontSize = 15.sp)
     Spacer(modifier = Modifier.height(24.dp))
     Button(
         onClick = onContinue,
@@ -248,19 +250,19 @@ private fun BattleContent(
     }
     Text(
         text = turnLabel,
-        color = Color.White,
+        color = GameColors.TextPrimary,
         fontSize = 16.sp,
         fontWeight = FontWeight.SemiBold
     )
     uiState.lastMessage?.let {
         Spacer(modifier = Modifier.height(6.dp))
-        Text(text = it, color = Color(0xFFFFB74D), fontSize = 14.sp)
+        Text(text = it, color = GameColors.Warning, fontSize = 14.sp)
     }
     Spacer(modifier = Modifier.height(16.dp))
 
     val viewAsPlayer = if (uiState.isVsComputer) 1 else turn
 
-    Text(text = "Your fleet (enemy shots)", color = Color.LightGray, fontSize = 14.sp)
+    Text(text = "Your fleet (enemy shots)", color = GameColors.TextSecondary, fontSize = 14.sp)
     Spacer(modifier = Modifier.height(6.dp))
     val myShips = if (viewAsPlayer == 1) uiState.player1Ships else uiState.player2Ships
     val shotsAtMe = if (viewAsPlayer == 1) uiState.player2Shots else uiState.player1Shots
@@ -271,7 +273,7 @@ private fun BattleContent(
     Spacer(modifier = Modifier.height(20.dp))
     Text(
         text = if (canFire) "Enemy waters (tap to fire)" else "Enemy waters",
-        color = Color.LightGray,
+        color = GameColors.TextSecondary,
         fontSize = 14.sp
     )
     Spacer(modifier = Modifier.height(6.dp))
@@ -303,7 +305,7 @@ private fun GameOverContent(
     }
     Text(
         text = headline,
-        color = Color.White,
+        color = GameColors.TextPrimary,
         fontSize = 24.sp,
         fontWeight = FontWeight.Bold,
         modifier = Modifier.fillMaxWidth(),
@@ -313,7 +315,7 @@ private fun GameOverContent(
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = it,
-            color = Color.LightGray,
+            color = GameColors.TextSecondary,
             fontSize = 15.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()

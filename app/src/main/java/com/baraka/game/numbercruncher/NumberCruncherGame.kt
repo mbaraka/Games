@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.ui.components.GameScreenContainer
+import com.baraka.game.ui.theme.GameColors
 import com.baraka.game.ui.theme.GameTheme
 import kotlinx.coroutines.delay
 import kotlin.random.Random
@@ -65,7 +66,7 @@ fun NumberCruncherGameScreen() {
         // Game title
         Text(
             text = "Number Cruncher",
-            color = Color.White,
+            color = GameColors.TextPrimary,
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -76,9 +77,9 @@ fun NumberCruncherGameScreen() {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            GameStat("Target", gameState.targetValue.toString(), Color(0xFF4CAF50))
-            GameStat("Moves", gameState.movesLeft.toString(), Color(0xFFFF9800))
-            GameStat("Score", gameState.score.toString(), Color(0xFF2196F3))
+            GameStat("Target", gameState.targetValue.toString(), GameColors.Success)
+            GameStat("Moves", gameState.movesLeft.toString(), GameColors.Warning)
+            GameStat("Score", gameState.score.toString(), GameColors.Accent)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -116,9 +117,9 @@ fun NumberCruncherGameScreen() {
                     showGameOver = false
                     showVictory = false
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success)
             ) {
-                Text("New Game", color = Color.White)
+                Text("New Game", color = GameColors.TextPrimary)
             }
 
             Button(
@@ -126,16 +127,16 @@ fun NumberCruncherGameScreen() {
                     gameState = gameState.hint()
                 },
                 enabled = gameState.movesLeft > 0,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Accent)
             ) {
-                Text("Hint", color = Color.White)
+                Text("Hint", color = GameColors.TextPrimary)
             }
         }
 
         // Instructions
         Text(
             text = "Combine same numbers to reach the target!",
-            color = Color.Gray,
+            color = GameColors.TextSecondary,
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 16.dp)
@@ -177,7 +178,7 @@ fun GameStat(label: String, value: String, color: Color) {
     ) {
         Text(
             text = label,
-            color = Color.Gray,
+            color = GameColors.TextSecondary,
             fontSize = 12.sp
         )
         Text(
@@ -278,7 +279,7 @@ fun GameOverDialog(
         title = {
             Text(
                 text = "Game Over!",
-                color = Color.White,
+                color = GameColors.TextPrimary,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -286,29 +287,29 @@ fun GameOverDialog(
         text = {
             Text(
                 text = "Final Score: $score\n\nBetter luck next time!",
-                color = Color.Gray,
+                color = GameColors.TextSecondary,
                 fontSize = 16.sp
             )
         },
         confirmButton = {
             Button(
                 onClick = onNewGame,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success)
             ) {
-                Text("New Game", color = Color.White)
+                Text("New Game", color = GameColors.TextPrimary)
             }
         },
         dismissButton = {
             Button(
                 onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF757575))
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                Text("Close", color = Color.White)
+                Text("Close", color = GameColors.TextPrimary)
             }
         },
-        containerColor = Color(0xFF2D2D2D),
-        titleContentColor = Color.White,
-        textContentColor = Color.Gray
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = GameColors.TextPrimary,
+        textContentColor = GameColors.TextSecondary
     )
 }
 
@@ -324,7 +325,7 @@ fun VictoryDialog(
         title = {
             Text(
                 text = "Victory! 🎉",
-                color = Color.White,
+                color = GameColors.TextPrimary,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -332,29 +333,29 @@ fun VictoryDialog(
         text = {
             Text(
                 text = "Congratulations!\n\nFinal Score: $score\nMoves Used: $movesUsed",
-                color = Color.Gray,
+                color = GameColors.TextSecondary,
                 fontSize = 16.sp
             )
         },
         confirmButton = {
             Button(
                 onClick = onNewGame,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success)
             ) {
-                Text("Play Again", color = Color.White)
+                Text("Play Again", color = GameColors.TextPrimary)
             }
         },
         dismissButton = {
             Button(
                 onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF757575))
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                Text("Close", color = Color.White)
+                Text("Close", color = GameColors.TextPrimary)
             }
         },
-        containerColor = Color(0xFF2D2D2D),
-        titleContentColor = Color.White,
-        textContentColor = Color.Gray
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = GameColors.TextPrimary,
+        textContentColor = GameColors.TextSecondary
     )
 }
 

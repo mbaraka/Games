@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -19,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.knightsurvivor.model.GamePhase
+import com.baraka.game.ui.theme.GameColors
 
 /** Shown on GAME_OVER or VICTORY: a short run recap plus a Play Again button. */
 @Composable
@@ -40,14 +42,14 @@ fun EndScreenOverlay(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp)
-                .background(Color(0xFF2D2D2D), RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
                 text = if (isVictory) "VICTORY!" else "YOU DIED",
-                color = if (isVictory) Color.Green else Color.Red,
+                color = if (isVictory) GameColors.Success else GameColors.Danger,
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -57,12 +59,12 @@ fun EndScreenOverlay(
             EndScreenStat(title = "Enemies Killed", value = "$killCount")
 
             if (isNewBestTime) {
-                Text(text = "New Best Time!", color = Color.Yellow, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(text = "New Best Time!", color = GameColors.Warning, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
 
             Button(
                 onClick = onPlayAgain,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Green),
+                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success),
                 modifier = Modifier.padding(top = 12.dp)
             ) {
                 Text("Play Again")
@@ -73,5 +75,5 @@ fun EndScreenOverlay(
 
 @Composable
 private fun EndScreenStat(title: String, value: String) {
-    Text(text = "$title: $value", color = Color.White, fontSize = 16.sp)
+    Text(text = "$title: $value", color = GameColors.TextPrimary, fontSize = 16.sp)
 }
