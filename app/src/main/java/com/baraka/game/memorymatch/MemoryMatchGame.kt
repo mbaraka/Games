@@ -14,6 +14,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.baraka.game.ui.components.Section
 import com.baraka.game.ui.theme.GameTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -128,6 +132,7 @@ fun MemoryGamePlayScreen(difficulty: Difficulty, onChangeDifficulty: () -> Unit)
          modifier = Modifier
              .fillMaxSize()
              .background(Color(0xFF1E1E1E))
+             .windowInsetsPadding(WindowInsets.safeDrawing)
              .padding(16.dp),
          horizontalAlignment = Alignment.CenterHorizontally
      ) {
@@ -136,29 +141,15 @@ fun MemoryGamePlayScreen(difficulty: Difficulty, onChangeDifficulty: () -> Unit)
              modifier = Modifier.fillMaxWidth(),
              color = Color(0xFF2A2A2A)
          ) {
-             Box(modifier = Modifier.fillMaxWidth()) {
-                 Text(
-                     text = "Memory Match",
-                     color = Color.White,
-                     fontSize = 24.sp,
-                     fontWeight = FontWeight.Bold,
-                     modifier = Modifier
-                         .align(Alignment.Center)
-                         .padding(16.dp),
-                     textAlign = TextAlign.Center
-                 )
-                 Text(
-                     text = if (soundEnabled) "🔊" else "🔇",
-                     fontSize = 22.sp,
-                     modifier = Modifier
-                         .align(Alignment.CenterEnd)
-                         .padding(end = 16.dp)
-                         .clickable {
-                             soundEnabled = !soundEnabled
-                             settingsRepository.setSoundEnabled(soundEnabled)
-                         }
-                 )
-             }
+             Section(
+                 text = "Memory Match",
+                 trailingIcon = if (soundEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                 onTrailingIconClick = {
+                     soundEnabled = !soundEnabled
+                     settingsRepository.setSoundEnabled(soundEnabled)
+                 },
+                 modifier = Modifier.padding(16.dp)
+             )
          }
          
          Spacer(modifier = Modifier.height(16.dp))

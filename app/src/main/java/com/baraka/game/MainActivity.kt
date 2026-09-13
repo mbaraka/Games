@@ -62,6 +62,7 @@ import com.baraka.game.numbercruncher.NumberCruncherGame
 import com.baraka.game.rhythmrunner.RhythmRunnerGame
 import com.baraka.game.roadrush.RoadRushActivity
 import com.baraka.game.snakeladder.SnakeLadderActivity
+import com.baraka.game.ui.components.Section
 import com.baraka.game.ui.theme.GameTheme
 import com.baraka.game.zombie.ZombieGame
 
@@ -253,7 +254,7 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
             )
 
             if (mostPlayed.isNotEmpty()) {
-                SectionHeader(text = "Most Played")
+                Section(text = "Most Played", textColor = Color.Gray, fontSize = 18.sp, fontWeight = FontWeight.Normal)
 
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -275,15 +276,14 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
                 mutableStateOf(mostPlayed.isEmpty())
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { allGamesExpanded = !allGamesExpanded },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                SectionHeader(text = if (mostPlayed.isEmpty()) "All Games" else "Other Games")
-                ExpandChevron(expanded = allGamesExpanded)
-            }
+            Section(
+                text = if (mostPlayed.isEmpty()) "All Games" else "Other Games",
+                textColor = Color.Gray,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Normal,
+                modifier = Modifier.clickable { allGamesExpanded = !allGamesExpanded },
+                trailingContent = { ExpandChevron(expanded = allGamesExpanded) }
+            )
 
             Column(
                 modifier = Modifier
@@ -309,16 +309,6 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
         }
     }
 
-}
-
-@Composable
-fun SectionHeader(text: String) {
-    Text(
-        text = text,
-        color = Color.Gray,
-        fontSize = 18.sp,
-        modifier = Modifier.fillMaxWidth()
-    )
 }
 
 /**

@@ -82,7 +82,8 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    
+    implementation("androidx.compose.material:material-icons-extended")
+
     // 3D Game Engine - LibGDX (Core dependencies only)
     implementation("com.badlogicgames.gdx:gdx:1.12.0")
     implementation("com.badlogicgames.gdx:gdx-backend-android:1.12.0")
