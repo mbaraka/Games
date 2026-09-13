@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,15 +25,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.roadrush.model.CarDesign
+import com.baraka.game.roadrush.model.Difficulty
 
 /**
- * Shown before a run starts so the player can pick which [CarDesign] their car wears —
- * purely cosmetic, same role as numbercorridor's ui/AvatarPickerOverlay.kt.
+ * Shown before a run starts so the player can pick which [CarDesign] their car wears, plus
+ * the run's [Difficulty] — purely cosmetic and pre-run settings, same role as numbercorridor's
+ * ui/AvatarPickerOverlay.kt. Scrollable since the difficulty picker made this content taller
+ * than some phone screens.
  */
 @Composable
 fun CarPickerOverlay(
     selected: CarDesign,
     onSelected: (CarDesign) -> Unit,
+    difficulty: Difficulty,
+    onDifficultyChanged: (Difficulty) -> Unit,
     soundEnabled: Boolean,
     onSoundEnabledChanged: (Boolean) -> Unit,
     onStart: () -> Unit
@@ -43,16 +50,33 @@ fun CarPickerOverlay(
         contentAlignment = Alignment.Center
     ) {
         Column(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             Text("Road Rush", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             Text(
-                "Dodge oncoming traffic by shifting lanes. You've got 3 lives — the road only gets faster.",
+                "Dodge oncoming traffic by shifting lanes. The road only gets faster.",
                 color = Color.Gray,
                 fontSize = 14.sp
             )
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Difficulty", color = Color.Gray, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Difficulty.entries.forEach { candidate ->
+                        DifficultyChip(
+                            text = candidate.displayName,
+                            selected = candidate == difficulty,
+                            onClick = { onDifficultyChanged(candidate) }
+                        )
+                    }
+                }
+                Text(difficulty.description, color = Color.DarkGray, fontSize = 12.sp)
+            }
+
             Text("Choose your car", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -71,6 +95,20 @@ fun CarPickerOverlay(
             }
         }
     }
+}
+
+@Composable
+private fun DifficultyChip(text: String, selected: Boolean, onClick: () -> Unit) {
+    Text(
+        text = text,
+        color = if (selected) Color.Black else Color.White,
+        fontSize = 14.sp,
+        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+        modifier = Modifier
+            .background(if (selected) Color(0xFF4FC3F7) else Color(0xFF2D2D2D), RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    )
 }
 
 @Composable

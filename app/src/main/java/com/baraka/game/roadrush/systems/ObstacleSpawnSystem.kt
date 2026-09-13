@@ -1,5 +1,6 @@
 package com.baraka.game.roadrush.systems
 
+import com.baraka.game.roadrush.model.Difficulty
 import com.baraka.game.roadrush.model.ObstacleCar
 import com.baraka.game.roadrush.model.PlayerCarState
 import kotlin.random.Random
@@ -8,12 +9,14 @@ import kotlin.random.Random
  * Builds new [ObstacleCar]s at the horizon (progress 0). Always leaves at least one lane free
  * so a spawn can never be an unavoidable wall, and fills more lanes at once the longer the
  * run goes — mirroring how numbercorridor's WallSpawnSystem scales fill chance off elapsed time.
+ * [Difficulty.maxLanesFilledAtOnce] caps how far that ramp can go, so Easy never buries every
+ * lane at once even late into a long run.
  */
 object ObstacleSpawnSystem {
 
-    fun spawn(nextId: Long, elapsedSeconds: Float, random: Random = Random.Default): List<ObstacleCar> {
+    fun spawn(nextId: Long, elapsedSeconds: Float, difficulty: Difficulty, random: Random = Random.Default): List<ObstacleCar> {
         val laneCount = PlayerCarState.LANE_COUNT
-        val maxFilled = (1 + (elapsedSeconds / 20f).toInt()).coerceIn(1, laneCount - 1)
+        val maxFilled = (1 + (elapsedSeconds / 20f).toInt()).coerceIn(1, difficulty.maxLanesFilledAtOnce)
         val filledCount = (1..maxFilled).random(random)
 
         val lanes = (0 until laneCount).shuffled(random).take(filledCount)

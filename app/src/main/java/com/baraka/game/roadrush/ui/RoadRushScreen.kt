@@ -25,6 +25,7 @@ import com.baraka.game.roadrush.data.RoadRushSettingsRepository
 import com.baraka.game.roadrush.data.RoadRushSoundEngine
 import com.baraka.game.roadrush.data.RoadSoundCue
 import com.baraka.game.roadrush.model.CarDesign
+import com.baraka.game.roadrush.model.Difficulty
 import com.baraka.game.roadrush.model.GamePhase
 import com.baraka.game.roadrush.model.RoadState
 import com.baraka.game.roadrush.render.RoadRenderer
@@ -46,10 +47,11 @@ fun RoadRushScreen() {
     val settingsRepository = remember { RoadRushSettingsRepository.getInstance(context) }
 
     var carDesign by remember { mutableStateOf(settingsRepository.carDesign()) }
+    var difficulty by remember { mutableStateOf(settingsRepository.difficulty()) }
     var showCarPicker by remember { mutableStateOf(true) }
     var showSettings by remember { mutableStateOf(false) }
     var soundEnabled by remember { mutableStateOf(settingsRepository.isSoundEnabled()) }
-    var roadState by remember { mutableStateOf(RoadState(bestScoreAtStart = settingsRepository.bestScore())) }
+    var roadState by remember { mutableStateOf(RoadState(difficulty = difficulty, bestScoreAtStart = settingsRepository.bestScore())) }
     var hasRecordedThisRun by remember { mutableStateOf(false) }
     val soundEngine = remember { RoadRushSoundEngine() }
     DisposableEffect(Unit) { onDispose { soundEngine.release() } }
@@ -87,13 +89,18 @@ fun RoadRushScreen() {
                 carDesign = design
                 settingsRepository.setCarDesign(design)
             },
+            difficulty = difficulty,
+            onDifficultyChanged = { chosen ->
+                difficulty = chosen
+                settingsRepository.setDifficulty(chosen)
+            },
             soundEnabled = soundEnabled,
             onSoundEnabledChanged = { enabled ->
                 soundEnabled = enabled
                 settingsRepository.setSoundEnabled(enabled)
             },
             onStart = {
-                roadState = RoadState(bestScoreAtStart = settingsRepository.bestScore())
+                roadState = RoadState(difficulty = difficulty, bestScoreAtStart = settingsRepository.bestScore())
                 hasRecordedThisRun = false
                 showCarPicker = false
             }

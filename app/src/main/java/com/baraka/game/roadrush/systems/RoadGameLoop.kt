@@ -23,17 +23,19 @@ object RoadGameLoop {
         if (state.phase != GamePhase.RUNNING) return state
         val dt = deltaSeconds.coerceIn(0f, 0.05f) // clamp so a dropped frame can't skip a whole car past the player
 
+        val difficulty = state.difficulty
         val elapsed = state.elapsedSeconds + dt
-        val speed = (BASE_SPEED + elapsed * 0.01f).coerceAtMost(MAX_SPEED)
+        val speed = ((BASE_SPEED + elapsed * 0.01f) * difficulty.speedMultiplier).coerceAtMost(MAX_SPEED * difficulty.speedMultiplier)
 
         val advancedCars = state.cars.map { it.copy(progress = it.progress + speed * dt) }
 
         var nextCarId = state.nextCarId
         var nextSpawnIn = state.nextSpawnInSeconds - dt
-        val spawnInterval = (SPAWN_INTERVAL_SECONDS - elapsed * 0.006f).coerceAtLeast(MIN_SPAWN_INTERVAL_SECONDS)
+        val spawnInterval = ((SPAWN_INTERVAL_SECONDS - elapsed * 0.006f) * difficulty.spawnIntervalMultiplier)
+            .coerceAtLeast(MIN_SPAWN_INTERVAL_SECONDS)
         val carsWithSpawn = if (nextSpawnIn <= 0f) {
             nextSpawnIn = spawnInterval
-            val spawned = ObstacleSpawnSystem.spawn(nextCarId, elapsed)
+            val spawned = ObstacleSpawnSystem.spawn(nextCarId, elapsed, difficulty)
             nextCarId += spawned.size
             advancedCars + spawned
         } else {

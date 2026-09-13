@@ -34,7 +34,8 @@ data class PlayerCarState(
 data class RoadState(
     val player: PlayerCarState = PlayerCarState.initial(),
     val cars: List<ObstacleCar> = emptyList(),
-    val lives: Int = STARTING_LIVES,
+    val difficulty: Difficulty = Difficulty.NORMAL,
+    val lives: Int = difficulty.startingLives,
     val score: Int = 0,
     val elapsedSeconds: Float = 0f,
     /** How fast cars advance toward the player, in progress/second. Ramps up with [elapsedSeconds]. */
@@ -51,7 +52,6 @@ data class RoadState(
     val isNewBest: Boolean get() = score > bestScoreAtStart
 
     companion object {
-        const val STARTING_LIVES = 3
         const val BASE_SPEED = 0.5f
         const val MAX_SPEED = 1.6f
         const val SPAWN_INTERVAL_SECONDS = 1.1f
