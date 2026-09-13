@@ -20,6 +20,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.baraka.game.ui.components.GameScreenContainer
 import com.baraka.game.ui.theme.GameTheme
 import kotlinx.coroutines.delay
 import kotlin.random.Random
@@ -48,13 +49,7 @@ fun PixelCollectorGameScreen() {
         }
     }
     
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1E1E1E))
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    GameScreenContainer(horizontalAlignment = Alignment.CenterHorizontally) {
         // Game title
         Text(
             text = "Pixel Collector",

@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.baraka.game.ui.components.GameScreenContainer
 import com.baraka.game.ui.theme.GameTheme
 import com.baraka.game.zombie.engine.ZombieGLSurfaceView
 import android.view.ViewGroup
@@ -88,11 +89,9 @@ fun ZombieMainMenu(
     onSettings: () -> Unit,
     onExit: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1A1A1A))
-            .padding(32.dp),
+    GameScreenContainer(
+        backgroundColor = Color(0xFF1A1A1A),
+        contentPadding = PaddingValues(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -184,6 +183,7 @@ fun ZombieGameplayScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(16.dp)
         ) {
             // Top bar with pause button
@@ -268,11 +268,9 @@ fun ZombiePauseMenu(
     onResume: () -> Unit,
     onMainMenu: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0x88000000))
-            .padding(32.dp),
+    GameScreenContainer(
+        backgroundColor = Color(0x88000000),
+        contentPadding = PaddingValues(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -310,11 +308,9 @@ fun ZombieGameOverScreen(
     onRestart: () -> Unit,
     onMainMenu: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1A1A1A))
-            .padding(32.dp),
+    GameScreenContainer(
+        backgroundColor = Color(0xFF1A1A1A),
+        contentPadding = PaddingValues(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -351,11 +347,9 @@ fun ZombieGameOverScreen(
 fun ZombieSettingsScreen(
     onBack: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1A1A1A))
-            .padding(32.dp)
+    GameScreenContainer(
+        backgroundColor = Color(0xFF1A1A1A),
+        contentPadding = PaddingValues(32.dp)
     ) {
         Text(
             text = "SETTINGS",
