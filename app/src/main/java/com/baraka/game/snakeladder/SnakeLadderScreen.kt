@@ -39,6 +39,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
@@ -63,7 +64,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.contentDescription
@@ -513,17 +516,14 @@ private fun PlayerPiece(
     modifier: Modifier = Modifier
 ) {
     val fill = TokenColors[playerIndex % TokenColors.size]
-    val ring = if (isCurrentTurn) GameColors.Warning else MaterialTheme.colorScheme.surface
+    val ring = if (isCurrentTurn) GameColors.Warning else fill
     val numberSize = when {
         diameter >= 16.dp -> 9.sp
         diameter >= 12.dp -> 7.sp
         else -> 5.sp
     }
-    val emojiSize = when {
-        diameter >= 16.dp -> 12.sp
-        diameter >= 12.dp -> 9.sp
-        else -> 7.sp
-    }
+    // Scale the emoji with the piece so it reads as the token itself, not a tiny badge on a color blob.
+    val emojiSize = (diameter.value * 0.62f).sp
     val desc = if (avatar != null) {
         "Player ${playerIndex + 1} piece, $avatar"
     } else {
@@ -535,25 +535,43 @@ private fun PlayerPiece(
             .semantics { contentDescription = desc },
         contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .border(2.dp, ring, CircleShape)
-                .padding(2.dp)
-                .clip(CircleShape)
-                .background(fill)
-                .border(1.dp, Color(0xD8000000), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            when {
-                avatar != null -> {
-                    Text(
-                        text = avatar,
-                        fontSize = emojiSize,
-                        maxLines = 1
+        if (avatar != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .border((if (isCurrentTurn) 2.5.dp else 2.dp), ring, CircleShape)
+                    .padding(1.5.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFFF8E1)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = avatar,
+                    fontSize = emojiSize,
+                    lineHeight = emojiSize,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                    style = LocalTextStyle.current.copy(
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        lineHeightStyle = LineHeightStyle(
+                            alignment = LineHeightStyle.Alignment.Center,
+                            trim = LineHeightStyle.Trim.Both
+                        )
                     )
-                }
-                showNumber -> {
+                )
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .border(2.dp, if (isCurrentTurn) GameColors.Warning else MaterialTheme.colorScheme.surface, CircleShape)
+                    .padding(2.dp)
+                    .clip(CircleShape)
+                    .background(fill)
+                    .border(1.dp, Color(0xD8000000), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                if (showNumber) {
                     Text(
                         text = "${playerIndex + 1}",
                         color = Color.White,
@@ -774,9 +792,9 @@ private fun BoardCell(
         }
         val stack = playersHere.size
         val pieceDiameter = when {
-            stack <= 1 -> 14.dp
-            stack == 2 -> 11.dp
-            else -> 9.dp
+            stack <= 1 -> 16.dp
+            stack == 2 -> 13.dp
+            else -> 11.dp
         }
         Row(
             modifier = Modifier
