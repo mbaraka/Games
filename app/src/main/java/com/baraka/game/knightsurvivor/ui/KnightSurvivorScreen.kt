@@ -24,8 +24,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.baraka.game.knightsurvivor.balance.GameTunables
 import com.baraka.game.knightsurvivor.data.AchievementRepository
 import com.baraka.game.knightsurvivor.data.SettingsRepository
@@ -73,7 +76,26 @@ fun KnightSurvivorScreen() {
     var hasRecordedThisRun by remember { mutableStateOf(false) }
     var unlockedAchievements by remember { mutableStateOf(achievementRepository.unlockedAchievements()) }
     var showSettings by remember { mutableStateOf(false) }
-    val isRunning = gameState.phase == GamePhase.RUNNING && !showSettings && !showDeckPicker
+
+    // The game loop below is a plain coroutine LaunchedEffect, which keeps ticking through
+    // ON_STOP (e.g. the screen locking, or switching apps) unless it's told not to — Compose
+    // only tears it down on actual disposal. Track foreground/background explicitly so the
+    // run truly pauses instead of continuing to take damage/spawn enemies while unseen.
+    var isAppInForeground by remember { mutableStateOf(true) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> isAppInForeground = true
+                Lifecycle.Event.ON_PAUSE -> isAppInForeground = false
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val isRunning = gameState.phase == GamePhase.RUNNING && !showSettings && !showDeckPicker && isAppInForeground
 
     LaunchedEffect(isRunning) {
         while (isRunning) {
