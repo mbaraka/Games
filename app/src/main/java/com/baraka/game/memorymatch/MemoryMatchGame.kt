@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -39,9 +40,79 @@ class MemoryMatchGame : ComponentActivity() {
     }
 }
 
+enum class Difficulty(val label: String, val pairs: Int, val columns: Int) {
+    EASY("Easy", 6, 3),
+    MEDIUM("Medium", 8, 4),
+    HARD("Hard", 12, 4),
+    EXPERT("Expert", 18, 6)
+}
+
 @Composable
 fun MemoryMatchGameScreen() {
-    var gameState by remember { mutableStateOf(MemoryGameState()) }
+    var difficulty by remember { mutableStateOf<Difficulty?>(null) }
+
+    if (difficulty == null) {
+        DifficultySelectScreen(onSelect = { difficulty = it })
+    } else {
+        MemoryGamePlayScreen(
+            difficulty = difficulty!!,
+            onChangeDifficulty = { difficulty = null }
+        )
+    }
+}
+
+@Composable
+fun DifficultySelectScreen(onSelect: (Difficulty) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF1E1E1E))
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "Memory Match",
+            color = Color.White,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        Text(
+            text = "Choose a difficulty",
+            color = Color.Gray,
+            fontSize = 16.sp,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+        Difficulty.entries.forEach { diff ->
+            Button(
+                onClick = { onSelect(diff) },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A2A2A)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp)
+            ) {
+                Text("${diff.label} (${diff.pairs} pairs)", fontSize = 18.sp, color = Color.White)
+            }
+        }
+    }
+}
+
+@Composable
+fun MemoryGamePlayScreen(difficulty: Difficulty, onChangeDifficulty: () -> Unit) {
+    val context = LocalContext.current
+    val settingsRepository = remember { MemoryMatchSettingsRepository.getInstance(context) }
+    val soundEngine = remember { MemoryMatchSoundEngine() }
+    DisposableEffect(Unit) {
+        onDispose { soundEngine.release() }
+    }
+
+    var soundEnabled by remember { mutableStateOf(settingsRepository.isSoundEnabled()) }
+    fun playSound(cue: MemorySoundCue) {
+        if (soundEnabled) soundEngine.play(cue)
+    }
+
+    var gameState by remember(difficulty) { mutableStateOf(MemoryGameState(cards = createGameCards(difficulty.pairs))) }
     var selectedCards by remember { mutableStateOf(listOf<Int>()) }
     var isProcessing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -49,7 +120,7 @@ fun MemoryMatchGameScreen() {
     LaunchedEffect(gameState.matchedPairs) {
         if (gameState.matchedPairs == gameState.cards.size / 2) {
             delay(500)
-            // Game won!
+            playSound(MemorySoundCue.WIN)
         }
     }
 
@@ -65,14 +136,29 @@ fun MemoryMatchGameScreen() {
              modifier = Modifier.fillMaxWidth(),
              color = Color(0xFF2A2A2A)
          ) {
-             Text(
-                 text = "Memory Match",
-                 color = Color.White,
-                 fontSize = 24.sp,
-                 fontWeight = FontWeight.Bold,
-                 modifier = Modifier.padding(16.dp),
-                 textAlign = TextAlign.Center
-             )
+             Box(modifier = Modifier.fillMaxWidth()) {
+                 Text(
+                     text = "Memory Match",
+                     color = Color.White,
+                     fontSize = 24.sp,
+                     fontWeight = FontWeight.Bold,
+                     modifier = Modifier
+                         .align(Alignment.Center)
+                         .padding(16.dp),
+                     textAlign = TextAlign.Center
+                 )
+                 Text(
+                     text = if (soundEnabled) "🔊" else "🔇",
+                     fontSize = 22.sp,
+                     modifier = Modifier
+                         .align(Alignment.CenterEnd)
+                         .padding(end = 16.dp)
+                         .clickable {
+                             soundEnabled = !soundEnabled
+                             settingsRepository.setSoundEnabled(soundEnabled)
+                         }
+                 )
+             }
          }
          
          Spacer(modifier = Modifier.height(16.dp))
@@ -87,7 +173,7 @@ fun MemoryMatchGameScreen() {
          
          // Game grid
          LazyVerticalGrid(
-             columns = GridCells.Fixed(4),
+             columns = GridCells.Fixed(difficulty.columns),
              horizontalArrangement = Arrangement.spacedBy(8.dp),
              verticalArrangement = Arrangement.spacedBy(8.dp),
              modifier = Modifier.weight(1f)
@@ -99,18 +185,20 @@ fun MemoryMatchGameScreen() {
                      isMatched = gameState.matchedCards.contains(card.id),
                      onClick = {
                          if (!isProcessing && !gameState.matchedCards.contains(card.id) && !selectedCards.contains(card.id)) {
+                             playSound(MemorySoundCue.FLIP)
                              val newSelected = selectedCards + card.id
                              selectedCards = newSelected
-                             
+
                              if (newSelected.size == 2) {
                                  isProcessing = true
                                  scope.launch {
                                      delay(1000)
                                      val firstCard = gameState.cards.find { it.id == newSelected[0] }
                                      val secondCard = gameState.cards.find { it.id == newSelected[1] }
-                                     
+
                                      if (firstCard?.symbol == secondCard?.symbol) {
                                          // Match found
+                                         playSound(MemorySoundCue.MATCH)
                                          gameState = gameState.copy(
                                              matchedCards = gameState.matchedCards + newSelected,
                                              matchedPairs = gameState.matchedPairs + 1,
@@ -118,9 +206,10 @@ fun MemoryMatchGameScreen() {
                                          )
                                      } else {
                                          // No match
+                                         playSound(MemorySoundCue.MISMATCH)
                                          gameState = gameState.copy(moves = gameState.moves + 1)
                                      }
-                                     
+
                                      selectedCards = emptyList()
                                      isProcessing = false
                                  }
@@ -134,18 +223,28 @@ fun MemoryMatchGameScreen() {
          Spacer(modifier = Modifier.height(16.dp))
          
          // Reset button
-         Button(
-             onClick = {
-                 gameState = MemoryGameState()
-                 selectedCards = emptyList()
-                 isProcessing = false
-             },
-             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
-             modifier = Modifier.fillMaxWidth()
-         ) {
-             Text("New Game", fontSize = 18.sp)
+         Row(modifier = Modifier.fillMaxWidth()) {
+             Button(
+                 onClick = {
+                     gameState = MemoryGameState(cards = createGameCards(difficulty.pairs))
+                     selectedCards = emptyList()
+                     isProcessing = false
+                 },
+                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                 modifier = Modifier.weight(1f)
+             ) {
+                 Text("New Game", fontSize = 18.sp)
+             }
+             Spacer(modifier = Modifier.width(8.dp))
+             Button(
+                 onClick = onChangeDifficulty,
+                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A2A2A)),
+                 modifier = Modifier.weight(1f)
+             ) {
+                 Text("Difficulty", fontSize = 18.sp)
+             }
          }
-         
+
          Spacer(modifier = Modifier.height(16.dp))
          
          // Bottom Score Bar
@@ -245,21 +344,27 @@ data class MemoryCard(
 )
 
 data class MemoryGameState(
-    val cards: List<MemoryCard> = createGameCards(),
+    val cards: List<MemoryCard>,
     val selectedCards: List<Int> = emptyList(),
     val matchedCards: List<Int> = emptyList(),
     val matchedPairs: Int = 0,
     val moves: Int = 0
 )
 
-fun createGameCards(): List<MemoryCard> {
-    val symbols = listOf("🎮", "🎯", "⚡", "🏆", "💎", "🔥", "🌟", "🎪")
+private val ALL_SYMBOLS = listOf(
+    "🎮", "🎯", "⚡", "🏆", "💎", "🔥", "🌟", "🎪",
+    "🚀", "🎲", "🎨", "🎸", "🐉", "👾", "🍀", "⚔️",
+    "🛡️", "🔮"
+)
+
+fun createGameCards(pairCount: Int): List<MemoryCard> {
+    val symbols = ALL_SYMBOLS.take(pairCount)
     val cards = mutableListOf<MemoryCard>()
-    
+
     symbols.forEachIndexed { index, symbol ->
         cards.add(MemoryCard(index * 2, symbol))
         cards.add(MemoryCard(index * 2 + 1, symbol))
     }
-    
+
     return cards.shuffled()
 }
