@@ -12,7 +12,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -32,12 +31,14 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -47,6 +48,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import com.baraka.game.basedefender.BaseDefenderGame
 import com.baraka.game.battleship.BattleShipActivity
 import com.baraka.game.clashdecks.ClashDecksActivity
@@ -68,61 +72,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             GameTheme {
                 GameSelectionScreen(
-                    onGameSelected = { gameType ->
-                        when (gameType) {
-                            GameType.PIXEL_COLLECTOR -> {
-                                val intent = Intent(this, PixelCollectorGame::class.java)
-                                startActivity(intent)
-                            }
-                            GameType.BASE_DEFENDER -> {
-                                val intent = Intent(this, BaseDefenderGame::class.java)
-                                startActivity(intent)
-                            }
-                            GameType.MEMORY_MATCH -> {
-                                val intent = Intent(this, MemoryMatchGame::class.java)
-                                startActivity(intent)
-                            }
-                            GameType.SNAKES_LADDERS -> {
-                                val intent = Intent(this, SnakeLadderActivity::class.java)
-                                startActivity(intent)
-                            }
-                            GameType.RHYTHM_RUNNER -> {
-                                val intent = Intent(this, RhythmRunnerGame::class.java)
-                                startActivity(intent)
-                            }
-                            GameType.NUMBER_CRUNCHER -> {
-                                val intent = Intent(this, NumberCruncherGame::class.java)
-                                startActivity(intent)
-                            }
-                            GameType.ZOMBIE_SURVIVAL -> {
-                                val intent = Intent(this, ZombieGame::class.java)
-                                startActivity(intent)
-                            }
-                            GameType.KEY_READER -> {
-                                val intent = Intent(this, KeyReaderActivity::class.java)
-                                startActivity(intent)
-                            }
-                            GameType.BATTLESHIP -> {
-                                val intent = Intent(this, BattleShipActivity::class.java)
-                                startActivity(intent)
-                            }
-                            GameType.KNIGHT_SURVIVOR -> {
-                                val intent = Intent(this, KnightSurvivorActivity::class.java)
-                                startActivity(intent)
-                            }
-                            GameType.CLASH_DECKS -> {
-                                val intent = Intent(this, ClashDecksActivity::class.java)
-                                startActivity(intent)
-                            }
-                            GameType.NUMBER_CORRIDOR -> {
-                                val intent = Intent(this, NumberCorridorActivity::class.java)
-                                startActivity(intent)
-                            }
-                            GameType.ROAD_RUSH -> {
-                                val intent = Intent(this, RoadRushActivity::class.java)
-                                startActivity(intent)
-                            }
-                        }
+                    onGameSelected = { entry ->
+                        GamePlayStats.recordPlay(this, entry.id)
+                        startActivity(Intent(this, entry.activityClass))
                     }
                 )
             }
@@ -130,24 +82,143 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-enum class GameType {
-    PIXEL_COLLECTOR,
-    BASE_DEFENDER,
-    MEMORY_MATCH,
-    RHYTHM_RUNNER,
-    NUMBER_CRUNCHER,
-    ZOMBIE_SURVIVAL,
-    KEY_READER,
-    SNAKES_LADDERS,
-    BATTLESHIP,
-    KNIGHT_SURVIVOR,
-    CLASH_DECKS,
-    NUMBER_CORRIDOR,
-    ROAD_RUSH
-}
+/**
+ * A single entry point for adding a new game to the hub: append one [GameCatalogEntry] to
+ * [GAME_CATALOG] with its own launcher Activity. No enum, no `when` branch, and no other
+ * file needs to change — "Most Played" / alphabetical sorting and play-count tracking all
+ * key off [GameCatalogEntry.id] automatically.
+ */
+data class GameCatalogEntry(
+    val id: String,
+    val title: String,
+    val description: String,
+    val color: Color,
+    val activityClass: Class<out ComponentActivity>
+)
+
+val GAME_CATALOG: List<GameCatalogEntry> = listOf(
+    GameCatalogEntry(
+        id = "road_rush",
+        title = "Road Rush",
+        description = "Atari-style vertical racer — shift lanes to dodge oncoming traffic before you run out of lives.",
+        color = Color(0xFFE53935),
+        activityClass = RoadRushActivity::class.java
+    ),
+    GameCatalogEntry(
+        id = "knight_survivor",
+        title = "Knight Survivor",
+        description = "Arena survivor — auto-attack hordes, level up, and outlast the clock!",
+        color = Color(0xFF7B1FA2),
+        activityClass = KnightSurvivorActivity::class.java
+    ),
+    GameCatalogEntry(
+        id = "number_corridor",
+        title = "Number Corridor",
+        description = "Forward-scrolling shooter — blast obstacle walls, grab +/-/x/÷ buff walls for damage, fire rate, and squad size.",
+        color = Color(0xFF00ACC1),
+        activityClass = NumberCorridorActivity::class.java
+    ),
+    GameCatalogEntry(
+        id = "clash_decks",
+        title = "Clash Decks",
+        description = "Card duel vs computer — Attack, Defense, Support, and status-effect tactics.",
+        color = Color(0xFF3949AB),
+        activityClass = ClashDecksActivity::class.java
+    ),
+    GameCatalogEntry(
+        id = "memory_match",
+        title = "Memory Match",
+        description = "Find matching pairs of gaming cards!",
+        color = Color(0xFF2196F3),
+        activityClass = MemoryMatchGame::class.java
+    ),
+    GameCatalogEntry(
+        id = "number_cruncher",
+        title = "Number Cruncher",
+        description = "Combine numbers to reach the target!",
+        color = Color(0xFFFF6B6B),
+        activityClass = NumberCruncherGame::class.java
+    ),
+    GameCatalogEntry(
+        id = "snakes_ladders",
+        title = "Snakes & Ladders",
+        description = "2D board — 2–6 players, each human or CPU.",
+        color = Color(0xFF00897B),
+        activityClass = SnakeLadderActivity::class.java
+    ),
+    GameCatalogEntry(
+        id = "base_defender",
+        title = "Base Defender",
+        description = "Defend your base! Aim and shoot at incoming enemies!",
+        color = Color(0xFFFF5722),
+        activityClass = BaseDefenderGame::class.java
+    ),
+    GameCatalogEntry(
+        id = "pixel_collector",
+        title = "Pixel Collector",
+        description = "Collect green pixels while avoiding red obstacles!",
+        color = Color(0xFF4CAF50),
+        activityClass = PixelCollectorGame::class.java
+    ),
+    GameCatalogEntry(
+        id = "battleship",
+        title = "Battleship",
+        description = "Local 2 players or vs computer — place fleets, then take turns firing.",
+        color = Color(0xFF0277BD),
+        activityClass = BattleShipActivity::class.java
+    ),
+    GameCatalogEntry(
+        id = "rhythm_runner",
+        title = "Rhythm Runner",
+        description = "Run, jump, and collect to the beat!",
+        color = Color(0xFF9C27B0),
+        activityClass = RhythmRunnerGame::class.java
+    ),
+    GameCatalogEntry(
+        id = "zombie_survival",
+        title = "Zombie Survival",
+        description = "3D FPS - Survive zombie waves, upgrade weapons!",
+        color = Color(0xFF8B0000),
+        activityClass = ZombieGame::class.java
+    ),
+    GameCatalogEntry(
+        id = "key_reader",
+        title = "Key Reader",
+        description = "Scan NFC keys and manage saved entries.",
+        color = Color(0xFF2E7D32),
+        activityClass = KeyReaderActivity::class.java
+    )
+)
+
+private const val MOST_PLAYED_COUNT = 5
 
 @Composable
-fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
+fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
+    val context = LocalContext.current
+    val gameIds = remember(GAME_CATALOG) { GAME_CATALOG.map { it.id } }
+    var playCounts by remember { mutableStateOf(GamePlayStats.getCounts(context, gameIds)) }
+
+    // Re-read play counts whenever the screen resumes (e.g. after returning from a game).
+    DisposableEffect(Unit) {
+        val lifecycleOwner = context as? LifecycleOwner
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                playCounts = GamePlayStats.getCounts(context, gameIds)
+            }
+        }
+        lifecycleOwner?.lifecycle?.addObserver(observer)
+        onDispose { lifecycleOwner?.lifecycle?.removeObserver(observer) }
+    }
+
+    val mostPlayed = GAME_CATALOG
+        .filter { (playCounts[it.id] ?: 0) > 0 }
+        .sortedWith(compareByDescending<GameCatalogEntry> { playCounts[it.id] ?: 0 }.thenBy { it.title })
+        .take(MOST_PLAYED_COUNT)
+    val mostPlayedIds = mostPlayed.map { it.id }.toSet()
+    val remainingGames = GAME_CATALOG
+        .filterNot { it.id in mostPlayedIds }
+        .sortedBy { it.title }
+
     Scaffold(
         topBar = {
             Text(
@@ -181,21 +252,37 @@ fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
                 modifier = Modifier
             )
 
-            // Game selection cards
-            SectionHeader(text = "Favorites")
+            if (mostPlayed.isNotEmpty()) {
+                SectionHeader(text = "Most Played")
 
-            Favorites(onGameSelected)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    mostPlayed.forEach { entry ->
+                        GameCard(
+                            title = entry.title,
+                            description = entry.description,
+                            color = entry.color,
+                            onClick = { onGameSelected(entry) }
+                        )
+                    }
+                }
+            }
 
-            var otherGamesExpanded by remember { mutableStateOf(false) }
+            var allGamesExpanded by remember(mostPlayed.isEmpty()) {
+                mutableStateOf(mostPlayed.isEmpty())
+            }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { otherGamesExpanded = !otherGamesExpanded },
+                    .clickable { allGamesExpanded = !allGamesExpanded },
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                SectionHeader(text = "Other Games")
-                ExpandChevron(expanded = otherGamesExpanded)
+                SectionHeader(text = if (mostPlayed.isEmpty()) "All Games" else "Other Games")
+                ExpandChevron(expanded = allGamesExpanded)
             }
 
             Column(
@@ -205,41 +292,15 @@ fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                if (otherGamesExpanded) {
-                    GameCard(
-                        title = "Pixel Collector",
-                        description = "Collect green pixels while avoiding red obstacles!",
-                        color = Color(0xFF4CAF50),
-                        onClick = { onGameSelected(GameType.PIXEL_COLLECTOR) }
-                    )
-
-                    GameCard(
-                        title = "Battleship",
-                        description = "Local 2 players or vs computer — place fleets, then take turns firing.",
-                        color = Color(0xFF0277BD),
-                        onClick = { onGameSelected(GameType.BATTLESHIP) }
-                    )
-
-                    GameCard(
-                        title = "Rhythm Runner",
-                        description = "Run, jump, and collect to the beat!",
-                        color = Color(0xFF9C27B0),
-                        onClick = { onGameSelected(GameType.RHYTHM_RUNNER) }
-                    )
-
-                    GameCard(
-                        title = "Zombie Survival",
-                        description = "3D FPS - Survive zombie waves, upgrade weapons!",
-                        color = Color(0xFF8B0000),
-                        onClick = { onGameSelected(GameType.ZOMBIE_SURVIVAL) }
-                    )
-
-                    GameCard(
-                        title = "Key Reader",
-                        description = "Scan NFC keys and manage saved entries.",
-                        color = Color(0xFF2E7D32),
-                        onClick = { onGameSelected(GameType.KEY_READER) }
-                    )
+                if (allGamesExpanded) {
+                    remainingGames.forEach { entry ->
+                        GameCard(
+                            title = entry.title,
+                            description = entry.description,
+                            color = entry.color,
+                            onClick = { onGameSelected(entry) }
+                        )
+                    }
                 }
             }
 
@@ -321,9 +382,9 @@ fun GameCard(
                         shape = RoundedCornerShape(12.dp)
                     )
             )
-            
+
             Spacer(modifier = Modifier.width(20.dp))
-            
+
             // Game info
             Column(
                 modifier = Modifier.weight(1f)
@@ -334,16 +395,16 @@ fun GameCard(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
-                 
+
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 Text(
                     text = description,
                     color = if (enabled) Color.Gray else Color.DarkGray,
                     fontSize = 14.sp
                 )
             }
-            
+
             // Arrow indicator
             if (enabled) {
                 Text(
@@ -355,63 +416,4 @@ fun GameCard(
             }
         }
     }
-}
-
-@Composable
-fun ColumnScope.Favorites(onGameSelected: (GameType) -> Unit) {
-    GameCard(
-        title = "Road Rush",
-        description = "Atari-style vertical racer — shift lanes to dodge oncoming traffic before you run out of lives.",
-        color = Color(0xFFE53935),
-        onClick = { onGameSelected(GameType.ROAD_RUSH) }
-    )
-
-    GameCard(
-        title = "Knight Survivor",
-        description = "Arena survivor — auto-attack hordes, level up, and outlast the clock!",
-        color = Color(0xFF7B1FA2),
-        onClick = { onGameSelected(GameType.KNIGHT_SURVIVOR) }
-    )
-
-    GameCard(
-        title = "Number Corridor",
-        description = "Forward-scrolling shooter — blast obstacle walls, grab +/-/x/÷ buff walls for damage, fire rate, and squad size.",
-        color = Color(0xFF00ACC1),
-        onClick = { onGameSelected(GameType.NUMBER_CORRIDOR) }
-    )
-
-    GameCard(
-        title = "Clash Decks",
-        description = "Card duel vs computer — Attack, Defense, Support, and status-effect tactics.",
-        color = Color(0xFF3949AB),
-        onClick = { onGameSelected(GameType.CLASH_DECKS) }
-    )
-
-    GameCard(
-        title = "Memory Match",
-        description = "Find matching pairs of gaming cards!",
-        color = Color(0xFF2196F3),
-        onClick = { onGameSelected(GameType.MEMORY_MATCH) }
-    )
-
-    GameCard(
-        title = "Number Cruncher",
-        description = "Combine numbers to reach the target!",
-        color = Color(0xFFFF6B6B),
-        onClick = { onGameSelected(GameType.NUMBER_CRUNCHER) }
-    )
-
-    GameCard(
-        title = "Snakes & Ladders",
-        description = "2D board — 2–6 players, each human or CPU.",
-        color = Color(0xFF00897B),
-        onClick = { onGameSelected(GameType.SNAKES_LADDERS) }
-    )
-
-    GameCard(
-        title = "Base Defender",
-        description = "Defend your base! Aim and shoot at incoming enemies!",
-        color = Color(0xFFFF5722),
-        onClick = { onGameSelected(GameType.BASE_DEFENDER) }
-    )
 }
