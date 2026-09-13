@@ -30,7 +30,9 @@ data class SnakeLadderUiState(
     val lastMessage: String? = null,
     val isRolling: Boolean = false,
     val winnerIndex: Int? = null,
-    val specialMove: SpecialMoveEvent? = null
+    val specialMove: SpecialMoveEvent? = null,
+    /** Same length as [positions]: the emoji avatar each player picked in the menu. */
+    val playerAvatars: List<String> = emptyList()
 ) {
     val playerCount: Int get() = positions.size
 
@@ -50,6 +52,9 @@ enum class SnakeLadderPhase {
     Finished
 }
 
+/** Fallback avatars if the menu doesn't supply one per player (kept in sync with the picker in SnakeLadderScreen). */
+private val DefaultAvatars = listOf("🦁", "🐵", "🐸", "🐶", "🐱", "🦊", "🐼", "🦄", "🐷", "🐙", "🐰", "🦕")
+
 class SnakeLadderViewModel : ViewModel() {
 
     private val random = Random.Default
@@ -58,10 +63,13 @@ class SnakeLadderViewModel : ViewModel() {
 
     /**
      * @param playerIsCpu length 2–6; `true` = CPU, `false` = human. At least one human required.
+     * @param playerAvatars emoji avatar per player, same length as [playerIsCpu].
      */
-    fun startGame(playerIsCpu: List<Boolean>) {
+    fun startGame(playerIsCpu: List<Boolean>, playerAvatars: List<String> = emptyList()) {
         val n = playerIsCpu.size
         if (n !in 2..6 || playerIsCpu.none { !it }) return
+
+        val avatars = List(n) { i -> playerAvatars.getOrElse(i) { DefaultAvatars[i % DefaultAvatars.size] } }
 
         _uiState.value = SnakeLadderUiState(
             phase = SnakeLadderPhase.Playing,
@@ -71,7 +79,8 @@ class SnakeLadderViewModel : ViewModel() {
             lastDice = null,
             lastMessage = openingMessage(playerIsCpu),
             isRolling = false,
-            winnerIndex = null
+            winnerIndex = null,
+            playerAvatars = avatars
         )
         maybeScheduleCpuTurn()
     }
@@ -92,7 +101,7 @@ class SnakeLadderViewModel : ViewModel() {
     fun playAgain() {
         val s = _uiState.value
         if (s.playerIsCpu.size >= 2) {
-            startGame(s.playerIsCpu)
+            startGame(s.playerIsCpu, s.playerAvatars)
         } else {
             backToMenu()
         }

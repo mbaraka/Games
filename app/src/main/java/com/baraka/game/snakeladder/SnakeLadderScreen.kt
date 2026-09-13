@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.R
+import com.baraka.game.ui.theme.GameColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -84,12 +85,31 @@ private val TokenColors = listOf(
     Color(0xFFFF7043)
 )
 
+/** Fun, kid-friendly avatar options players can pick from in the menu. */
+private val AvatarEmojis = listOf(
+    "🦁", // lion
+    "🐵", // monkey
+    "🐸", // frog
+    "🐶", // dog
+    "🐱", // cat
+    "🦊", // fox
+    "🐼", // panda
+    "🦄", // unicorn
+    "🐷", // pig
+    "🐙", // octopus
+    "🐰", // rabbit
+    "🦕"  // t-rex
+)
+
+private fun defaultAvatars(count: Int): List<String> =
+    List(count) { i -> AvatarEmojis[i % AvatarEmojis.size] }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SnakeLadderScreen(
     uiState: SnakeLadderUiState,
     onBack: () -> Unit,
-    onStartGame: (List<Boolean>) -> Unit,
+    onStartGame: (List<Boolean>, List<String>) -> Unit,
     onRoll: () -> Unit,
     onPlayAgain: () -> Unit,
     onMenu: () -> Unit
@@ -135,14 +155,18 @@ fun SnakeLadderScreen(
 @Composable
 private fun MenuContent(
     modifier: Modifier = Modifier,
-    onStartGame: (List<Boolean>) -> Unit
+    onStartGame: (List<Boolean>, List<String>) -> Unit
 ) {
     var totalPlayers by remember { mutableIntStateOf(2) }
     var playerIsCpu by remember { mutableStateOf(listOf(false, true)) }
+    var playerAvatars by remember { mutableStateOf(defaultAvatars(2)) }
 
     fun resizeSlots(newTotal: Int) {
         totalPlayers = newTotal
         playerIsCpu = List(newTotal) { i -> playerIsCpu.getOrElse(i) { false } }
+        playerAvatars = List(newTotal) { i ->
+            playerAvatars.getOrElse(i) { AvatarEmojis[i % AvatarEmojis.size] }
+        }
     }
 
     val canStart = playerIsCpu.any { !it }
@@ -189,34 +213,56 @@ private fun MenuContent(
             modifier = Modifier.padding(top = 4.dp)
         )
         (0 until totalPlayers).forEach { index ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "P${index + 1}",
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.weight(0.35f)
-                )
-                FilterChip(
-                    selected = !playerIsCpu[index],
-                    onClick = {
-                        playerIsCpu =
-                            playerIsCpu.mapIndexed { i, cpu -> if (i == index) false else cpu }
-                    },
-                    label = { Text("Human") },
-                    modifier = Modifier.weight(1f)
-                )
-                FilterChip(
-                    selected = playerIsCpu[index],
-                    onClick = {
-                        playerIsCpu =
-                            playerIsCpu.mapIndexed { i, cpu -> if (i == index) true else cpu }
-                    },
-                    label = { Text("CPU") },
-                    modifier = Modifier.weight(1f)
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "P${index + 1}",
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.weight(0.35f)
+                    )
+                    FilterChip(
+                        selected = !playerIsCpu[index],
+                        onClick = {
+                            playerIsCpu =
+                                playerIsCpu.mapIndexed { i, cpu -> if (i == index) false else cpu }
+                        },
+                        label = { Text("Human") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = playerIsCpu[index],
+                        onClick = {
+                            playerIsCpu =
+                                playerIsCpu.mapIndexed { i, cpu -> if (i == index) true else cpu }
+                        },
+                        label = { Text("CPU") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AvatarEmojis.forEach { emoji ->
+                        val selected = playerAvatars.getOrNull(index) == emoji
+                        FilterChip(
+                            selected = selected,
+                            onClick = {
+                                playerAvatars = playerAvatars.mapIndexed { i, a ->
+                                    if (i == index) emoji else a
+                                }
+                            },
+                            label = { Text(emoji, fontSize = 16.sp) }
+                        )
+                    }
+                }
             }
         }
         Row(
@@ -244,7 +290,7 @@ private fun MenuContent(
             )
         }
         Button(
-            onClick = { onStartGame(playerIsCpu) },
+            onClick = { onStartGame(playerIsCpu, playerAvatars) },
             enabled = canStart,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -318,6 +364,7 @@ private fun GameContent(
     ) {
         BoardGrid(
             positions = uiState.positions,
+            avatars = uiState.playerAvatars,
             currentPlayerIndex = uiState.currentPlayerIndex,
             phase = uiState.phase,
             specialMove = uiState.specialMove,
@@ -443,7 +490,8 @@ private fun PlayerLegend(uiState: SnakeLadderUiState) {
                     playerIndex = i,
                     diameter = 18.dp,
                     isCurrentTurn = isTurn,
-                    showNumber = true
+                    showNumber = true,
+                    avatar = uiState.playerAvatars.getOrNull(i)
                 )
                 Text(
                     text = label,
@@ -462,16 +510,26 @@ private fun PlayerPiece(
     diameter: Dp,
     isCurrentTurn: Boolean,
     showNumber: Boolean,
+    avatar: String? = null,
     modifier: Modifier = Modifier
 ) {
     val fill = TokenColors[playerIndex % TokenColors.size]
-    val ring = if (isCurrentTurn) Color(0xFFFFB300) else Color.White
+    val ring = if (isCurrentTurn) GameColors.Warning else MaterialTheme.colorScheme.surface
     val numberSize = when {
         diameter >= 16.dp -> 9.sp
         diameter >= 12.dp -> 7.sp
         else -> 5.sp
     }
-    val desc = "Player ${playerIndex + 1} piece"
+    val emojiSize = when {
+        diameter >= 16.dp -> 12.sp
+        diameter >= 12.dp -> 9.sp
+        else -> 7.sp
+    }
+    val desc = if (avatar != null) {
+        "Player ${playerIndex + 1} piece, $avatar"
+    } else {
+        "Player ${playerIndex + 1} piece"
+    }
     Box(
         modifier = modifier
             .size(diameter)
@@ -488,14 +546,23 @@ private fun PlayerPiece(
                 .border(1.dp, Color(0xD8000000), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            if (showNumber) {
-                Text(
-                    text = "${playerIndex + 1}",
-                    color = Color.White,
-                    fontSize = numberSize,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1
-                )
+            when {
+                avatar != null -> {
+                    Text(
+                        text = avatar,
+                        fontSize = emojiSize,
+                        maxLines = 1
+                    )
+                }
+                showNumber -> {
+                    Text(
+                        text = "${playerIndex + 1}",
+                        color = Color.White,
+                        fontSize = numberSize,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
             }
         }
     }
@@ -504,6 +571,7 @@ private fun PlayerPiece(
 @Composable
 private fun BoardGrid(
     positions: List<Int>,
+    avatars: List<String>,
     currentPlayerIndex: Int,
     phase: SnakeLadderPhase,
     specialMove: SpecialMoveEvent?,
@@ -538,6 +606,7 @@ private fun BoardGrid(
                     playersHere = positions.mapIndexedNotNull { playerIdx, pos ->
                         if (pos == cell) playerIdx else null
                     },
+                    avatars = avatars,
                     currentPlayerIndex = currentPlayerIndex,
                     phase = phase,
                     highlight = when (cell) {
@@ -563,25 +632,26 @@ private fun BoardCell(
     ladderLandingFromFoot: Int?,
     snakeLandingFromHead: Int?,
     playersHere: List<Int>,
+    avatars: List<String>,
     currentPlayerIndex: Int,
     phase: SnakeLadderPhase,
     highlight: SpecialMoveType? = null,
     modifier: Modifier = Modifier
 ) {
-    val ladderGreen = Color(0xFF2E7D32)
-    val snakeRed = Color(0xFFC62828)
-    val finishGold = Color(0xFFF9A825)
+    val ladderGreen = GameColors.Ladder
+    val snakeRed = GameColors.Snake
+    val finishGold = GameColors.Finish
 
     val staticBase = when {
-        cellNumber == SnakeLadderRules.BOARD_SIZE -> Color(0xFFFFF9C4)
-        isLadderFoot -> Color(0xFFC8E6C9)
-        isSnakeHead -> Color(0xFFFFCDD2)
+        cellNumber == SnakeLadderRules.BOARD_SIZE -> GameColors.FinishCellBackground
+        isLadderFoot -> GameColors.LadderCellBackground
+        isSnakeHead -> GameColors.SnakeCellBackground
         else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
     }
     val base by animateColorAsState(
         targetValue = when (highlight) {
-            SpecialMoveType.LADDER -> Color(0xFFFFD54F)
-            SpecialMoveType.SNAKE -> Color(0xFFEF9A9A)
+            SpecialMoveType.LADDER -> GameColors.LadderCellHighlight
+            SpecialMoveType.SNAKE -> GameColors.SnakeCellHighlight
             null -> staticBase
         },
         animationSpec = tween(180),
@@ -722,6 +792,7 @@ private fun BoardCell(
                     diameter = pieceDiameter,
                     isCurrentTurn = phase == SnakeLadderPhase.Playing && playerIdx == currentPlayerIndex,
                     showNumber = true,
+                    avatar = avatars.getOrNull(playerIdx),
                     modifier = Modifier
                 )
             }
@@ -784,7 +855,7 @@ private fun DiceView(
                 scaleY = scale
             }
             .clip(RoundedCornerShape(10.dp))
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .border(1.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp))
             .padding(7.dp)
             .semantics { contentDescription = value?.let { "Dice showing $it" } ?: "Dice rolling" }
@@ -799,7 +870,7 @@ private fun DiceView(
                             Modifier
                                 .size(7.dp)
                                 .clip(CircleShape)
-                                .background(if (active) Color(0xFF212121) else Color.Transparent)
+                                .background(if (active) MaterialTheme.colorScheme.onSurface else Color.Transparent)
                         )
                     }
                 }
