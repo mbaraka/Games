@@ -64,7 +64,7 @@ fun EndScreenOverlay(
 
             Button(
                 onClick = onPlayAgain,
-                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success),
+                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success, contentColor = Color.White),
                 modifier = Modifier.padding(top = 12.dp)
             ) {
                 Text("Play Again")

@@ -135,7 +135,7 @@ private fun MenuContent(onChooseMode: (BattleShipGameMode) -> Unit) {
         Button(
             onClick = { onChooseMode(BattleShipGameMode.LocalTwoPlayer) },
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = OceanDark)
+            colors = ButtonDefaults.buttonColors(containerColor = OceanDark, contentColor = Color.White)
         ) {
             Text("Local 2 players")
         }
@@ -150,7 +150,7 @@ private fun MenuContent(onChooseMode: (BattleShipGameMode) -> Unit) {
         Button(
             onClick = { onChooseMode(BattleShipGameMode.VsComputer) },
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00695C))
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00695C), contentColor = Color.White)
         ) {
             Text("Vs computer")
         }
@@ -202,7 +202,7 @@ private fun SetupContent(
     Button(
         onClick = onToggleOrientation,
         modifier = Modifier.fillMaxWidth(),
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF37474F))
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF37474F), contentColor = Color.White)
     ) {
         Text("Rotate ship")
     }
@@ -229,7 +229,7 @@ private fun HandoffContent(
     Button(
         onClick = onContinue,
         modifier = Modifier.fillMaxWidth(),
-        colors = ButtonDefaults.buttonColors(containerColor = OceanDark)
+        colors = ButtonDefaults.buttonColors(containerColor = OceanDark, contentColor = Color.White)
     ) {
         Text(buttonLabel)
     }
@@ -325,7 +325,7 @@ private fun GameOverContent(
     Button(
         onClick = onPlayAgain,
         modifier = Modifier.fillMaxWidth(),
-        colors = ButtonDefaults.buttonColors(containerColor = OceanDark)
+        colors = ButtonDefaults.buttonColors(containerColor = OceanDark, contentColor = Color.White)
     ) {
         Text("Play again")
     }

@@ -117,9 +117,9 @@ fun NumberCruncherGameScreen() {
                     showGameOver = false
                     showVictory = false
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success)
+                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success, contentColor = Color.White)
             ) {
-                Text("New Game", color = GameColors.TextPrimary)
+                Text("New Game")
             }
 
             Button(
@@ -127,9 +127,12 @@ fun NumberCruncherGameScreen() {
                     gameState = gameState.hint()
                 },
                 enabled = gameState.movesLeft > 0,
-                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Accent)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = GameColors.Accent,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
             ) {
-                Text("Hint", color = GameColors.TextPrimary)
+                Text("Hint")
             }
         }
 
@@ -294,17 +297,20 @@ fun GameOverDialog(
         confirmButton = {
             Button(
                 onClick = onNewGame,
-                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success)
+                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success, contentColor = Color.White)
             ) {
-                Text("New Game", color = GameColors.TextPrimary)
+                Text("New Game")
             }
         },
         dismissButton = {
             Button(
                 onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             ) {
-                Text("Close", color = GameColors.TextPrimary)
+                Text("Close")
             }
         },
         containerColor = MaterialTheme.colorScheme.surface,
@@ -340,17 +346,20 @@ fun VictoryDialog(
         confirmButton = {
             Button(
                 onClick = onNewGame,
-                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success)
+                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success, contentColor = Color.White)
             ) {
-                Text("Play Again", color = GameColors.TextPrimary)
+                Text("Play Again")
             }
         },
         dismissButton = {
             Button(
                 onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             ) {
-                Text("Close", color = GameColors.TextPrimary)
+                Text("Close")
             }
         },
         containerColor = MaterialTheme.colorScheme.surface,

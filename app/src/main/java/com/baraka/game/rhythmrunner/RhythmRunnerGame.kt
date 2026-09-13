@@ -128,7 +128,7 @@ fun RhythmRunnerGameScreen() {
                 onClick = {
                     gameState = gameState.resetPlayer()
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Danger),
+                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Danger, contentColor = Color.White),
                 modifier = Modifier.padding(top = 4.dp)
             ) {
                 Text("Reset Stuck Player", fontSize = 12.sp)
@@ -192,7 +192,7 @@ fun RhythmRunnerGameScreen() {
                     gameState = RhythmGameState().resetPlayer()  // Reset player to safe position
                     showGameOver = false
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success),
+                colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success, contentColor = Color.White),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Start Game", fontSize = 18.sp)
@@ -234,7 +234,7 @@ fun RhythmRunnerGameScreen() {
                             showGameOver = false
                             gameState = RhythmGameState()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success)
+                        colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success, contentColor = Color.White)
                     ) {
                         Text("Play Again")
                     }

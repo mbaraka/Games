@@ -1505,7 +1505,10 @@ fun LazyListScope.upgradeShopOverlay(
     item {
         Button(
             onClick = onClose,
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         ) {
             Text("Close")
         }

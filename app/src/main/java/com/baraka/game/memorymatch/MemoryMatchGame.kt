@@ -222,7 +222,10 @@ fun MemoryGamePlayScreen(difficulty: Difficulty, onChangeDifficulty: () -> Unit)
                      selectedCards = emptyList()
                      isProcessing = false
                  },
-                 colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success),
+                 colors = ButtonDefaults.buttonColors(
+                     containerColor = GameColors.Success,
+                     contentColor = Color.White
+                 ),
                  modifier = Modifier.weight(1f)
              ) {
                  Text("New Game", fontSize = 18.sp)
@@ -230,7 +233,10 @@ fun MemoryGamePlayScreen(difficulty: Difficulty, onChangeDifficulty: () -> Unit)
              Spacer(modifier = Modifier.width(8.dp))
              Button(
                  onClick = onChangeDifficulty,
-                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                 colors = ButtonDefaults.buttonColors(
+                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                 ),
                  modifier = Modifier.weight(1f)
              ) {
                  Text("Difficulty", fontSize = 18.sp)
