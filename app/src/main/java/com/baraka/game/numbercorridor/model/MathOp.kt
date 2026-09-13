@@ -1,8 +1,8 @@
 package com.baraka.game.numbercorridor.model
 
 /**
- * The arithmetic a buff wall teaches. Applied to whichever [BuffTarget] the wall carries
- * when the player shoots it down — see systems/CollisionSystem.kt.
+ * The arithmetic a squad-shift wall (left lane) teaches, applied to squad size once
+ * destroyed — see systems/CollisionSystem.kt.
  */
 enum class MathOp(val symbol: String) {
     ADD("+") {
@@ -19,11 +19,4 @@ enum class MathOp(val symbol: String) {
     };
 
     abstract fun apply(current: Float, value: Float): Float
-}
-
-/** Which of the player's stats a buff wall's [MathOp] is applied to. */
-enum class BuffTarget(val displayName: String) {
-    DAMAGE("DMG"),
-    FIRE_RATE("RATE"),
-    SQUAD("SQUAD")
 }

@@ -30,7 +30,12 @@ import com.baraka.game.numbercorridor.model.AvatarDesign
  * shooting SQUAD buff walls mid-run (see model/PlayerState.kt), not chosen here.
  */
 @Composable
-fun AvatarPickerOverlay(selected: AvatarDesign, onSelected: (AvatarDesign) -> Unit, onStart: () -> Unit) {
+fun AvatarPickerOverlay(
+    selected: AvatarDesign,
+    onSelected: (AvatarDesign) -> Unit,
+    onStart: () -> Unit,
+    onOpenGuide: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -44,7 +49,7 @@ fun AvatarPickerOverlay(selected: AvatarDesign, onSelected: (AvatarDesign) -> Un
         ) {
             Text("Number Corridor", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             Text(
-                "Shoot obstacle walls down before they reach you. Buff walls apply their math to your squad's damage, fire rate, or size once destroyed.",
+                "3 lanes, 3 jobs: left grows or shrinks your squad with math, middle is enemies to shoot down, right upgrades your weapon.",
                 color = Color.Gray,
                 fontSize = 14.sp
             )
@@ -59,6 +64,13 @@ fun AvatarPickerOverlay(selected: AvatarDesign, onSelected: (AvatarDesign) -> Un
             Button(onClick = onStart) {
                 Text("Start Run")
             }
+
+            Text(
+                text = "How do the lanes work?",
+                color = Color(0xFF29B6F6),
+                fontSize = 13.sp,
+                modifier = Modifier.clickable(onClick = onOpenGuide)
+            )
         }
     }
 }

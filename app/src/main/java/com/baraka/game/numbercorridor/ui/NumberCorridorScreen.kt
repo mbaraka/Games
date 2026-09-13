@@ -1,6 +1,7 @@
 package com.baraka.game.numbercorridor.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,17 +10,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.baraka.game.numbercorridor.data.CorridorSettingsRepository
 import com.baraka.game.numbercorridor.model.AvatarDesign
 import com.baraka.game.numbercorridor.model.GamePhase
@@ -45,11 +51,12 @@ fun NumberCorridorScreen() {
 
     var avatarDesign by remember { mutableStateOf(settingsRepository.avatarDesign()) }
     var showAvatarPicker by remember { mutableStateOf(true) }
+    var showGuide by remember { mutableStateOf(false) }
     var gameState by remember { mutableStateOf(GameState(avatarDesign = avatarDesign, bestScoreAtStart = settingsRepository.bestScore())) }
     var hasRecordedThisRun by remember { mutableStateOf(false) }
     var canvasWidthPx by remember { mutableStateOf(0f) }
 
-    val isRunning = gameState.phase == GamePhase.RUNNING && !showAvatarPicker
+    val isRunning = gameState.phase == GamePhase.RUNNING && !showAvatarPicker && !showGuide
 
     LaunchedEffect(isRunning) {
         while (isRunning) {
@@ -67,6 +74,11 @@ fun NumberCorridorScreen() {
         }
     }
 
+    if (showGuide) {
+        CorridorGuideScreen(onClose = { showGuide = false })
+        return
+    }
+
     if (showAvatarPicker) {
         AvatarPickerOverlay(
             selected = avatarDesign,
@@ -78,7 +90,8 @@ fun NumberCorridorScreen() {
                 gameState = GameState(avatarDesign = avatarDesign, bestScoreAtStart = settingsRepository.bestScore())
                 hasRecordedThisRun = false
                 showAvatarPicker = false
-            }
+            },
+            onOpenGuide = { showGuide = true }
         )
         return
     }
@@ -114,7 +127,7 @@ fun NumberCorridorScreen() {
                         val wholeLanes = draggedLanes.toInt()
                         if (wholeLanes != 0) {
                             draggedLanes -= wholeLanes
-                            gameState = GameLoopOrchestrator.moveSquad(gameState, gameState.player.laneStart + wholeLanes)
+                            gameState = GameLoopOrchestrator.moveSquad(gameState, gameState.player.lane + wholeLanes)
                         }
                     }
                 }
@@ -122,6 +135,19 @@ fun NumberCorridorScreen() {
             CorridorRenderer(
                 state = gameState,
                 onSizeMeasured = { width, _ -> canvasWidthPx = width }
+            )
+
+            Text(
+                text = "Guide",
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+                    .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(8.dp))
+                    .clickable { showGuide = true }
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
             )
 
             if (gameState.phase == GamePhase.GAME_OVER) {

@@ -1,17 +1,19 @@
 package com.baraka.game.numbercorridor.systems
 
 import com.baraka.game.numbercorridor.model.Bullet
-import com.baraka.game.numbercorridor.model.BuffTarget
 import com.baraka.game.numbercorridor.model.PlayerState
 import com.baraka.game.numbercorridor.model.WallKind
 import com.baraka.game.numbercorridor.model.WallRow
-import com.baraka.game.numbercorridor.model.WallSegment
 
 /**
  * Bullets travel from the player's line (progress 1) toward the horizon (progress 0); wall
  * rows travel the opposite way. A hit is simply "a bullet's progress has dropped to or below
  * a row's" while they still share a lane with a live segment — no pixel math needed since
  * both live on the same normalized depth axis, see model/GameState.kt.
+ *
+ * A lane can carry more than one live bullet at once (a big squad fires several bullets a
+ * second from the same lane, see GameLoopOrchestrator.fireWeapons), so each segment is
+ * whittled down by every bullet that reached it this tick, not just the first.
  */
 object CollisionSystem {
 
@@ -30,30 +32,39 @@ object CollisionSystem {
         for (row in rows) {
             var segments = row.segments
             for (lane in segments.indices) {
-                val segment = segments[lane] ?: continue
+                var segment = segments[lane] ?: continue
                 val laneBullets = remainingBulletsByLane[lane] ?: continue
-                val hit = laneBullets.firstOrNull { it.progress <= row.progress }
-                if (hit != null) {
-                    laneBullets.remove(hit)
+                val arrivedBullets = laneBullets.filter { it.progress <= row.progress }
+                if (arrivedBullets.isEmpty()) continue
+
+                for (bullet in arrivedBullets) {
+                    laneBullets.remove(bullet)
                     val newHp = segment.hp - updatedPlayer.damage.toInt().coerceAtLeast(1)
-                    segments = if (newHp <= 0) {
+                    if (newHp <= 0) {
                         scoreGained += 10
-                        if (segment.kind is WallKind.Buff) {
-                            updatedPlayer = applyBuff(updatedPlayer, segment.kind)
-                            scoreGained += 15
+                        when (val kind = segment.kind) {
+                            is WallKind.SquadShift -> {
+                                updatedPlayer = applySquadShift(updatedPlayer, kind)
+                                scoreGained += 15
+                            }
+                            is WallKind.WeaponCrate -> {
+                                updatedPlayer = updatedPlayer.copy(weaponTier = updatedPlayer.weaponTier.shifted(kind.delta))
+                                scoreGained += 15
+                            }
+                            is WallKind.Obstacle -> Unit
                         }
-                        segments.toMutableList().also { it[lane] = null }
+                        segments = segments.toMutableList().also { it[lane] = null }
+                        break // segment gone, remaining bullets this tick just pass through the gap
                     } else {
-                        segments.toMutableList().also { it[lane] = segment.copy(hp = newHp) }
+                        segment = segment.copy(hp = newHp)
+                        segments = segments.toMutableList().also { it[lane] = segment }
                     }
                 }
             }
 
             if (row.progress >= 1f) {
-                val stillBlocked = updatedPlayer.occupiedLanes.any { lane ->
-                    lane in segments.indices && segments[lane] != null
-                }
-                if (stillBlocked) damageTaken += 1
+                val blocked = updatedPlayer.lane in segments.indices && segments[updatedPlayer.lane] != null
+                if (blocked) damageTaken += 1
                 // Row reached the player's line: it's resolved either way, don't keep it.
             } else {
                 survivingRows += row.copy(segments = segments)
@@ -71,25 +82,11 @@ object CollisionSystem {
         )
     }
 
-    private fun applyBuff(player: PlayerState, buff: WallKind.Buff): PlayerState {
-        return when (buff.target) {
-            BuffTarget.DAMAGE -> player.copy(
-                damage = buff.op.apply(player.damage, buff.value).coerceAtLeast(1f)
-            )
-            BuffTarget.FIRE_RATE -> player.copy(
-                fireRateMultiplier = buff.op.apply(player.fireRateMultiplier, buff.value).coerceIn(0.2f, 6f)
-            )
-            BuffTarget.SQUAD -> {
-                val newCount = buff.op.apply(player.squadCount.toFloat(), buff.value)
-                    .toInt()
-                    .coerceIn(PlayerState.MIN_SQUAD, PlayerState.MAX_SQUAD)
-                val maxStart = WallRow.LANE_COUNT - newCount
-                player.copy(
-                    squadCount = newCount,
-                    laneStart = player.laneStart.coerceIn(0, maxStart)
-                )
-            }
-        }
+    private fun applySquadShift(player: PlayerState, shift: WallKind.SquadShift): PlayerState {
+        val newCount = shift.op.apply(player.squadCount.toFloat(), shift.value)
+            .toInt()
+            .coerceIn(PlayerState.MIN_SQUAD, PlayerState.MAX_SQUAD)
+        return player.copy(squadCount = newCount)
     }
 
     data class Resolved(

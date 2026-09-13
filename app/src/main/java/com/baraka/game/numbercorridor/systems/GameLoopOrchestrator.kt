@@ -61,28 +61,28 @@ object GameLoopOrchestrator {
         )
     }
 
-    /** Moves the squad's lane window, clamped so every occupied lane stays on the [WallRow.LANE_COUNT]-wide corridor. */
-    fun moveSquad(state: GameState, targetLaneStart: Int): GameState {
-        val maxStart = WallRow.LANE_COUNT - state.player.squadCount
-        val clamped = targetLaneStart.coerceIn(0, maxStart)
-        return state.copy(player = state.player.copy(laneStart = clamped))
+    /** Moves the squad to a lane, clamped to the [WallRow.LANE_COUNT]-wide corridor. Squad size never affects this — see PlayerState's KDoc. */
+    fun moveSquad(state: GameState, targetLane: Int): GameState {
+        val clamped = targetLane.coerceIn(0, WallRow.LANE_COUNT - 1)
+        return state.copy(player = state.player.copy(lane = clamped))
     }
 
+    /** Every squad member fires independently from the same [PlayerState.lane], so a bigger squad means more simultaneous bullets, not a wider stance. */
     private fun fireWeapons(player: PlayerState, dt: Float): Pair<PlayerState, List<Bullet>> {
         val interval = (PlayerState.BASE_FIRE_INTERVAL_SECONDS / player.fireRateMultiplier).coerceAtLeast(0.05f)
-        val newCooldowns = mutableMapOf<Int, Float>()
-        val newBullets = mutableListOf<Bullet>()
+        val cooldowns = List(player.squadCount) { index -> player.shooterCooldowns.getOrElse(index) { 0f } }
 
-        for (lane in player.occupiedLanes) {
-            val remaining = (player.fireCooldowns[lane] ?: 0f) - dt
-            if (remaining <= 0f) {
-                newBullets += Bullet(lane = lane, progress = 1f)
-                newCooldowns[lane] = interval
+        val newBullets = mutableListOf<Bullet>()
+        val newCooldowns = cooldowns.map { remaining ->
+            val ticked = remaining - dt
+            if (ticked <= 0f) {
+                newBullets += Bullet(lane = player.lane, progress = 1f)
+                interval
             } else {
-                newCooldowns[lane] = remaining
+                ticked
             }
         }
 
-        return player.copy(fireCooldowns = newCooldowns) to newBullets
+        return player.copy(shooterCooldowns = newCooldowns) to newBullets
     }
 }

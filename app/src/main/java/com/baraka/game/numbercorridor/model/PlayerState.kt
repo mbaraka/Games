@@ -1,22 +1,27 @@
 package com.baraka.game.numbercorridor.model
 
 /**
- * The squad's stats and position. All three combat stats — [damage], [fireRateMultiplier]
- * and [squadCount] — are only ever changed by shooting down a [WallKind.Buff] wall, never
- * by leveling or shopping, which is the whole point of this game: math is the upgrade path.
+ * The squad's stats and position. [squadCount] only ever changes via a left-lane
+ * [WallKind.SquadShift] and [weaponTier] only via a right-lane [WallKind.WeaponCrate] —
+ * gear comes entirely from the corridor, never from leveling or shopping.
+ *
+ * [squadCount] never widens how many lanes the squad occupies — like Mob Control's crowd,
+ * more units means a denser cluster and more simultaneous shots from the *same* lane, not
+ * a wider hitbox. A wide hitbox would make a big squad easier to hit on an ADD/MULTIPLY
+ * wall and impossible to dodge a SUBTRACT/DIVIDE wall with, which defeats the point of
+ * rewarding growth.
  */
 data class PlayerState(
-    /** Leftmost lane the squad occupies; the squad spans [laneStart] .. laneStart + squadCount - 1. */
-    val laneStart: Int,
+    val lane: Int,
     val squadCount: Int,
-    val damage: Float,
-    val fireRateMultiplier: Float,
+    val weaponTier: WeaponTier,
     val health: Int,
     val maxHealth: Int,
-    /** Per-lane time (seconds) until that lane's avatar can fire again. Keyed by absolute lane index. */
-    val fireCooldowns: Map<Int, Float> = emptyMap()
+    /** One cooldown per squad member, all sharing [lane] — see systems/GameLoopOrchestrator.kt.fireWeapons. */
+    val shooterCooldowns: List<Float> = List(1) { 0f }
 ) {
-    val occupiedLanes: IntRange get() = laneStart until (laneStart + squadCount)
+    val damage: Float get() = weaponTier.damage
+    val fireRateMultiplier: Float get() = weaponTier.fireRateMultiplier
 
     companion object {
         const val MAX_SQUAD = 4
@@ -24,12 +29,10 @@ data class PlayerState(
         const val BASE_FIRE_INTERVAL_SECONDS = 0.5f
 
         fun initial(): PlayerState {
-            val start = (WallRow.LANE_COUNT - 1) / 2
             return PlayerState(
-                laneStart = start,
+                lane = WallRow.ENEMY_LANE,
                 squadCount = 1,
-                damage = 10f,
-                fireRateMultiplier = 1f,
+                weaponTier = WeaponTier.RECRUIT,
                 health = 5,
                 maxHealth = 5
             )

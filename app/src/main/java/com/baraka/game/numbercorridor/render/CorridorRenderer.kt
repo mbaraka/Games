@@ -7,7 +7,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.onSizeChanged
 import com.baraka.game.numbercorridor.model.AvatarDesign
@@ -22,10 +21,11 @@ import kotlin.math.min
 private val CORRIDOR_FLOOR_COLOR = Color(0xFF23242E)
 private val CORRIDOR_WALL_COLOR = Color(0xFF14151B)
 private val LANE_LINE_COLOR = Color(0xFF3A3C4A)
-private val OBSTACLE_COLOR = Color(0xFF5B5F6B)
-private val DAMAGE_BUFF_COLOR = Color(0xFFFF7043)
-private val FIRE_RATE_BUFF_COLOR = Color(0xFF29B6F6)
-private val SQUAD_BUFF_COLOR = Color(0xFF66BB6A)
+private val ENEMY_TILE_COLOR = Color(0xFF5B5F6B)
+private val ENEMY_BODY_COLOR = Color(0xFF7C4DA8)
+private val SQUAD_SHIFT_COLOR = Color(0xFF66BB6A)
+private val WEAPON_UPGRADE_COLOR = Color(0xFFFFB300)
+private val WEAPON_DOWNGRADE_COLOR = Color(0xFFB0413E)
 private val BULLET_COLOR = Color(0xFFFFF176)
 
 /** The near (player-line) edge sits at this fraction of the canvas height; the horizon sits near the top. */
@@ -101,36 +101,68 @@ private fun DrawScope.drawWallRow(row: WallRow) {
     row.segments.forEachIndexed { lane, segment ->
         if (segment == null) return@forEachIndexed
         val laneLeft = geometry.corridorLeft + geometry.laneWidth * lane
-        val color = when (val kind = segment.kind) {
-            WallKind.Obstacle -> OBSTACLE_COLOR
-            is WallKind.Buff -> when (kind.target) {
-                com.baraka.game.numbercorridor.model.BuffTarget.DAMAGE -> DAMAGE_BUFF_COLOR
-                com.baraka.game.numbercorridor.model.BuffTarget.FIRE_RATE -> FIRE_RATE_BUFF_COLOR
-                com.baraka.game.numbercorridor.model.BuffTarget.SQUAD -> SQUAD_BUFF_COLOR
-            }
-        }
-        val damagedAlpha = 0.55f + 0.45f * (segment.hp.toFloat() / segment.maxHp.toFloat())
+        val tileLeft = laneLeft + geometry.laneWidth * 0.06f
+        val tileWidth = geometry.laneWidth * 0.88f
         val rectTop = geometry.screenY - tileHeight
-        drawRect(
-            color = color.copy(alpha = color.alpha * damagedAlpha),
-            topLeft = Offset(laneLeft + geometry.laneWidth * 0.06f, rectTop),
-            size = androidx.compose.ui.geometry.Size(geometry.laneWidth * 0.88f, tileHeight)
-        )
-        drawContext.canvas.nativeCanvas.apply {
-            val paint = android.graphics.Paint().apply {
-                this.color = android.graphics.Color.WHITE
-                textAlign = android.graphics.Paint.Align.CENTER
-                textSize = (geometry.laneWidth * 0.32f).coerceIn(14f, 40f)
-                isAntiAlias = true
-                isFakeBoldText = true
+        val damagedAlpha = 0.55f + 0.45f * (segment.hp.toFloat() / segment.maxHp.toFloat())
+
+        when (val kind = segment.kind) {
+            is WallKind.Obstacle -> {
+                drawRect(
+                    color = ENEMY_TILE_COLOR.copy(alpha = ENEMY_TILE_COLOR.alpha * damagedAlpha),
+                    topLeft = Offset(tileLeft, rectTop),
+                    size = androidx.compose.ui.geometry.Size(tileWidth, tileHeight)
+                )
+                drawEnemyIcons(kind.enemyCount, tileLeft, rectTop, tileWidth, tileHeight)
+                drawTileLabel(segment.hp.toString(), laneLeft + geometry.laneWidth / 2f, rectTop + tileHeight * 0.86f, geometry.laneWidth)
             }
-            drawText(
-                segment.label(),
-                laneLeft + geometry.laneWidth / 2f,
-                rectTop + tileHeight / 2f + paint.textSize / 3f,
-                paint
-            )
+            is WallKind.SquadShift -> {
+                drawRect(
+                    color = SQUAD_SHIFT_COLOR.copy(alpha = SQUAD_SHIFT_COLOR.alpha * damagedAlpha),
+                    topLeft = Offset(tileLeft, rectTop),
+                    size = androidx.compose.ui.geometry.Size(tileWidth, tileHeight)
+                )
+                drawTileLabel(segment.label(), laneLeft + geometry.laneWidth / 2f, rectTop + tileHeight / 2f, geometry.laneWidth)
+            }
+            is WallKind.WeaponCrate -> {
+                val crateColor = if (kind.delta >= 0) WEAPON_UPGRADE_COLOR else WEAPON_DOWNGRADE_COLOR
+                drawRect(
+                    color = crateColor.copy(alpha = crateColor.alpha * damagedAlpha),
+                    topLeft = Offset(tileLeft, rectTop),
+                    size = androidx.compose.ui.geometry.Size(tileWidth, tileHeight)
+                )
+                drawTileLabel(segment.label(), laneLeft + geometry.laneWidth / 2f, rectTop + tileHeight / 2f, geometry.laneWidth)
+            }
         }
+    }
+}
+
+private fun DrawScope.drawTileLabel(text: String, centerX: Float, centerY: Float, laneWidth: Float) {
+    drawContext.canvas.nativeCanvas.apply {
+        val paint = android.graphics.Paint().apply {
+            color = android.graphics.Color.WHITE
+            textAlign = android.graphics.Paint.Align.CENTER
+            textSize = (laneWidth * 0.3f).coerceIn(12f, 36f)
+            isAntiAlias = true
+            isFakeBoldText = true
+        }
+        drawText(text, centerX, centerY + paint.textSize / 3f, paint)
+    }
+}
+
+/** Small monster silhouettes standing for how many hits-worth of enemies this obstacle represents — see systems/WallSpawnSystem.kt. */
+private fun DrawScope.drawEnemyIcons(count: Int, tileLeft: Float, tileTop: Float, tileWidth: Float, tileHeight: Float) {
+    val iconRadius = (tileWidth / (count * 2.4f)).coerceAtMost(tileHeight * 0.32f)
+    val rowY = tileTop + tileHeight * 0.36f
+    val spacing = tileWidth / (count + 1)
+    for (index in 0 until count) {
+        val cx = tileLeft + spacing * (index + 1)
+        drawCircle(ENEMY_BODY_COLOR, radius = iconRadius, center = Offset(cx, rowY))
+        val eyeOffset = iconRadius * 0.4f
+        drawCircle(Color.White, radius = iconRadius * 0.22f, center = Offset(cx - eyeOffset, rowY - eyeOffset * 0.3f))
+        drawCircle(Color.White, radius = iconRadius * 0.22f, center = Offset(cx + eyeOffset, rowY - eyeOffset * 0.3f))
+        drawCircle(Color.Black, radius = iconRadius * 0.1f, center = Offset(cx - eyeOffset, rowY - eyeOffset * 0.3f))
+        drawCircle(Color.Black, radius = iconRadius * 0.1f, center = Offset(cx + eyeOffset, rowY - eyeOffset * 0.3f))
     }
 }
 
@@ -143,33 +175,108 @@ private fun DrawScope.drawBullets(bullets: List<Bullet>) {
     }
 }
 
+/** Offsets (in units of one chibi's radius) for clustering 1-4 squad members around a shared center, tightest first. */
+private val SQUAD_CLUSTER_OFFSETS: Map<Int, List<Offset>> = mapOf(
+    1 to listOf(Offset(0f, 0f)),
+    2 to listOf(Offset(-0.65f, 0.1f), Offset(0.65f, -0.1f)),
+    3 to listOf(Offset(-0.75f, 0.35f), Offset(0.75f, 0.35f), Offset(0f, -0.45f)),
+    4 to listOf(Offset(-0.65f, -0.55f), Offset(0.65f, -0.55f), Offset(-0.65f, 0.55f), Offset(0.65f, 0.55f))
+)
+
+/**
+ * Draws the squad as a cluster of chibi soldiers seen from behind — big rounded head with a
+ * colored helmet, small torso, stub legs, and a gun barrel pointing up the corridor. All
+ * members stay inside one lane's width regardless of [PlayerState.squadCount]: a bigger
+ * squad packs in tighter and each member shrinks slightly, it never spreads across lanes
+ * (see PlayerState's KDoc for why).
+ */
 private fun DrawScope.drawSquad(player: PlayerState, avatarDesign: AvatarDesign) {
     val geometry = depthGeometry(1f)
     val avatarColor = Color(avatarDesign.colorArgb)
-    for (lane in player.occupiedLanes) {
-        val cx = geometry.corridorLeft + geometry.laneWidth * (lane + 0.5f)
-        val cy = geometry.screenY - geometry.laneWidth * 0.35f
-        val radius = geometry.laneWidth * 0.32f
+    val cx = geometry.corridorLeft + geometry.laneWidth * (player.lane + 0.5f)
+    val cy = geometry.screenY - geometry.laneWidth * 0.42f
 
-        // Body
-        drawCircle(avatarColor, radius = radius, center = Offset(cx, cy))
-        // Weapon barrel pointing up the corridor
-        drawLine(
-            color = Color(0xFF212121),
-            start = Offset(cx, cy - radius * 0.2f),
-            end = Offset(cx, cy - radius * 1.6f),
-            strokeWidth = radius * 0.28f
+    val offsets = SQUAD_CLUSTER_OFFSETS.getValue(player.squadCount.coerceIn(1, 4))
+    val unitRadius = geometry.laneWidth * (0.30f - 0.035f * (player.squadCount - 1))
+    val spread = geometry.laneWidth * 0.42f
+
+    offsets.forEach { offset ->
+        drawChibiUnit(
+            center = Offset(cx + offset.x * spread, cy + offset.y * spread),
+            radius = unitRadius,
+            helmetColor = avatarColor
         )
-        drawCircle(Color.White.copy(alpha = 0.85f), radius = radius * 0.28f, center = Offset(cx, cy - radius * 0.35f))
+    }
+}
+
+private val SKIN_COLOR = Color(0xFFF2C79A)
+private val VEST_COLOR = Color(0xFF33363F)
+private val GUN_COLOR = Color(0xFF212121)
+
+private fun DrawScope.drawChibiUnit(center: Offset, radius: Float, helmetColor: Color) {
+    // Contact shadow so the unit reads as standing on the floor rather than floating.
+    drawOval(
+        color = Color.Black.copy(alpha = 0.35f),
+        topLeft = Offset(center.x - radius * 0.9f, center.y + radius * 1.55f),
+        size = androidx.compose.ui.geometry.Size(radius * 1.8f, radius * 0.55f)
+    )
+
+    // Legs
+    val legWidth = radius * 0.34f
+    val legHeight = radius * 0.6f
+    listOf(-1f, 1f).forEach { side ->
+        drawRoundRect(
+            color = VEST_COLOR,
+            topLeft = Offset(center.x + side * radius * 0.32f - legWidth / 2f, center.y + radius * 0.85f),
+            size = androidx.compose.ui.geometry.Size(legWidth, legHeight),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(legWidth * 0.4f)
+        )
     }
 
-    // Squad outline to make the occupied-lane window legible even at squadCount == 1.
-    val left = geometry.corridorLeft + geometry.laneWidth * player.laneStart
-    val width = geometry.laneWidth * player.squadCount
-    drawRect(
-        color = avatarColor.copy(alpha = 0.5f),
-        topLeft = Offset(left, geometry.screenY - geometry.laneWidth * 0.75f),
-        size = androidx.compose.ui.geometry.Size(width, geometry.laneWidth * 0.75f),
-        style = Stroke(width = 3f)
+    // Gun, held forward and slightly to the side so it doesn't hide behind the head
+    drawRoundRect(
+        color = GUN_COLOR,
+        topLeft = Offset(center.x + radius * 0.55f, center.y - radius * 1.55f),
+        size = androidx.compose.ui.geometry.Size(radius * 0.26f, radius * 1.5f),
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(radius * 0.1f)
     )
+
+    // Torso
+    drawRoundRect(
+        color = helmetColor.copy(alpha = 0.85f),
+        topLeft = Offset(center.x - radius * 0.62f, center.y + radius * 0.05f),
+        size = androidx.compose.ui.geometry.Size(radius * 1.24f, radius * 1.0f),
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(radius * 0.35f)
+    )
+    drawRoundRect(
+        color = VEST_COLOR,
+        topLeft = Offset(center.x - radius * 0.4f, center.y + radius * 0.2f),
+        size = androidx.compose.ui.geometry.Size(radius * 0.8f, radius * 0.65f),
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(radius * 0.2f)
+    )
+
+    // Chibi head — big and round, this is most of what reads as "a character" at small sizes.
+    val headCenter = Offset(center.x, center.y - radius * 0.55f)
+    drawCircle(SKIN_COLOR, radius = radius * 0.78f, center = headCenter)
+
+    // Helmet cap over the top half of the head, colored per avatar design.
+    drawArc(
+        color = helmetColor,
+        startAngle = 180f,
+        sweepAngle = 180f,
+        useCenter = true,
+        topLeft = Offset(headCenter.x - radius * 0.78f, headCenter.y - radius * 0.78f),
+        size = androidx.compose.ui.geometry.Size(radius * 1.56f, radius * 1.56f)
+    )
+    drawLine(
+        color = helmetColor.copy(alpha = 0.7f),
+        start = Offset(headCenter.x - radius * 0.78f, headCenter.y),
+        end = Offset(headCenter.x + radius * 0.78f, headCenter.y),
+        strokeWidth = radius * 0.12f
+    )
+
+    // Ears, just enough silhouette to read as a head from behind rather than a helmet floating alone.
+    listOf(-1f, 1f).forEach { side ->
+        drawCircle(SKIN_COLOR, radius = radius * 0.14f, center = Offset(headCenter.x + side * radius * 0.72f, headCenter.y + radius * 0.05f))
+    }
 }

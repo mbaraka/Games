@@ -22,8 +22,7 @@ fun CorridorHud(player: PlayerState, score: Int, bestScore: Int, modifier: Modif
         }
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Text("HP ${player.health}/${player.maxHealth}", color = Color(0xFFEF5350), fontSize = 14.sp)
-            Text("DMG ${player.damage.toInt()}", color = Color(0xFFFF7043), fontSize = 14.sp)
-            Text("RATE x${"%.1f".format(player.fireRateMultiplier)}", color = Color(0xFF29B6F6), fontSize = 14.sp)
+            Text(player.weaponTier.displayName, color = Color(player.weaponTier.colorArgb), fontSize = 14.sp)
             Text("SQUAD ${player.squadCount}", color = Color(0xFF66BB6A), fontSize = 14.sp)
         }
     }
