@@ -26,8 +26,11 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -77,6 +80,7 @@ class MainActivity : ComponentActivity() {
                 GameSelectionScreen(
                     onGameSelected = { entry ->
                         GamePlayStats.recordPlay(this, entry.id)
+                        ParentalControls.startSession(this)
                         startActivity(Intent(this, entry.activityClass))
                     }
                 )
@@ -200,17 +204,41 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
     val context = LocalContext.current
     val gameIds = remember(GAME_CATALOG) { GAME_CATALOG.map { it.id } }
     var playCounts by remember { mutableStateOf(GamePlayStats.getCounts(context, gameIds)) }
+    var remainingMinutes by remember { mutableStateOf(ParentalControls.getRemainingMinutes(context)) }
+    var showPinPrompt by remember { mutableStateOf(false) }
+    var showParentSettings by remember { mutableStateOf(false) }
 
-    // Re-read play counts whenever the screen resumes (e.g. after returning from a game).
+    // Re-read play counts and fold the just-finished game's playtime into today's usage
+    // whenever the screen resumes (e.g. after returning from a game).
     DisposableEffect(Unit) {
         val lifecycleOwner = context as? LifecycleOwner
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
+                ParentalControls.endSession(context)
                 playCounts = GamePlayStats.getCounts(context, gameIds)
+                remainingMinutes = ParentalControls.getRemainingMinutes(context)
             }
         }
         lifecycleOwner?.lifecycle?.addObserver(observer)
         onDispose { lifecycleOwner?.lifecycle?.removeObserver(observer) }
+    }
+
+    val timeUp = remainingMinutes == 0
+
+    if (showPinPrompt) {
+        PinPromptDialog(
+            onDismiss = { showPinPrompt = false },
+            onUnlocked = {
+                showPinPrompt = false
+                showParentSettings = true
+            }
+        )
+    }
+    if (showParentSettings) {
+        ParentSettingsDialog(onDismiss = {
+            showParentSettings = false
+            remainingMinutes = ParentalControls.getRemainingMinutes(context)
+        })
     }
 
     val mostPlayed = GAME_CATALOG
@@ -224,17 +252,33 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
 
     Scaffold(
         topBar = {
-            Text(
-                text = "Game Hub",
-                color = GameColors.TextPrimary,
-                fontSize = 36.sp,
-                textAlign = TextAlign.Center,
-                fontWeight = FontWeight.Bold,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.safeDrawing)
                     .padding(bottom = 8.dp)
-            )
+            ) {
+                Text(
+                    text = "Game Hub",
+                    color = GameColors.TextPrimary,
+                    fontSize = 36.sp,
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.Center)
+                )
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Parent Settings",
+                    tint = GameColors.TextSecondary,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 16.dp)
+                        .size(28.dp)
+                        .clickable { showPinPrompt = true }
+                )
+            }
         }
     ) { padding->
         Column(
@@ -254,6 +298,27 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
                 modifier = Modifier
             )
 
+            if (timeUp) {
+                Text(
+                    text = "Time's up for today! Ask a parent for more time.",
+                    color = GameColors.Warning,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                )
+            } else {
+                remainingMinutes?.let { minutes ->
+                    Text(
+                        text = "$minutes min left today",
+                        color = GameColors.TextMuted,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+
             if (mostPlayed.isNotEmpty()) {
                 Section(text = "Most Played", textColor = GameColors.TextSecondary, fontSize = 18.sp, fontWeight = FontWeight.Normal)
 
@@ -267,6 +332,7 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
                             title = entry.title,
                             description = entry.description,
                             color = entry.color,
+                            enabled = !timeUp,
                             onClick = { onGameSelected(entry) }
                         )
                     }
@@ -299,6 +365,7 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
                             title = entry.title,
                             description = entry.description,
                             color = entry.color,
+                            enabled = !timeUp,
                             onClick = { onGameSelected(entry) }
                         )
                     }
