@@ -1,5 +1,16 @@
 package com.baraka.game.snakeladder
 
+import android.media.AudioManager
+import android.media.ToneGenerator
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -36,7 +47,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +59,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -55,6 +72,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.R
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 private val TokenColors = listOf(
     Color(0xFF42A5F5),
@@ -253,6 +272,46 @@ private fun GameContent(
     onPlayAgain: () -> Unit,
     onMenu: () -> Unit
 ) {
+    val sounds = rememberGameSounds()
+    val haptics = LocalHapticFeedback.current
+
+    var prevPositions by remember { mutableStateOf<List<Int>?>(null) }
+    LaunchedEffect(uiState.positions) {
+        val prev = prevPositions
+        if (prev != null && prev != uiState.positions) {
+            sounds.hop()
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+        prevPositions = uiState.positions
+    }
+
+    var prevDice by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(uiState.lastDice) {
+        if (uiState.lastDice != null && uiState.lastDice != prevDice) {
+            sounds.diceLand()
+        }
+        prevDice = uiState.lastDice
+    }
+
+    var prevSpecial by remember { mutableStateOf<SpecialMoveEvent?>(null) }
+    LaunchedEffect(uiState.specialMove) {
+        val sm = uiState.specialMove
+        if (sm != null && sm != prevSpecial) {
+            if (sm.type == SpecialMoveType.LADDER) sounds.ladder() else sounds.snake()
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+        prevSpecial = sm
+    }
+
+    var prevWinner by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(uiState.winnerIndex) {
+        if (uiState.winnerIndex != null && uiState.winnerIndex != prevWinner) {
+            sounds.win()
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+        prevWinner = uiState.winnerIndex
+    }
+
     Column(
         modifier = modifier.padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -261,6 +320,7 @@ private fun GameContent(
             positions = uiState.positions,
             currentPlayerIndex = uiState.currentPlayerIndex,
             phase = uiState.phase,
+            specialMove = uiState.specialMove,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f, fill = true)
@@ -306,6 +366,10 @@ private fun GameContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    DiceView(
+                        value = uiState.lastDice,
+                        isRolling = uiState.isRolling && uiState.lastDice == null
+                    )
                     Text(
                         text = uiState.lastDice?.let { "Last roll: $it" } ?: "Roll the die",
                         style = MaterialTheme.typography.bodyLarge
@@ -442,6 +506,7 @@ private fun BoardGrid(
     positions: List<Int>,
     currentPlayerIndex: Int,
     phase: SnakeLadderPhase,
+    specialMove: SpecialMoveEvent?,
     modifier: Modifier = Modifier
 ) {
     val ladderStarts = SnakeLadderRules.ladders.keys
@@ -475,6 +540,10 @@ private fun BoardGrid(
                     },
                     currentPlayerIndex = currentPlayerIndex,
                     phase = phase,
+                    highlight = when (cell) {
+                        specialMove?.from, specialMove?.to -> specialMove?.type
+                        else -> null
+                    },
                     modifier = Modifier
                         .padding(2.dp)
                         .aspectRatio(1f)
@@ -496,18 +565,28 @@ private fun BoardCell(
     playersHere: List<Int>,
     currentPlayerIndex: Int,
     phase: SnakeLadderPhase,
+    highlight: SpecialMoveType? = null,
     modifier: Modifier = Modifier
 ) {
     val ladderGreen = Color(0xFF2E7D32)
     val snakeRed = Color(0xFFC62828)
     val finishGold = Color(0xFFF9A825)
 
-    val base = when {
+    val staticBase = when {
         cellNumber == SnakeLadderRules.BOARD_SIZE -> Color(0xFFFFF9C4)
         isLadderFoot -> Color(0xFFC8E6C9)
         isSnakeHead -> Color(0xFFFFCDD2)
         else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
     }
+    val base by animateColorAsState(
+        targetValue = when (highlight) {
+            SpecialMoveType.LADDER -> Color(0xFFFFD54F)
+            SpecialMoveType.SNAKE -> Color(0xFFEF9A9A)
+            null -> staticBase
+        },
+        animationSpec = tween(180),
+        label = "cellHighlight"
+    )
     val borderColor = when {
         cellNumber == SnakeLadderRules.BOARD_SIZE -> finishGold
         isLadderFoot -> ladderGreen
@@ -648,4 +727,100 @@ private fun BoardCell(
             }
         }
     }
+}
+
+private val DicePipLayout: Map<Int, Set<Pair<Int, Int>>> = mapOf(
+    1 to setOf(1 to 1),
+    2 to setOf(0 to 0, 2 to 2),
+    3 to setOf(0 to 0, 1 to 1, 2 to 2),
+    4 to setOf(0 to 0, 0 to 2, 2 to 0, 2 to 2),
+    5 to setOf(0 to 0, 0 to 2, 1 to 1, 2 to 0, 2 to 2),
+    6 to setOf(0 to 0, 0 to 2, 1 to 0, 1 to 2, 2 to 0, 2 to 2)
+)
+
+@Composable
+private fun DiceView(
+    value: Int?,
+    isRolling: Boolean,
+    modifier: Modifier = Modifier
+) {
+    var face by remember { mutableIntStateOf(value ?: 1) }
+
+    LaunchedEffect(isRolling) {
+        if (isRolling) {
+            while (isActive) {
+                face = (1..6).random()
+                delay(80)
+            }
+        }
+    }
+    LaunchedEffect(value, isRolling) {
+        if (!isRolling && value != null) face = value
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "diceSpin")
+    val rotation by if (isRolling) {
+        infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(tween(400, easing = LinearEasing)),
+            label = "diceRotation"
+        )
+    } else {
+        remember { mutableFloatStateOf(0f) }
+    }
+    val scale by animateFloatAsState(
+        targetValue = if (isRolling) 0.88f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "diceScale"
+    )
+
+    Box(
+        modifier = modifier
+            .size(52.dp)
+            .graphicsLayer {
+                rotationZ = rotation
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color.White)
+            .border(1.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp))
+            .padding(7.dp)
+            .semantics { contentDescription = value?.let { "Dice showing $it" } ?: "Dice rolling" }
+    ) {
+        val pips = DicePipLayout[face].orEmpty()
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+            for (row in 0..2) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    for (col in 0..2) {
+                        val active = pips.contains(row to col)
+                        Box(
+                            Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(if (active) Color(0xFF212121) else Color.Transparent)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private class GameSounds(private val toneGen: ToneGenerator) {
+    fun hop() = toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 35)
+    fun diceLand() = toneGen.startTone(ToneGenerator.TONE_PROP_ACK, 90)
+    fun ladder() = toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 160)
+    fun snake() = toneGen.startTone(ToneGenerator.TONE_PROP_NACK, 220)
+    fun win() = toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 450)
+}
+
+@Composable
+private fun rememberGameSounds(): GameSounds {
+    val toneGen = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 70) }
+    DisposableEffect(Unit) {
+        onDispose { toneGen.release() }
+    }
+    return remember { GameSounds(toneGen) }
 }

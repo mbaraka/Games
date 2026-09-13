@@ -10,6 +10,16 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
+enum class SpecialMoveType { LADDER, SNAKE }
+
+/** Transient event describing an in-progress ladder climb or snake slide, for UI animation/sound. */
+data class SpecialMoveEvent(
+    val playerIndex: Int,
+    val type: SpecialMoveType,
+    val from: Int,
+    val to: Int
+)
+
 data class SnakeLadderUiState(
     val phase: SnakeLadderPhase = SnakeLadderPhase.Menu,
     val positions: List<Int> = emptyList(),
@@ -19,7 +29,8 @@ data class SnakeLadderUiState(
     val lastDice: Int? = null,
     val lastMessage: String? = null,
     val isRolling: Boolean = false,
-    val winnerIndex: Int? = null
+    val winnerIndex: Int? = null,
+    val specialMove: SpecialMoveEvent? = null
 ) {
     val playerCount: Int get() = positions.size
 
@@ -93,10 +104,10 @@ class SnakeLadderViewModel : ViewModel() {
         if (s.currentIsCpu) return
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isRolling = true, lastMessage = "Rolling…") }
-            delay(420)
+            _uiState.update { it.copy(isRolling = true, lastDice = null, lastMessage = "Rolling…") }
+            delay(500)
             val dice = random.nextInt(1, 7)
-            applyDiceResult(dice)
+            animateAndResolve(dice)
         }
     }
 
@@ -111,10 +122,10 @@ class SnakeLadderViewModel : ViewModel() {
             if (snapshot.phase != SnakeLadderPhase.Playing || snapshot.winnerIndex != null) return@launch
             if (!snapshot.currentIsCpu || snapshot.isRolling) return@launch
 
-            _uiState.update { it.copy(isRolling = true, lastMessage = cpuRollingMessage(snapshot)) }
-            delay(480)
+            _uiState.update { it.copy(isRolling = true, lastDice = null, lastMessage = cpuRollingMessage(snapshot)) }
+            delay(550)
             val dice = random.nextInt(1, 7)
-            applyDiceResult(dice)
+            animateAndResolve(dice)
         }
     }
 
@@ -123,67 +134,76 @@ class SnakeLadderViewModel : ViewModel() {
         return "Player $n (CPU) is rolling…"
     }
 
-    private fun applyDiceResult(dice: Int) {
-        _uiState.update { state ->
-            if (state.phase != SnakeLadderPhase.Playing) return@update state
+    private suspend fun animateAndResolve(dice: Int) {
+        val state0 = _uiState.value
+        if (state0.phase != SnakeLadderPhase.Playing) return
 
-            val idx = state.currentPlayerIndex
-            val from = state.positions[idx]
-            val moved = SnakeLadderRules.moveAfterRoll(from, dice)
+        val idx = state0.currentPlayerIndex
+        val from = state0.positions[idx]
+        val moved = SnakeLadderRules.moveAfterRoll(from, dice)
+        val name = playerLabel(state0, idx)
 
-            val newPositions = state.positions.toMutableList()
-            val name = playerLabel(state, idx)
+        _uiState.update { it.copy(lastDice = dice) }
 
-            if (moved == null) {
-                val msg = if (from == 0) {
-                    "$name rolled $dice."
-                } else {
-                    "$name rolled $dice — need exact ${SnakeLadderRules.BOARD_SIZE - from} to finish, so no move."
-                }
-                val next = advancePlayer(state, idx)
-                state.copy(
-                    positions = newPositions,
-                    lastDice = dice,
-                    lastMessage = msg,
-                    isRolling = false,
-                    currentPlayerIndex = next
-                )
+        if (moved == null) {
+            val msg = if (from == 0) {
+                "$name rolled $dice."
             } else {
-                newPositions[idx] = moved
-                val reachedEnd = moved == SnakeLadderRules.BOARD_SIZE
-                val rawLanding = if (from == 0) dice else from + dice
-                val msg = buildString {
-                    append("$name rolled $dice.")
-                    if (from == 0) {
-                        append(" Entered on $rawLanding")
-                    } else {
-                        append(" Landed on $rawLanding")
-                    }
-                    if (moved != rawLanding) {
-                        append(" → slid or climbed to $moved")
-                    }
-                    append(".")
+                "$name rolled $dice — need exact ${SnakeLadderRules.BOARD_SIZE - from} to finish, so no move."
+            }
+            delay(250)
+            val next = advancePlayer(state0, idx)
+            _uiState.update { it.copy(lastMessage = msg, isRolling = false, currentPlayerIndex = next) }
+        } else {
+            val rawLanding = if (from == 0) dice else from + dice
+            val start = if (from == 0) 1 else from + 1
+            for (step in start..rawLanding) {
+                _uiState.update { st ->
+                    val positions = st.positions.toMutableList()
+                    positions[idx] = step
+                    st.copy(positions = positions)
                 }
-                if (reachedEnd) {
-                    state.copy(
-                        positions = newPositions,
-                        lastDice = dice,
+                delay(90)
+            }
+
+            if (moved != rawLanding) {
+                val type = if (SnakeLadderRules.ladders.containsKey(rawLanding)) {
+                    SpecialMoveType.LADDER
+                } else {
+                    SpecialMoveType.SNAKE
+                }
+                delay(200)
+                _uiState.update { it.copy(specialMove = SpecialMoveEvent(idx, type, rawLanding, moved)) }
+                delay(350)
+                _uiState.update { st ->
+                    val positions = st.positions.toMutableList()
+                    positions[idx] = moved
+                    st.copy(positions = positions)
+                }
+                delay(250)
+                _uiState.update { it.copy(specialMove = null) }
+            }
+
+            val msg = buildString {
+                append("$name rolled $dice.")
+                if (from == 0) append(" Entered on $rawLanding") else append(" Landed on $rawLanding")
+                if (moved != rawLanding) append(" → slid or climbed to $moved")
+                append(".")
+            }
+
+            if (moved == SnakeLadderRules.BOARD_SIZE) {
+                _uiState.update {
+                    it.copy(
                         lastMessage = "$name wins!",
                         isRolling = false,
                         phase = SnakeLadderPhase.Finished,
                         winnerIndex = idx,
                         currentPlayerIndex = idx
                     )
-                } else {
-                    val next = advancePlayer(state, idx)
-                    state.copy(
-                        positions = newPositions,
-                        lastDice = dice,
-                        lastMessage = msg,
-                        isRolling = false,
-                        currentPlayerIndex = next
-                    )
                 }
+            } else {
+                val next = advancePlayer(state0, idx)
+                _uiState.update { it.copy(lastMessage = msg, isRolling = false, currentPlayerIndex = next) }
             }
         }
 
