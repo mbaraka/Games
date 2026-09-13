@@ -4,6 +4,15 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+// Versioning policy: MAJOR stays 1, MINOR bumps when a new game is added,
+// PATCH bumps for small fixes/tweaks. Override from CI with -PappMinor=N -PappPatch=N
+// (e.g. driven by a git tag like v1.4.2) so a tag push controls the shipped version.
+val appMajor = (project.findProperty("appMajor") as String?)?.toInt() ?: 1
+val appMinor = (project.findProperty("appMinor") as String?)?.toInt() ?: 0
+val appPatch = (project.findProperty("appPatch") as String?)?.toInt() ?: 0
+val appVersionName = "$appMajor.$appMinor.$appPatch"
+val appVersionCode = appMajor * 10_000 + appMinor * 100 + appPatch
+
 android {
     namespace = "com.baraka.game"
     compileSdk = 35
@@ -12,10 +21,24 @@ android {
         applicationId = "com.baraka.game"
         minSdk = 27
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        // Only registered when a release keystore is supplied (e.g. via CI secrets),
+        // so local debug builds work with zero setup. See RELEASING.md.
+        val keystorePath = System.getenv("RELEASE_KEYSTORE_PATH")
+        if (!keystorePath.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -25,6 +48,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
 
