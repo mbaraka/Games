@@ -62,6 +62,7 @@ import com.baraka.game.clashdecks.ClashDecksActivity
 import com.baraka.game.keyreader.KeyReaderActivity
 import com.baraka.game.knightsurvivor.KnightSurvivorActivity
 import com.baraka.game.memorymatch.MemoryMatchGame
+import com.baraka.game.missilecommand.MissileCommandActivity
 import com.baraka.game.numbercorridor.NumberCorridorActivity
 import com.baraka.game.numbercruncher.NumberCruncherGame
 import com.baraka.game.rhythmrunner.RhythmRunnerGame
@@ -126,6 +127,13 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         description = "Atari-style alien shooter — hold the line behind your bunkers as the formation marches down.",
         color = Color(0xFF66BB6A),
         activityClass = SpaceInvadersActivity::class.java
+    ),
+    GameCatalogEntry(
+        id = "missile_command",
+        title = "Missile Command",
+        description = "Atari-style defense — tap to detonate interceptors and save your cities from the falling missiles.",
+        color = Color(0xFFFF7043),
+        activityClass = MissileCommandActivity::class.java
     ),
     GameCatalogEntry(
         id = "knight_survivor",

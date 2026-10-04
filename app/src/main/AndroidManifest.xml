@@ -126,6 +126,13 @@
             android:label="Space Invaders"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
+
+        <activity
+            android:name=".missilecommand.MissileCommandActivity"
+            android:exported="false"
+            android:label="Missile Command"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Game" />
     </application>
 
 </manifest>
