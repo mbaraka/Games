@@ -133,6 +133,13 @@
             android:label="Missile Command"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
+
+        <activity
+            android:name=".snake.SnakeActivity"
+            android:exported="false"
+            android:label="Snake"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Game" />
     </application>
 
 </manifest>

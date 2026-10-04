@@ -67,6 +67,7 @@ import com.baraka.game.numbercorridor.NumberCorridorActivity
 import com.baraka.game.numbercruncher.NumberCruncherGame
 import com.baraka.game.rhythmrunner.RhythmRunnerGame
 import com.baraka.game.roadrush.RoadRushActivity
+import com.baraka.game.snake.SnakeActivity
 import com.baraka.game.snakeladder.SnakeLadderActivity
 import com.baraka.game.spaceinvaders.SpaceInvadersActivity
 import com.baraka.game.ui.components.Section
@@ -134,6 +135,13 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         description = "Atari-style defense — tap to detonate interceptors and save your cities from the falling missiles.",
         color = Color(0xFFFF7043),
         activityClass = MissileCommandActivity::class.java
+    ),
+    GameCatalogEntry(
+        id = "snake",
+        title = "Snake",
+        description = "Atari-style classic — swipe to turn, eat fruit, don't hit the walls or yourself.",
+        color = Color(0xFF66BB6A),
+        activityClass = SnakeActivity::class.java
     ),
     GameCatalogEntry(
         id = "knight_survivor",
