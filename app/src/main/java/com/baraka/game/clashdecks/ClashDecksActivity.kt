@@ -29,6 +29,9 @@ class ClashDecksActivity : ComponentActivity() {
                     onEndTurn = viewModel::endTurn,
                     onOpenCodex = viewModel::openCodex,
                     onCloseCodex = viewModel::closeCodex,
+                    onOpenSettings = viewModel::openSettings,
+                    onCloseSettings = viewModel::closeSettings,
+                    onSetSoundEnabled = viewModel::setSoundEnabled,
                     onRematch = viewModel::rematch,
                     onBackToMenu = viewModel::backToMenu
                 )

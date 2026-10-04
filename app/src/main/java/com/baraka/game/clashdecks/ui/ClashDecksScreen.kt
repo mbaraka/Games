@@ -51,15 +51,23 @@ fun ClashDecksScreen(
     onEndTurn: () -> Unit,
     onOpenCodex: () -> Unit,
     onCloseCodex: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onCloseSettings: () -> Unit,
+    onSetSoundEnabled: (Boolean) -> Unit,
     onRematch: () -> Unit,
     onBackToMenu: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize().background(ScreenBg)) {
         when (model.screen) {
-            ClashScreen.MENU -> MenuScreen(model, onBack, onSetDifficulty, onStartDuel, onOpenCodex)
+            ClashScreen.MENU -> MenuScreen(model, onBack, onSetDifficulty, onStartDuel, onOpenCodex, onOpenSettings)
             ClashScreen.CODEX -> CodexScreen(onClose = onCloseCodex)
+            ClashScreen.SETTINGS -> ClashSettingsScreen(
+                soundEnabled = model.soundEnabled,
+                onSoundEnabledChanged = onSetSoundEnabled,
+                onClose = onCloseSettings
+            )
             ClashScreen.DUEL -> model.duel?.let {
-                DuelScreen(it, model.cpuThinking, model.effects, onPlayCard, onEndTurn, onOpenCodex)
+                DuelScreen(it, model.cpuThinking, model.effects, onPlayCard, onEndTurn, onOpenCodex, onOpenSettings)
             }
             ClashScreen.RESULT -> model.duel?.let {
                 ResultScreen(it, onRematch, onBackToMenu, onOpenCodex)
@@ -74,7 +82,8 @@ private fun MenuScreen(
     onBack: () -> Unit,
     onSetDifficulty: (Difficulty) -> Unit,
     onStartDuel: () -> Unit,
-    onOpenCodex: () -> Unit
+    onOpenCodex: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -103,6 +112,7 @@ private fun MenuScreen(
         Spacer(Modifier.height(8.dp))
         PillButton("Start Duel", onStartDuel)
         PillButton("Codex", onOpenCodex, primary = false)
+        PillButton("Settings", onOpenSettings, primary = false)
         PillButton("Back", onBack, primary = false)
     }
 }
@@ -114,7 +124,8 @@ private fun DuelScreen(
     effects: List<com.baraka.game.clashdecks.VfxEmission>,
     onPlayCard: (String) -> Unit,
     onEndTurn: () -> Unit,
-    onOpenCodex: () -> Unit
+    onOpenCodex: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     val playerTurn = duel.phase == DuelPhase.PLAYER_TURN && duel.winner == null && !cpuThinking
     Box(modifier = Modifier.fillMaxSize()) {
@@ -128,6 +139,13 @@ private fun DuelScreen(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Text("Round ${duel.turnNumber}", color = GameColors.TextMuted, fontSize = 12.sp)
             Spacer(Modifier.weight(1f))
+            Text("⚙", color = GameColors.Accent, fontSize = 15.sp,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable { onOpenSettings() }
+                    .padding(horizontal = 12.dp, vertical = 6.dp))
+            Spacer(Modifier.width(8.dp))
             Text("Codex", color = GameColors.Accent, fontSize = 13.sp,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))

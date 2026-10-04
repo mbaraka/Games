@@ -1,9 +1,11 @@
 package com.baraka.game.clashdecks
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.baraka.game.clashdecks.ai.CpuStrategy
 import com.baraka.game.clashdecks.ai.Difficulty
+import com.baraka.game.clashdecks.data.ClashDecksSettingsRepository
 import com.baraka.game.clashdecks.data.DuelSoundEngine
 import com.baraka.game.clashdecks.model.DuelPhase
 import com.baraka.game.clashdecks.model.DuelState
@@ -17,7 +19,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
-enum class ClashScreen { MENU, DUEL, CODEX, RESULT }
+enum class ClashScreen { MENU, DUEL, CODEX, SETTINGS, RESULT }
 
 /** One visual effect plus a unique id so the UI's effect layer plays each batch once. */
 data class VfxEmission(val id: Long, val vfx: DuelVfx)
@@ -28,23 +30,33 @@ data class ClashUiModel(
     val duel: DuelState? = null,
     val cpuThinking: Boolean = false,
     /** The most recent batch of effects to animate; replaced on every state transition. */
-    val effects: List<VfxEmission> = emptyList()
+    val effects: List<VfxEmission> = emptyList(),
+    val soundEnabled: Boolean = true
 )
 
 /**
  * Owns the duel loop and the procedural sound engine. All rules live in [DuelEngine];
  * this class only sequences player input, the animated CPU turn, and sound draining.
+ * [AndroidViewModel] (not plain [androidx.lifecycle.ViewModel]) so it can read/persist the
+ * sound setting via [ClashDecksSettingsRepository] the same way the other games do.
  */
-class ClashDecksViewModel : ViewModel() {
+class ClashDecksViewModel(application: Application) : AndroidViewModel(application) {
 
     private val rng = Random(System.nanoTime())
     private val sound = DuelSoundEngine()
     private var vfxSeq = 0L
+    private val settingsRepository = ClashDecksSettingsRepository.getInstance(application)
 
-    private val _ui = MutableStateFlow(ClashUiModel())
+    private val _ui = MutableStateFlow(ClashUiModel(soundEnabled = settingsRepository.isSoundEnabled()))
     val ui: StateFlow<ClashUiModel> = _ui.asStateFlow()
 
-    private var screenBeforeCodex: ClashScreen = ClashScreen.MENU
+    /** Where Codex/Settings were opened from, so closing either returns to the right screen. */
+    private var screenBeforeOverlay: ClashScreen = ClashScreen.MENU
+
+    fun setSoundEnabled(enabled: Boolean) {
+        settingsRepository.setSoundEnabled(enabled)
+        _ui.update { it.copy(soundEnabled = enabled) }
+    }
 
     fun setDifficulty(difficulty: Difficulty) = _ui.update { it.copy(difficulty = difficulty) }
 
@@ -57,16 +69,25 @@ class ClashDecksViewModel : ViewModel() {
     fun rematch() = startDuel()
 
     fun backToMenu() {
-        _ui.update { ClashUiModel(difficulty = it.difficulty) }
+        _ui.update { ClashUiModel(difficulty = it.difficulty, soundEnabled = it.soundEnabled) }
     }
 
     fun openCodex() {
-        screenBeforeCodex = _ui.value.screen
+        screenBeforeOverlay = _ui.value.screen
         _ui.update { it.copy(screen = ClashScreen.CODEX) }
     }
 
     fun closeCodex() {
-        _ui.update { it.copy(screen = screenBeforeCodex) }
+        _ui.update { it.copy(screen = screenBeforeOverlay) }
+    }
+
+    fun openSettings() {
+        screenBeforeOverlay = _ui.value.screen
+        _ui.update { it.copy(screen = ClashScreen.SETTINGS) }
+    }
+
+    fun closeSettings() {
+        _ui.update { it.copy(screen = screenBeforeOverlay) }
     }
 
     fun playCard(cardId: String) {
@@ -122,7 +143,7 @@ class ClashDecksViewModel : ViewModel() {
 
     /** Plays the state's pending sounds, forwards its VFX to the UI, then stores it cleared. */
     private fun applyState(state: DuelState) {
-        state.pendingSounds.forEach(sound::play)
+        if (_ui.value.soundEnabled) state.pendingSounds.forEach(sound::play)
         val emissions = state.pendingVfx.map { VfxEmission(vfxSeq++, it) }
         val cleared = state.copy(pendingSounds = emptyList(), pendingVfx = emptyList())
         _ui.update {
