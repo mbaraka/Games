@@ -112,6 +112,20 @@
             android:label="Road Rush"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
+
+        <activity
+            android:name=".breakout.BreakoutActivity"
+            android:exported="false"
+            android:label="Breakout"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Game" />
+
+        <activity
+            android:name=".spaceinvaders.SpaceInvadersActivity"
+            android:exported="false"
+            android:label="Space Invaders"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Game" />
     </application>
 
 </manifest>

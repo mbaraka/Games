@@ -57,6 +57,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import com.baraka.game.basedefender.BaseDefenderGame
 import com.baraka.game.battleship.BattleShipActivity
+import com.baraka.game.breakout.BreakoutActivity
 import com.baraka.game.clashdecks.ClashDecksActivity
 import com.baraka.game.keyreader.KeyReaderActivity
 import com.baraka.game.knightsurvivor.KnightSurvivorActivity
@@ -66,6 +67,7 @@ import com.baraka.game.numbercruncher.NumberCruncherGame
 import com.baraka.game.rhythmrunner.RhythmRunnerGame
 import com.baraka.game.roadrush.RoadRushActivity
 import com.baraka.game.snakeladder.SnakeLadderActivity
+import com.baraka.game.spaceinvaders.SpaceInvadersActivity
 import com.baraka.game.ui.components.Section
 import com.baraka.game.ui.theme.GameColors
 import com.baraka.game.ui.theme.GameTheme
@@ -110,6 +112,20 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         description = "Atari-style vertical racer — shift lanes to dodge oncoming traffic before you run out of lives.",
         color = Color(0xFFE53935),
         activityClass = RoadRushActivity::class.java
+    ),
+    GameCatalogEntry(
+        id = "breakout",
+        title = "Breakout",
+        description = "Atari-style paddle & ball — smash every brick, catch power-ups, climb the levels.",
+        color = Color(0xFF4FC3F7),
+        activityClass = BreakoutActivity::class.java
+    ),
+    GameCatalogEntry(
+        id = "space_invaders",
+        title = "Space Invaders",
+        description = "Atari-style alien shooter — hold the line behind your bunkers as the formation marches down.",
+        color = Color(0xFF66BB6A),
+        activityClass = SpaceInvadersActivity::class.java
     ),
     GameCatalogEntry(
         id = "knight_survivor",
