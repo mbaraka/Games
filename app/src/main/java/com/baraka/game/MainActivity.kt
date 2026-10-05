@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import com.baraka.game.asteroids.AsteroidsActivity
 import com.baraka.game.basedefender.BaseDefenderGame
 import com.baraka.game.battleship.BattleShipActivity
 import com.baraka.game.breakout.BreakoutActivity
@@ -142,6 +143,13 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         description = "Atari-style classic — swipe to turn, eat fruit, don't hit the walls or yourself.",
         color = Color(0xFF66BB6A),
         activityClass = SnakeActivity::class.java
+    ),
+    GameCatalogEntry(
+        id = "asteroids",
+        title = "Asteroids",
+        description = "Atari-style vector shooter — rotate, thrust and blast drifting rocks that split as you hit them.",
+        color = Color(0xFF9E9E9E),
+        activityClass = AsteroidsActivity::class.java
     ),
     GameCatalogEntry(
         id = "knight_survivor",

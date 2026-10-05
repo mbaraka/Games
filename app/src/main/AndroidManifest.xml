@@ -140,6 +140,13 @@
             android:label="Snake"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
+
+        <activity
+            android:name=".asteroids.AsteroidsActivity"
+            android:exported="false"
+            android:label="Asteroids"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Game" />
     </application>
 
 </manifest>
