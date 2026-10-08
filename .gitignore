@@ -1,6 +1,7 @@
 *.iml
 .gradle
 /local.properties
+.idea
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
@@ -13,7 +14,6 @@
 .externalNativeBuild
 .cxx
 local.properties
-.idea
 .kotlin/
 
 # Release signing key and local signed build output — never commit these
