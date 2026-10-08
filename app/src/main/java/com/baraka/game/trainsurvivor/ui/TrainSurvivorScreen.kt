@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -420,33 +423,39 @@ private fun RoundButton(label: String, modifier: Modifier, size: Int, onClick: (
 @Composable
 private fun WeaponSwitcher(game: TrainGame, tick: MutableLongState, modifier: Modifier) {
     tick.longValue
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    // Compact two-line chips, scrollable in case a small screen can't show all five.
+    Column(
+        modifier = modifier.heightIn(max = 250.dp).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
         for (i in 0 until game.slotCount) {
             val g = game.gunners[i]
             val auto = g.mode == AUTO_WEAPON
             val accent = if (!g.alive) Color(0xFF616161) else if (auto) Color(0xFF66BB6A) else Color(0xFFFFB300)
             Column(
                 modifier = Modifier
-                    .width(82.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .width(108.dp)
+                    .clip(RoundedCornerShape(9.dp))
                     .background(Color.Black.copy(alpha = 0.55f))
-                    .border(1.5.dp, accent, RoundedCornerShape(10.dp))
+                    .border(1.5.dp, accent, RoundedCornerShape(9.dp))
                     .clickable(enabled = g.alive) { game.cycleWeapon(i) }
-                    .padding(horizontal = 6.dp, vertical = 3.dp)
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Text(
                     SURVIVORS[i].name + if (!g.alive) "  LOST" else if (auto) "  AUTO" else "  MANUAL",
                     color = accent, fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1
                 )
-                Text(
-                    if (!g.alive) "-" else if (g.isHot) g.weapon.displayName.substringBefore(' ') + " HOT" else g.weapon.displayName.substringBefore(' '),
-                    color = if (g.isHot) Color(0xFFFF5252) else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1
-                )
-                if (g.alive) {
-                    val dmg = game.shotDamage(i).toInt()
-                    val bonus = game.damageBonusPercent(i)
-                    val line = remember(dmg, bonus) { "$dmg dmg" + if (bonus != 0) "  +$bonus%" else "" }
-                    Text(line, color = if (bonus > 0) Color(0xFFFFD54F) else Color(0xFFB0BEC5), fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (!g.alive) "-" else if (g.isHot) g.weapon.displayName.substringBefore(' ') + " HOT" else g.weapon.displayName.substringBefore(' '),
+                        color = if (g.isHot) Color(0xFFFF5252) else Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1
+                    )
+                    if (g.alive) {
+                        val dmg = game.shotDamage(i).toInt()
+                        val bonus = game.damageBonusPercent(i)
+                        val line = remember(dmg, bonus) { if (bonus != 0) "$dmg +$bonus%" else "$dmg" }
+                        Text(line, color = if (bonus > 0) Color(0xFFFFD54F) else Color(0xFFB0BEC5), fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
                 }
             }
         }
