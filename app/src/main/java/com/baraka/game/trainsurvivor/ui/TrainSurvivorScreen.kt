@@ -438,7 +438,10 @@ private fun WeaponSwitcher(game: TrainGame, tick: MutableLongState, modifier: Mo
                     SURVIVORS[i].name + if (!g.alive) "  LOST" else if (auto) "  AUTO" else "  MANUAL",
                     color = accent, fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1
                 )
-                Text(if (g.alive) g.weapon.displayName.substringBefore(' ') else "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(
+                    if (!g.alive) "-" else if (g.isHot) g.weapon.displayName.substringBefore(' ') + " HOT" else g.weapon.displayName.substringBefore(' '),
+                    color = if (g.isHot) Color(0xFFFF5252) else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1
+                )
             }
         }
     }

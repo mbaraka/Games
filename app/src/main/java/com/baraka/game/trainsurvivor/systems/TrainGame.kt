@@ -31,6 +31,8 @@ private const val MAX_ZOMBIES = 70
 private const val MAX_PARTICLES = 420
 private const val MAX_TEXTS = 40
 private const val SHELL_GRAVITY = 1000f
+private const val HEAT_COOL_RATE = 0.22f
+private const val HEAT_RECOVER = 0.35f
 
 enum class ParticleKind { BLOOD, SPARK, SMOKE, COIN, FIRE, DEBRIS, HEAL }
 
@@ -103,6 +105,10 @@ class GunnerState {
     var facing = 1
     /** False once the passenger's wagon has been destroyed. */
     var alive = true
+    /** Heat per weapon (0..1): rapid-fire weapons overheat and lock out until they cool. */
+    val heat = FloatArray(WeaponType.entries.size)
+    val overheated = BooleanArray(WeaponType.entries.size)
+    val isHot get() = overheated[weapon.ordinal]
 }
 
 fun weaponLength(weapon: WeaponType): Float = when (weapon) {
@@ -416,9 +422,26 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     // ---------------------------------------------------------------- health
 
     private fun regenerate(dt: Float) {
-        if (regenPerSecond <= 0f) return
-        hp = min(maxHp, hp + regenPerSecond * dt)
-        for (i in 1 until slotCount) if (carHp[i] > 0f) carHp[i] = min(carMaxHp[i], carHp[i] + regenPerSecond * 0.6f * dt)
+        val regen = regenPerSecond * biome.repairMult + biome.flatRegen
+        if (regen <= 0f) return
+        hp = min(maxHp, hp + regen * dt)
+        for (i in 1 until slotCount) if (carHp[i] > 0f) carHp[i] = min(carMaxHp[i], carHp[i] + regen * 0.6f * dt)
+    }
+
+    private fun healFraction(fraction: Float) {
+        hp = min(maxHp, hp + maxHp * fraction)
+        for (i in 1 until slotCount) if (carHp[i] > 0f) carHp[i] = min(carMaxHp[i], carHp[i] + carMaxHp[i] * fraction)
+        var x = trainLeft
+        while (x < trainLeft + trainLength) {
+            addParticle(Particle(x + rng.nextFloat() * 30f, 470f, 0f, -60f, 1.2f, 1.2f, 6f, 0xFF66FF8A.toInt(), ParticleKind.HEAL))
+            x += 30f
+        }
+    }
+
+    private fun isHurt(): Boolean {
+        if (hp < maxHp * 0.5f) return true
+        for (i in 1 until slotCount) if (carHp[i] < carMaxHp[i] * 0.5f) return true
+        return false
     }
 
     /** Damages the car at [slot]; a wrecked car passes the hit inward (toward the locomotive) at reduced strength. */
@@ -471,6 +494,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
                 biomeSwitched = true
                 biome = nextBiome
                 biomeBanner = 4f
+                if (biome == Biome.PLAINS) healFraction(0.3f)
                 sound(TrainSoundCue.UPGRADE)
             }
             if (boundaryX < -200f) {
@@ -484,7 +508,10 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     fun openJunction() {
         if (junction != null || transitioning) return
         val options = Biome.entries.filter { it != biome }.shuffled(rng)
-        junction = Junction(options[0], options[1], 8f)
+        var second = options[1]
+        // A hurt train is always offered the calm Plains route as one of its two choices.
+        if (biome != Biome.PLAINS && isHurt() && options[0] != Biome.PLAINS && options[1] != Biome.PLAINS) second = Biome.PLAINS
+        junction = Junction(options[0], second, 8f)
     }
 
     /** Throws the switch: the chosen route's scenery sweeps in from the right and the gameplay modifiers apply once it reaches the train. */
@@ -771,10 +798,11 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
 
     private fun damageZombie(z: Zombie, amount: Float, silent: Boolean = false, crit: Boolean = false) {
         if (z.dead) return
-        z.hp -= amount
+        val dealt = if (silent) amount else armored(amount, z)
+        z.hp -= dealt
         if (!silent) {
             z.flash = 1f
-            z.pendingDamage += amount
+            z.pendingDamage += dealt
             if (crit) z.pendingCrit = true
         }
         if (z.hp <= 0f) killZombie(z)
@@ -852,6 +880,10 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
                 continue
             }
             g.alive = true
+            for (k in g.heat.indices) {
+                if (g.heat[k] > 0f) g.heat[k] = max(0f, g.heat[k] - dt * HEAT_COOL_RATE)
+                if (g.overheated[k] && g.heat[k] <= HEAT_RECOVER) g.overheated[k] = false
+            }
             updateLoadout(i, dt)
             val weapon = g.weapon
             g.cooldown -= dt * boost * ratePerk[i]
@@ -865,7 +897,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
                 val z = zombies[k]
                 if (z.dead || z.x < -10f || z.x > worldW + 10f) continue
                 if (weapon.groundOnly && z.flying) continue
-                val d = abs(z.x - gx)
+                val d = reachDistance(i, z)
                 if (d < best) { best = d; target = z }
             }
             if (target == null) {
@@ -876,7 +908,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             val dx = target.x - gx
             g.facing = if (dx >= 0f) 1 else -1
             g.aim = atan2(targetY(target) - shoulderY(i), max(abs(dx), 20f))
-            if (g.cooldown <= 0f) {
+            if (g.cooldown <= 0f && !g.overheated[weapon.ordinal]) {
                 g.cooldown = weapon.interval
                 fire(i, target)
             }
@@ -884,6 +916,27 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     }
 
     private fun targetY(z: Zombie) = z.y - 28f * z.type.size
+
+    /** Damage left after the target's flat armor (never below a quarter of the hit). */
+    private fun armored(damage: Float, z: Zombie): Float =
+        if (z.type.armor <= 0f) damage else max(damage * 0.25f, damage - z.type.armor)
+
+    /**
+     * How far [z] is from [slot]'s gun for range purposes. Ground zombies mass at the two ends of the train, so
+     * range is measured mostly from the hull edge: a gunner deep inside the train pays only 40% of the distance
+     * to that edge, which lets middle wagons cover the nearest zombies instead of being out of reach.
+     * Targets above the train are measured straight from the gunner.
+     */
+    private fun reachDistance(slot: Int, z: Zombie): Float {
+        val gx = gunX(slot)
+        val left = rearEnd
+        val right = frontEnd
+        return when {
+            z.x > right -> (z.x - right) + 0.4f * max(0f, right - gx)
+            z.x < left -> (left - z.x) + 0.4f * max(0f, gx - left)
+            else -> abs(z.x - gx)
+        }
+    }
 
     private fun damageFor(slot: Int, weapon: WeaponType): Float =
         weapon.damage * crew[slot].powerMultiplier * damagePerk[slot] * (if (buffTime > 0f) 1.3f else 1f)
@@ -901,6 +954,14 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         val ty = targetY(target)
         g.recoil = 1f
         g.flash = 0.07f
+        if (weapon.heatPerShot > 0f) {
+            val h = g.heat[weapon.ordinal] + weapon.heatPerShot
+            g.heat[weapon.ordinal] = h
+            if (h >= 1f) {
+                g.overheated[weapon.ordinal] = true
+                if (texts.size < MAX_TEXTS) texts.add(FloatingText(gx, gunY(slot) - 66f, "OVERHEAT!", 1.0f, 0xFFFF5252.toInt(), 18f))
+            }
+        }
 
         when (weapon) {
             WeaponType.SHOTGUN -> repeat(3) { n ->
@@ -1014,6 +1075,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
      * what its splash or piercing would add on neighbouring zombies.
      */
     private fun weaponScore(slot: Int, weapon: WeaponType): Float {
+        if (gunners[slot].overheated[weapon.ordinal]) return 0f
         val gx = gunX(slot)
         var target: Zombie? = null
         var nearest = weapon.range * rangePerk[slot]
@@ -1021,12 +1083,12 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             val z = zombies[k]
             if (z.dead || z.x < -10f || z.x > worldW + 10f) continue
             if (weapon.groundOnly && z.flying) continue
-            val d = abs(z.x - gx)
+            val d = reachDistance(slot, z)
             if (d < nearest) { nearest = d; target = z }
         }
         if (target == null) return 0f
         val damage = damageFor(slot, weapon)
-        var total = min(damage, target.hp)
+        var total = min(armored(damage, target), target.hp)
         if (weapon.splashRadius > 0f || weapon.pierce > 1) {
             val dir = if (target.x >= gx) 1 else -1
             var pierced = 0
@@ -1036,14 +1098,16 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
                 if (weapon.groundOnly && o.flying) continue
                 val dx = o.x - target.x
                 if (weapon.splashRadius > 0f && abs(dx) <= weapon.splashRadius) {
-                    total += 0.6f * min(damage, o.hp)
+                    total += 0.6f * min(armored(damage, o), o.hp)
                 } else if (weapon.pierce > 1 && pierced < weapon.pierce - 1 && dx * dir > 0f && abs(dx) < 260f) {
-                    total += 0.8f * min(damage, o.hp)
+                    total += 0.8f * min(armored(damage, o), o.hp)
                     pierced++
                 }
             }
         }
-        return total / weapon.interval
+        // Prefer to rotate away from a weapon that is about to overheat.
+        val hotFactor = if (gunners[slot].heat[weapon.ordinal] > 0.8f) 0.6f else 1f
+        return total / weapon.interval * hotFactor
     }
 
     // ---------------------------------------------------------------- train-mounted weapons

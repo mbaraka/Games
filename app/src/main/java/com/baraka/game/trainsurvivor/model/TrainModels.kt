@@ -17,16 +17,18 @@ enum class WeaponType(
     val pierce: Int,
     val unlockCost: Int,
     val blurb: String,
-    val groundOnly: Boolean = false
+    val groundOnly: Boolean = false,
+    /** Heat added per shot (0..1 is full). Rapid-fire weapons overheat and lock out until they cool. */
+    val heatPerShot: Float = 0f
 ) {
     PISTOL("Pistol", 10f, 0.55f, 330f, 0f, 1, 0, "Reliable sidearm"),
-    SMG("SMG", 7f, 0.16f, 340f, 0f, 1, 150, "Rapid fire"),
+    SMG("SMG", 7f, 0.16f, 340f, 0f, 1, 150, "Rapid fire, great against weak swarms", heatPerShot = 0.05f),
     SHOTGUN("Shotgun", 45f, 0.9f, 230f, 70f, 1, 400, "Hits groups up close"),
     RIFLE("Sniper Rifle", 60f, 0.85f, 560f, 0f, 3, 900, "Long range, pierces 3"),
-    MINIGUN("Minigun", 13f, 0.07f, 400f, 0f, 1, 2000, "Bullet hose"),
+    MINIGUN("Minigun", 13f, 0.07f, 400f, 0f, 1, 2000, "Bullet hose that overheats", heatPerShot = 0.03f),
     CANNON("Cannon", 180f, 1.6f, 480f, 120f, 1, 4500, "Explosive shells (ground only)", groundOnly = true),
     ROCKET("Rocket Launcher", 190f, 1.9f, 540f, 150f, 1, 8000, "Big blasts, hits flyers too"),
-    LASER("Laser Rifle", 42f, 0.22f, 620f, 0f, 5, 14000, "Piercing beam, very long range")
+    LASER("Laser Rifle", 42f, 0.22f, 620f, 0f, 5, 14000, "Piercing beam, very long range, overheats", heatPerShot = 0.1f)
 }
 
 enum class TrainUpgrade(
@@ -57,18 +59,20 @@ enum class ZombieType(
     val coins: Int,
     val size: Float,
     val flying: Boolean = false,
-    val boss: Boolean = false
+    val boss: Boolean = false,
+    /** Flat damage removed from every hit (never below 25% of it), so small bullets are weak against armored targets. */
+    val armor: Float = 0f
 ) {
     WALKER("Walker", 30f, 38f, 5f, 2, 1.0f),
     RUNNER("Runner", 18f, 88f, 4f, 3, 0.9f),
-    BRUTE("Brute", 170f, 28f, 14f, 9, 1.45f),
+    BRUTE("Brute", 170f, 28f, 14f, 9, 1.45f, armor = 5f),
     BLOATER("Bloater", 55f, 36f, 0f, 5, 1.2f),
-    TITAN("Titan", 1000f, 22f, 32f, 150, 2.4f, boss = true),
+    TITAN("Titan", 1000f, 22f, 32f, 150, 2.4f, boss = true, armor = 12f),
     BAT("Zombie Bat", 14f, 125f, 3f, 2, 0.8f, flying = true),
     BALLOON("Balloon Zombie", 45f, 42f, 5f, 6, 1.0f, flying = true),
     CLOWN("Clown", 70f, 62f, 7f, 6, 1.1f),
-    GARGOYLE("Gargoyle King", 900f, 55f, 26f, 180, 2.0f, flying = true, boss = true),
-    CLOWN_PRINCE("Clown Prince", 1200f, 34f, 22f, 200, 2.1f, boss = true)
+    GARGOYLE("Gargoyle King", 900f, 55f, 26f, 180, 2.0f, flying = true, boss = true, armor = 9f),
+    CLOWN_PRINCE("Clown Prince", 1200f, 34f, 22f, 200, 2.1f, boss = true, armor = 8f)
 }
 
 /** A stretch of track the player can route onto at a junction: new scenery plus a risk/reward trade. */
@@ -79,13 +83,17 @@ enum class Biome(
     val hpMult: Float,
     val spawnMult: Float,
     val dmgMult: Float,
-    val accent: Long
+    val accent: Long,
+    /** Multiplies the Repair Crew's healing while on this route. */
+    val repairMult: Float = 1f,
+    /** Free healing per second on this route, even without a Repair Crew. */
+    val flatRegen: Float = 0f
 ) {
-    PLAINS("Open Plains", "Steady and familiar", 1.0f, 1.0f, 1.0f, 1.0f, 0xFF8BC34A),
-    MOUNTAIN("Mountain Pass", "Frozen, tougher zombies", 1.5f, 1.3f, 1.0f, 1.0f, 0xFF81D4FA),
-    TUNNEL("Dark Tunnel", "Dense hordes in the dark", 1.35f, 1.0f, 1.4f, 1.0f, 0xFFFFB74D),
-    DESERT("Scorched Desert", "Fast swarming runners", 1.25f, 0.9f, 1.25f, 1.0f, 0xFFFFD54F),
-    GRAVEYARD("Haunted Graveyard", "Brutes and bloaters hit hard", 1.6f, 1.1f, 1.0f, 1.2f, 0xFFB39DDB)
+    PLAINS("Open Plains", "Calm and safe: fewer, weaker zombies and the train repairs itself", 1.0f, 0.85f, 0.7f, 0.9f, 0xFF8BC34A, repairMult = 2f, flatRegen = 2.5f),
+    MOUNTAIN("Mountain Pass", "Frozen, much tougher zombies", 1.4f, 1.5f, 1.0f, 1.0f, 0xFF81D4FA),
+    TUNNEL("Dark Tunnel", "Dense hordes in the dark", 1.35f, 1.0f, 1.5f, 1.1f, 0xFFFFB74D),
+    DESERT("Scorched Desert", "Fast swarming runners", 1.3f, 0.9f, 1.4f, 1.0f, 0xFFFFD54F),
+    GRAVEYARD("Haunted Graveyard", "Brutes and bloaters that hit very hard", 1.7f, 1.25f, 1.0f, 1.35f, 0xFFB39DDB)
 }
 
 enum class Perk { DAMAGE, FIRE_RATE, RANGE, CRIT, SCAVENGER }

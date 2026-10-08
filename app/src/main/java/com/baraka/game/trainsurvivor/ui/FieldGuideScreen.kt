@@ -56,12 +56,12 @@ private class ZombieNote(val appears: String, val about: String, val tip: String
 private val zombieNotes: Map<ZombieType, ZombieNote> = mapOf(
     ZombieType.WALKER to ZombieNote("From the start", "Slow shambler and the backbone of every horde. Many wear silly costumes - purely cosmetic.", "Cheap coins. Let your pistols and SMGs handle them."),
     ZombieType.RUNNER to ZombieNote("After ~20 s", "Fast and fragile. Reaches the train before slow guns can cut it down.", "Rapid-fire weapons shred them. Very common in the Scorched Desert."),
-    ZombieType.BRUTE to ZombieNote("After ~70 s", "Huge, slow and very tanky. Claws hard once it reaches the train. Appears earlier in the Mountain Pass and Graveyard.", "Use high-damage guns like the Sniper, Rocket or Laser."),
+    ZombieType.BRUTE to ZombieNote("After ~70 s", "Huge, slow and very tanky. Claws hard once it reaches the train. Appears earlier in the Mountain Pass and Graveyard.", "Armored: every hit loses 5 damage, so small bullets barely scratch it. Use the Sniper, Rocket, Cannon or Laser."),
     ZombieType.BLOATER to ZombieNote("After ~45 s", "Bursts on contact for heavy train damage. When shot, it pops and hurts zombies around it.", "Kill it at range - ideally while it is surrounded by other zombies."),
     ZombieType.CLOWN to ZombieNote("After ~30 s", "Bouncy and loud. Honks and showers confetti when it dies.", "Worth extra coins - don't let it reach the train."),
     ZombieType.BAT to ZombieNote("After ~25 s", "Flies fast and erratically, swooping over the cars to claw them from above. Common in the Tunnel and Graveyard.", "Flak Turret and any gun except the Cannon can hit it."),
     ZombieType.BALLOON to ZombieNote("After ~40 s", "Drifts in under party balloons and hovers over the roof. Pops into confetti. Common in the Mountain Pass.", "Great coin value. Flak Turret, Rocket and Tesla Coil all work well."),
-    ZombieType.TITAN to ZombieNote("Boss: ~75 s, then every 80 s", "A giant with spikes and a glowing chest. Every few seconds it SMASHES the car it is clawing for extra damage.", "Stack Dynamite blasts, Tesla chains and your strongest guns."),
+    ZombieType.TITAN to ZombieNote("Boss: ~75 s, then every 80 s", "A giant with spikes and a glowing chest. Every few seconds it SMASHES the car it is clawing for extra damage.", "Armor 12: pistols, SMGs and miniguns do almost nothing. Stack Dynamite, Rockets, Sniper shots and Tesla chains."),
     ZombieType.GARGOYLE to ZombieNote("Boss: the 2nd, 5th, 8th...", "A stone-winged flyer that circles above the train and screeches up three bats at a time.", "Cannons can't hit it. Flak Turret, Rocket, Laser and Sniper can."),
     ZombieType.CLOWN_PRINCE to ZombieNote("Boss: the 3rd, 6th, 9th...", "A giant clown in a crown who summons two clowns every few seconds. Honk honk.", "Focus the Prince first - the clowns are weak. Mortar and splash weapons love the crowd.")
 )
@@ -135,7 +135,7 @@ private fun ZombieGuide(time: androidx.compose.runtime.MutableFloatState) {
             ) {
                 Text(type.displayName + if (type.flying) "  (flying)" else "", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "HP ${type.hp.toInt()}  -  speed ${type.speed.toInt()}  -  " +
+                    "HP ${type.hp.toInt()}" + (if (type.armor > 0f) "  -  armor ${type.armor.toInt()}" else "") + "  -  speed ${type.speed.toInt()}  -  " +
                         (if (type == ZombieType.BLOATER) "bursts for 30" else "${type.damage.toInt()} dmg/s") +
                         "  -  ${type.coins} coins",
                     color = AMBER, fontSize = 11.sp, fontWeight = FontWeight.Bold
@@ -178,13 +178,21 @@ private fun WeaponGuide(time: androidx.compose.runtime.MutableFloatState) {
                     color = MUTED, fontSize = 11.sp
                 )
                 Text(weapon.blurb, color = Color(0xFF81C784), fontSize = 11.sp)
+                if (weapon.heatPerShot > 0f) {
+                    val rate = weapon.heatPerShot / weapon.interval - 0.22f
+                    Text(
+                        if (rate > 0f) "Overheats after ~${"%.0f".format(1f / rate)} s of firing, then locks for ~3 s" else "Never overheats",
+                        color = Color(0xFFFF8A65), fontSize = 11.sp
+                    )
+                }
             }
         }
         item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
             Column(Modifier.padding(4.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text("Reading the numbers", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "Every passenger can own several weapons. On AUTO they pick the best one for the enemies in front of them (type, distance, how many, flyers or not) " +
+                    "Armored zombies (Brutes and bosses) subtract a flat amount from every hit, so use big hitters against them and fast, light guns against weak swarms. The SMG, Minigun and Laser overheat and lock for ~3 s - their heat bar shows above the gunner - so keep a second weapon ready. Weapons cool down while they are not in hand. " +
+                        "Every passenger can own several weapons. On AUTO they pick the best one for the enemies in front of them (type, distance, how many, flyers or not) " +
                         "and swapping takes a moment. In a run, tap a passenger's chip on the left to force a weapon, or tap again to go back to AUTO. " +
                         "Each Power upgrade adds +30% damage to all of that passenger's weapons (up to +150%); it does not change fire rate or range. " +
                         "Damage/s is single-target - Shotgun, Cannon and Rocket also splash nearby zombies, and the Sniper and Laser pierce a line of zombies, so they beat their raw number against crowds.",

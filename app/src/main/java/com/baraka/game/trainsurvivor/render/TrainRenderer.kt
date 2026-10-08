@@ -750,6 +750,11 @@ private fun DrawScope.drawGunner(g: TrainGame, slot: Int) {
     val shirt = Color(SHIRTS[slot % SHIRTS.size])
     val weapon = gs.weapon
     val skin = Color(0xFFE0AC69)
+    val heat = gs.heat[gs.weapon.ordinal]
+    if (heat > 0.03f) {
+        box(Color.Black.copy(alpha = 0.6f), gx - 16f, gy - 58f, 32f, 5f)
+        box(if (gs.isHot) Color(0xFFFF1744) else lerp(Color(0xFFFFEB3B), Color(0xFFFF6D00), heat), gx - 16f, gy - 58f, 32f * heat.coerceIn(0f, 1f), 5f)
+    }
     withTransform({ translate(gx, gy); scale(gs.facing.toFloat(), 1f, Offset.Zero) }) {
         if (weapon == WeaponType.CANNON) {
             // Cannon sits on a wheeled carriage in front of the gunner.
