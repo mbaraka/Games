@@ -1,0 +1,292 @@
+package com.baraka.game.trainsurvivor.ui
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.baraka.game.trainsurvivor.model.CrewSlot
+import com.baraka.game.trainsurvivor.model.MAX_POWER
+import com.baraka.game.trainsurvivor.model.MAX_SLOTS
+import com.baraka.game.trainsurvivor.model.SaveData
+import com.baraka.game.trainsurvivor.model.Shop
+import com.baraka.game.trainsurvivor.model.TrainUpgrade
+import com.baraka.game.trainsurvivor.render.drawTrainScene
+import com.baraka.game.trainsurvivor.systems.TrainGame
+import kotlin.math.max
+
+private val BG = Color(0xFF10131A)
+private val CARD = Color(0xFF1D222D)
+private val AMBER = Color(0xFFFFB300)
+private val MUTED = Color(0xFF9AA3B2)
+
+@Composable
+fun GarageScreen(
+    save: SaveData,
+    soundEnabled: Boolean,
+    onSoundToggle: (Boolean) -> Unit,
+    onPurchase: (SaveData) -> Unit,
+    onDepart: () -> Unit
+) {
+    var tab by remember { mutableIntStateOf(0) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BG)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // ---- left: live preview of the train as currently built ----
+        Column(modifier = Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("TRAIN SURVIVOR", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(
+                        "Best ${save.bestDistance} m  •  ${save.totalKills} kills  •  ${save.bossKills} bosses",
+                        color = MUTED, fontSize = 11.sp
+                    )
+                }
+                CoinChip(save.coins)
+            }
+            TrainPreview(save, Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(14.dp)))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Button(
+                    onClick = onDepart,
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AMBER, contentColor = Color.Black)
+                ) { Text("DEPART  ▶", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp) }
+                Button(
+                    onClick = { onSoundToggle(!soundEnabled) },
+                    modifier = Modifier.height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = CARD, contentColor = Color.White)
+                ) { Text(if (soundEnabled) "Sound: On" else "Sound: Off", fontSize = 12.sp) }
+            }
+        }
+
+        // ---- right: upgrades ----
+        Column(modifier = Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TabChip("TRAIN", tab == 0, Modifier.weight(1f)) { tab = 0 }
+                TabChip("CREW & WEAPONS", tab == 1, Modifier.weight(1f)) { tab = 1 }
+            }
+            if (tab == 0) TrainTab(save, onPurchase) else CrewTab(save, onPurchase)
+        }
+    }
+}
+
+@Composable
+private fun TrainPreview(save: SaveData, modifier: Modifier) {
+    val game = remember(save.unlockedSlots, save.slots, save.upgrades) {
+        TrainGame(save, spawnEnabled = false).also { it.time = 5f }
+    }
+    val tick = remember { mutableLongStateOf(0L) }
+    LaunchedEffect(game) {
+        var last = 0L
+        while (true) {
+            androidx.compose.runtime.withFrameNanos { now ->
+                if (last != 0L) game.update(((now - last) / 1_000_000_000f).coerceAtMost(0.05f))
+                last = now
+                tick.longValue++
+            }
+        }
+    }
+    Canvas(
+        modifier = modifier.onSizeChanged { game.worldW = max(game.trainLength + 240f, 760f) }
+    ) {
+        tick.longValue
+        drawTrainScene(game, topOffset = 300f, showHud = false)
+    }
+}
+
+@Composable
+private fun TrainTab(save: SaveData, onPurchase: (SaveData) -> Unit) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(TrainUpgrade.entries.toList()) { upgrade ->
+            val level = save.level(upgrade)
+            val cost = Shop.upgradeCost(save, upgrade)
+            UpgradeCard(
+                title = upgrade.displayName,
+                subtitle = upgrade.blurb,
+                detail = "Level $level / ${upgrade.maxLevel}",
+                cost = cost,
+                canAfford = cost != null && save.coins >= cost,
+                actionLabel = "UPGRADE",
+                onClick = { Shop.buyUpgrade(save, upgrade)?.let(onPurchase) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun CrewTab(save: SaveData, onPurchase: (SaveData) -> Unit) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items((0 until MAX_SLOTS).toList()) { index ->
+            when {
+                index < save.unlockedSlots -> CrewCard(index, save.slots[index], save, onPurchase)
+                index == save.unlockedSlots -> {
+                    val cost = Shop.slotCost(save)
+                    UpgradeCard(
+                        title = "New wagon + survivor",
+                        subtitle = "Another gunner joins the train",
+                        detail = "Passenger ${index + 1}",
+                        cost = cost,
+                        canAfford = cost != null && save.coins >= cost,
+                        actionLabel = "ADD",
+                        onClick = { Shop.buySlot(save)?.let(onPurchase) }
+                    )
+                }
+                else -> Box(
+                    Modifier.fillMaxWidth().background(CARD.copy(alpha = 0.5f), RoundedCornerShape(12.dp)).padding(14.dp)
+                ) { Text("Passenger ${index + 1} — locked", color = MUTED, fontSize = 13.sp) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CrewCard(index: Int, slot: CrewSlot, save: SaveData, onPurchase: (SaveData) -> Unit) {
+    val nextWeapon = Shop.nextWeapon(slot)
+    val weaponCost = Shop.weaponCost(slot)
+    val powerCost = Shop.powerCost(slot)
+    Column(
+        Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(if (index == 0) "Driver" else "Passenger ${index + 1}", color = MUTED, fontSize = 11.sp)
+                Text(slot.weapon.displayName, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "${slot.weapon.blurb}  •  ${"%.0f".format(slot.damage)} dmg  •  power ${slot.power}/$MAX_POWER",
+                    color = MUTED, fontSize = 11.sp
+                )
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            BuyButton(
+                label = if (nextWeapon != null) "→ ${nextWeapon.displayName}" else "BEST WEAPON",
+                cost = weaponCost,
+                enabled = weaponCost != null && save.coins >= weaponCost,
+                modifier = Modifier.weight(1f)
+            ) { Shop.buyWeapon(save, index)?.let(onPurchase) }
+            BuyButton(
+                label = if (powerCost != null) "+30% power" else "MAX POWER",
+                cost = powerCost,
+                enabled = powerCost != null && save.coins >= powerCost,
+                modifier = Modifier.weight(1f)
+            ) { Shop.buyPower(save, index)?.let(onPurchase) }
+        }
+    }
+}
+
+@Composable
+private fun UpgradeCard(
+    title: String,
+    subtitle: String,
+    detail: String,
+    cost: Int?,
+    canAfford: Boolean,
+    actionLabel: String,
+    onClick: () -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(subtitle, color = MUTED, fontSize = 11.sp)
+            Text(detail, color = AMBER, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+        BuyButton(
+            label = if (cost == null) "MAX" else actionLabel,
+            cost = cost,
+            enabled = canAfford,
+            modifier = Modifier.width(116.dp),
+            onClick = onClick
+        )
+    }
+}
+
+@Composable
+private fun BuyButton(label: String, cost: Int?, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier,
+        shape = RoundedCornerShape(10.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color(0xFF2E7D32),
+            disabledContainerColor = Color(0xFF2A2F3A),
+            disabledContentColor = if (cost == null) AMBER else MUTED
+        )
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            if (cost != null) Text("$cost coins", fontSize = 11.sp)
+        }
+    }
+}
+
+@Composable
+private fun TabChip(text: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) AMBER else CARD)
+            .clickable(onClick = onClick)
+            .padding(vertical = 9.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, color = if (selected) Color.Black else Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun CoinChip(coins: Int) {
+    Row(
+        Modifier.background(CARD, RoundedCornerShape(20.dp)).padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.width(14.dp).height(14.dp).background(Color(0xFFFFC107), RoundedCornerShape(7.dp)))
+        Spacer(Modifier.width(6.dp))
+        Text("$coins", color = AMBER, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+    }
+}

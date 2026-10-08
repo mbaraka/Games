@@ -61,9 +61,11 @@
             android:theme="@style/Theme.Game" />
 
         <activity
-            android:name=".zombie.ZombieGame"
+            android:name=".trainsurvivor.TrainSurvivorActivity"
             android:exported="false"
-            android:label="Zombie Survival"
+            android:label="Train Survivor"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:screenOrientation="sensorLandscape"
             android:theme="@style/Theme.Game" />
 
         <activity

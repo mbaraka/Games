@@ -74,7 +74,7 @@ import com.baraka.game.spaceinvaders.SpaceInvadersActivity
 import com.baraka.game.ui.components.Section
 import com.baraka.game.ui.theme.GameColors
 import com.baraka.game.ui.theme.GameTheme
-import com.baraka.game.zombie.ZombieGame
+import com.baraka.game.trainsurvivor.TrainSurvivorActivity
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -222,11 +222,11 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         activityClass = RhythmRunnerGame::class.java
     ),
     GameCatalogEntry(
-        id = "zombie_survival",
-        title = "Zombie Survival",
-        description = "3D FPS - Survive zombie waves, upgrade weapons!",
+        id = "train_survivor",
+        title = "Train Survivor",
+        description = "Ride an armored train through zombie hordes - earn coins, upgrade the train and its gunners.",
         color = Color(0xFF8B0000),
-        activityClass = ZombieGame::class.java
+        activityClass = TrainSurvivorActivity::class.java
     ),
     GameCatalogEntry(
         id = "key_reader",
