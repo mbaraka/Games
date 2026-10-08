@@ -3,125 +3,11 @@ package com.baraka.game.trainsurvivor.model
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
-const val MAX_SLOTS = 5
+// Content tables live in their own files: Enemies.kt, Routes.kt, Survivors.kt, TrainStyle.kt, Upgrades.kt.
+// This file holds the player's save data and the shop rules that change it.
+
 const val MAX_POWER = 5
 const val MAX_CAR_ARMOR = 5
-
-/** Everything a passenger can carry, weakest to strongest. Damage is per shot (per pellet-group for the shotgun). */
-enum class WeaponType(
-    val displayName: String,
-    val damage: Float,
-    val interval: Float,
-    val range: Float,
-    val splashRadius: Float,
-    val pierce: Int,
-    val unlockCost: Int,
-    val blurb: String,
-    val groundOnly: Boolean = false,
-    /** Heat added per shot (0..1 is full). Rapid-fire weapons overheat and lock out until they cool. */
-    val heatPerShot: Float = 0f
-) {
-    PISTOL("Pistol", 10f, 0.55f, 330f, 0f, 1, 0, "Reliable sidearm"),
-    SMG("SMG", 7f, 0.16f, 340f, 0f, 1, 150, "Rapid fire, great against weak swarms", heatPerShot = 0.05f),
-    SHOTGUN("Shotgun", 45f, 0.9f, 230f, 70f, 1, 400, "Hits groups up close"),
-    RIFLE("Sniper Rifle", 60f, 0.85f, 560f, 0f, 3, 900, "Long range, pierces 3"),
-    MINIGUN("Minigun", 13f, 0.07f, 400f, 0f, 1, 2000, "Bullet hose that overheats", heatPerShot = 0.03f),
-    CANNON("Cannon", 180f, 1.6f, 480f, 120f, 1, 4500, "Explosive shells (ground only)", groundOnly = true),
-    ROCKET("Rocket Launcher", 190f, 1.9f, 540f, 150f, 1, 8000, "Big blasts, hits flyers too"),
-    LASER("Laser Rifle", 42f, 0.22f, 620f, 0f, 5, 14000, "Piercing beam, very long range, overheats", heatPerShot = 0.1f)
-}
-
-enum class TrainUpgrade(
-    val displayName: String,
-    val blurb: String,
-    val maxLevel: Int,
-    val baseCost: Int,
-    val growth: Double
-) {
-    ARMOR("Armor Plating", "+40 train health and +25 per wagon, per level", 10, 80, 1.5),
-    REPAIR("Repair Crew", "Mechanics heal the train and its wagons over time", 8, 100, 1.55),
-    SPIKES("Spiked Hull", "Zombies clinging to the train take damage", 8, 90, 1.55),
-    BOUNTY("Bounty Hunter", "+12% coins from kills per level", 8, 120, 1.6),
-    DYNAMITE("Dynamite", "Active: bigger blast, faster cooldown", 6, 150, 1.7),
-    FLAK("Flak Turret", "Roof turret that shoots down flying enemies", 8, 200, 1.6),
-    TESLA("Tesla Coil", "Chain lightning zaps groups of zombies", 8, 250, 1.65),
-    FLAME("Flamethrower", "Cowcatcher flames scorch zombies at the front", 8, 220, 1.6),
-    MORTAR("Mortar", "Lobs shells at the biggest ground crowd", 8, 300, 1.65),
-    OVERDRIVE("Overdrive", "Active: every gun fires much faster for a few seconds", 6, 350, 1.7),
-    FIELD_REPAIR("Field Repair", "Active: heals every car and revives wrecks", 6, 300, 1.7)
-}
-
-enum class ZombieType(
-    val displayName: String,
-    val hp: Float,
-    val speed: Float,
-    val damage: Float,
-    val coins: Int,
-    val size: Float,
-    val flying: Boolean = false,
-    val boss: Boolean = false,
-    /** Flat damage removed from every hit (never below 25% of it), so small bullets are weak against armored targets. */
-    val armor: Float = 0f,
-    /** How high above the feet shots aim; low creatures are hit near the ground. */
-    val aimHeight: Float = 28f
-) {
-    WALKER("Walker", 30f, 38f, 5f, 2, 1.0f),
-    RUNNER("Runner", 18f, 88f, 4f, 3, 0.9f),
-    BRUTE("Brute", 170f, 28f, 14f, 9, 1.45f, armor = 5f),
-    BLOATER("Bloater", 55f, 36f, 0f, 5, 1.2f),
-    TITAN("Titan", 1000f, 22f, 32f, 150, 2.4f, boss = true, armor = 12f),
-    BAT("Zombie Bat", 14f, 125f, 3f, 2, 0.8f, flying = true),
-    BALLOON("Balloon Zombie", 45f, 42f, 5f, 6, 1.0f, flying = true),
-    CLOWN("Clown", 70f, 62f, 7f, 6, 1.1f),
-    GARGOYLE("Gargoyle King", 900f, 55f, 26f, 180, 2.0f, flying = true, boss = true, armor = 9f),
-    CLOWN_PRINCE("Clown Prince", 1200f, 34f, 22f, 200, 2.1f, boss = true, armor = 8f),
-
-    // Each route has its own signature enemy.
-    ZOMBIE_DOG("Zombie Hound", 28f, 105f, 5f, 3, 0.95f, aimHeight = 14f),
-    YETI("Yeti", 230f, 26f, 15f, 12, 1.55f, armor = 4f),
-    RAT("Giant Rat", 8f, 120f, 2f, 1, 0.65f, aimHeight = 9f),
-    SCORPION("Sand Scorpion", 70f, 72f, 8f, 5, 1.1f, armor = 3f, aimHeight = 14f),
-    SKELETON("Skeleton", 40f, 62f, 6f, 4, 1.0f),
-    CROCODILE("Crocodile", 130f, 52f, 16f, 10, 1.35f, armor = 3f, aimHeight = 13f)
-}
-
-/** A stretch of track the player can route onto at a junction: new scenery plus a risk/reward trade. */
-enum class Biome(
-    val displayName: String,
-    val tagline: String,
-    val coinMult: Float,
-    val hpMult: Float,
-    val spawnMult: Float,
-    val dmgMult: Float,
-    val accent: Long,
-    /** Multiplies the Repair Crew's healing while on this route. */
-    val repairMult: Float = 1f,
-    /** Free healing per second on this route, even without a Repair Crew. */
-    val flatRegen: Float = 0f,
-    /** The enemy that belongs to this route's landscape; it shows up often here and nowhere else. */
-    val signature: ZombieType = ZombieType.WALKER
-) {
-    PLAINS("Open Plains", "Calm and safe: fewer, weaker zombies and the train repairs itself", 1.0f, 0.85f, 0.7f, 0.9f, 0xFF8BC34A, repairMult = 2f, flatRegen = 2.5f, signature = ZombieType.ZOMBIE_DOG),
-    MOUNTAIN("Mountain Pass", "Frozen, much tougher zombies", 1.4f, 1.5f, 1.0f, 1.0f, 0xFF81D4FA, signature = ZombieType.YETI),
-    TUNNEL("Dark Tunnel", "Dense hordes in the dark", 1.35f, 1.0f, 1.5f, 1.1f, 0xFFFFB74D, signature = ZombieType.RAT),
-    DESERT("Scorched Desert", "Fast swarming runners", 1.3f, 0.9f, 1.4f, 1.0f, 0xFFFFD54F, signature = ZombieType.SCORPION),
-    GRAVEYARD("Haunted Graveyard", "Brutes and bloaters that hit very hard", 1.7f, 1.25f, 1.0f, 1.35f, 0xFFB39DDB, signature = ZombieType.SKELETON),
-    SWAMP("Murky Swamp", "Crocodiles lurk in the bog and gas bloaters drift through the mist", 1.45f, 1.1f, 1.1f, 1.1f, 0xFF26A69A, signature = ZombieType.CROCODILE)
-}
-
-enum class Perk { DAMAGE, FIRE_RATE, RANGE, CRIT, SCAVENGER }
-
-/** The five named survivors, one per seat. Each brings a small passive perk to whatever weapon they hold. */
-class Survivor(val name: String, val role: String, val perk: Perk, val perkText: String)
-
-val SURVIVORS = listOf(
-    Survivor("Cole", "Driver", Perk.DAMAGE, "Steady Hands: +15% damage"),
-    Survivor("Mara", "Gunner", Perk.FIRE_RATE, "Quick Draw: +20% fire rate"),
-    Survivor("Hawk", "Scout", Perk.RANGE, "Eagle Eye: +25% weapon range"),
-    Survivor("Doc", "Medic", Perk.CRIT, "Lucky Shots: 12% chance for x2.5 damage"),
-    Survivor("Rocco", "Scrapper", Perk.SCAVENGER, "Scavenger: +25% coins from his kills")
-)
-
 const val AUTO_WEAPON = -1
 
 /**
@@ -134,37 +20,6 @@ data class CrewSlot(val owned: Int = 1, val selected: Int = AUTO_WEAPON, val pow
     val ownedWeapons: List<WeaponType> get() = WeaponType.entries.filter { owns(it) }
     val bestWeapon: WeaponType get() = ownedWeapons.maxByOrNull { it.ordinal } ?: WeaponType.PISTOL
     val powerMultiplier: Float get() = 1f + 0.3f * power
-}
-
-/** A random upgrade some zombies spawn with; elites are tougher, worth 2.5x coins, and each trait calls for a different answer. */
-enum class EliteTrait(val displayName: String, val color: Long, val blurb: String, val counter: String) {
-    SHIELDED("Shielded", 0xFF40C4FF, "Wears an energy shield worth 60% of its health.", "Burst damage: Rocket, Cannon, Mortar, Dynamite."),
-    REGEN("Regenerating", 0xFF69F0AE, "Heals quickly whenever you stop hitting it for a moment.", "Keep constant fire on it: Minigun, Tesla, Flamethrower."),
-    SWIFT("Swift", 0xFFFFEB3B, "Moves 60% faster.", "Kill it early: Sniper and Laser reach far."),
-    VOLATILE("Volatile", 0xFFFF7043, "Explodes when it dies, hurting the train if it is close.", "Kill it before it reaches the train."),
-    ARMORED("Plated", 0xFFB0BEC5, "Wears extra armor: 8 less damage on every hit.", "Big hitters: Sniper, Rocket, Cannon, Laser."),
-    BULLETPROOF("Bulletproof", 0xFFE040FB, "Guns deal only 30% damage to it.", "Use train weapons and abilities: Tesla, Flamethrower, Mortar, Flak, Dynamite.")
-}
-
-/**
- * Difficulty chosen before a run. Higher levels make every zombie stronger and more numerous, add more
- * elites, and pay more coins. Each level unlocks by reaching [requirementMeters] on the level below it.
- */
-enum class DangerLevel(
-    val displayName: String,
-    val hpMult: Float,
-    val dmgMult: Float,
-    val spawnMult: Float,
-    val eliteMult: Float,
-    val coinMult: Float,
-    val requirementMeters: Int,
-    val color: Long
-) {
-    NORMAL("Normal", 1f, 1f, 1f, 1f, 1f, 0, 0xFF8BC34A),
-    HARD("Hard", 1.35f, 1.2f, 1.15f, 1.5f, 1.35f, 800, 0xFFFFD54F),
-    BRUTAL("Brutal", 1.8f, 1.45f, 1.3f, 2.2f, 1.8f, 1200, 0xFFFF9800),
-    NIGHTMARE("Nightmare", 2.5f, 1.8f, 1.5f, 3f, 2.4f, 1600, 0xFFFF5252),
-    INFERNO("Inferno", 3.5f, 2.3f, 1.7f, 4f, 3.2f, 2000, 0xFFE040FB)
 }
 
 /** One finished run on the local leaderboard. */
@@ -189,7 +44,12 @@ data class SaveData(
     val records: List<RunRecord> = emptyList(),
     /** The danger level chosen for the next run, and the furthest distance reached on each level. */
     val dangerLevel: Int = 0,
-    val dangerBest: List<Int> = List(5) { 0 }
+    val dangerBest: List<Int> = List(DangerLevel.entries.size) { 0 },
+    /** Train look: selected livery/shape and bitmasks of the ones owned (the first of each is always owned). */
+    val livery: Int = 0,
+    val liveriesOwned: Int = 1,
+    val shape: Int = 0,
+    val shapesOwned: Int = 1
 ) {
     fun level(upgrade: TrainUpgrade): Int = upgrades[upgrade] ?: 0
 
@@ -203,14 +63,27 @@ data class SaveData(
             return DangerLevel.entries[if (dangerUnlocked(i)) i else 0]
         }
 
+    fun ownsLivery(index: Int): Boolean = liveriesOwned and (1 shl index) != 0
+    fun ownsShape(index: Int): Boolean = shapesOwned and (1 shl index) != 0
+
+    val selectedLivery: Livery
+        get() {
+            val i = livery.coerceIn(0, Livery.entries.lastIndex)
+            return Livery.entries[if (ownsLivery(i)) i else 0]
+        }
+
+    val selectedShape: TrainShape
+        get() {
+            val i = shape.coerceIn(0, TrainShape.entries.lastIndex)
+            return TrainShape.entries[if (ownsShape(i)) i else 0]
+        }
+
     /** Permanent coin bonus earned by prestiging. */
     val prestigeMultiplier: Float get() = 1f + 0.1f * prestige
 }
 
 /** Pure shop rules; every buy function returns the updated [SaveData] or null when it can't be bought. */
 object Shop {
-    private val slotCosts = intArrayOf(0, 0, 300, 800, 2000)
-
     fun upgradeCost(save: SaveData, upgrade: TrainUpgrade): Int? {
         val level = save.level(upgrade)
         if (level >= upgrade.maxLevel) return null
@@ -223,7 +96,9 @@ object Shop {
         return save.copy(coins = save.coins - cost, upgrades = save.upgrades + (upgrade to save.level(upgrade) + 1))
     }
 
-    fun slotCost(save: SaveData): Int? = if (save.unlockedSlots >= MAX_SLOTS) null else slotCosts[save.unlockedSlots]
+    /** Price of unlocking the next seat; the first two seats are free, then each costs 2.6x the previous. */
+    fun slotCost(save: SaveData): Int? =
+        if (save.unlockedSlots >= MAX_SLOTS) null else (300.0 * 2.6.pow(save.unlockedSlots - 2)).roundToInt()
 
     fun buySlot(save: SaveData): SaveData? {
         val cost = slotCost(save) ?: return null
@@ -272,6 +147,22 @@ object Shop {
         if (save.coins < cost) return null
         return save.copy(coins = save.coins - cost, slots = save.slots.replaced(index, slot.copy(armor = slot.armor + 1)))
     }
+
+    fun buyLivery(save: SaveData, index: Int): SaveData? {
+        val livery = Livery.entries.getOrNull(index) ?: return null
+        if (save.ownsLivery(index) || save.coins < livery.cost) return null
+        return save.copy(coins = save.coins - livery.cost, liveriesOwned = save.liveriesOwned or (1 shl index), livery = index)
+    }
+
+    fun selectLivery(save: SaveData, index: Int): SaveData = if (save.ownsLivery(index)) save.copy(livery = index) else save
+
+    fun buyShape(save: SaveData, index: Int): SaveData? {
+        val shape = TrainShape.entries.getOrNull(index) ?: return null
+        if (save.ownsShape(index) || save.coins < shape.cost) return null
+        return save.copy(coins = save.coins - shape.cost, shapesOwned = save.shapesOwned or (1 shl index), shape = index)
+    }
+
+    fun selectShape(save: SaveData, index: Int): SaveData = if (save.ownsShape(index)) save.copy(shape = index) else save
 
     private fun List<CrewSlot>.replaced(index: Int, value: CrewSlot) = mapIndexed { i, s -> if (i == index) value else s }
 }

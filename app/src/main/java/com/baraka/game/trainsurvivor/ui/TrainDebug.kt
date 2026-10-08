@@ -45,7 +45,15 @@ fun garageDebugSections(save: SaveData, onSave: (SaveData) -> Unit, onReset: () 
                 onSave(synced.copy(goalProgress = Progression.goalsForDay(synced.goalDay).map { it.target }))
             },
             DebugItem.Action("Best distance = 5,000 m") { onSave(save.copy(bestDistance = max(save.bestDistance, 5_000))) },
-            DebugItem.Action("Unlock every danger level") { onSave(save.copy(dangerBest = List(5) { 99_999 })) },
+            DebugItem.Action("Unlock every danger level") { onSave(save.copy(dangerBest = List(com.baraka.game.trainsurvivor.model.DangerLevel.entries.size) { 99_999 })) },
+            DebugItem.Action("Unlock every train body and paint") {
+                onSave(
+                    save.copy(
+                        shapesOwned = (1 shl com.baraka.game.trainsurvivor.model.TrainShape.entries.size) - 1,
+                        liveriesOwned = (1 shl com.baraka.game.trainsurvivor.model.Livery.entries.size) - 1
+                    )
+                )
+            },
             DebugItem.Action("Force +1 prestige") { onSave(save.copy(prestige = save.prestige + 1)) },
             DebugItem.Action("RESET ALL PROGRESS", onReset)
         )
@@ -91,6 +99,12 @@ fun runDebugSections(
         } + listOf(
             DebugItem.Action("Kill everything") { game.debugKillAll() }
         )
+    ),
+    DebugSection(
+        "Routes",
+        com.baraka.game.trainsurvivor.model.Biome.entries.map { route ->
+            DebugItem.Action("Go to " + route.displayName) { game.debugSetRoute(route) }
+        } + DebugItem.Action("Trigger this route's hazard now") { game.debugHazard() }
     ),
     DebugSection(
         "Events",

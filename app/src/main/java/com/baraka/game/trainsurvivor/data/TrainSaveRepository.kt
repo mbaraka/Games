@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.baraka.game.trainsurvivor.model.AUTO_WEAPON
 import com.baraka.game.trainsurvivor.model.CrewSlot
+import com.baraka.game.trainsurvivor.model.DangerLevel
 import com.baraka.game.trainsurvivor.model.MAX_CAR_ARMOR
 import com.baraka.game.trainsurvivor.model.MAX_POWER
 import com.baraka.game.trainsurvivor.model.MAX_SLOTS
@@ -44,7 +45,11 @@ class TrainSaveRepository private constructor(private val prefs: SharedPreferenc
         milestonesClaimed = prefs.getInt("milestones_claimed", 0),
         records = decodeRecords(prefs.getString("records", "") ?: ""),
         dangerLevel = prefs.getInt("danger_level", 0),
-        dangerBest = List(5) { prefs.getInt("danger_best_$it", 0) }
+        dangerBest = List(DangerLevel.entries.size) { prefs.getInt("danger_best_$it", 0) },
+        livery = prefs.getInt("livery", 0),
+        liveriesOwned = prefs.getInt("liveries_owned", 1) or 1,
+        shape = prefs.getInt("shape", 0),
+        shapesOwned = prefs.getInt("shapes_owned", 1) or 1
     )
 
     fun save(data: SaveData) {
@@ -71,6 +76,10 @@ class TrainSaveRepository private constructor(private val prefs: SharedPreferenc
             putString("records", encodeRecords(data.records))
             putInt("danger_level", data.dangerLevel)
             data.dangerBest.forEachIndexed { i, v -> putInt("danger_best_$i", v) }
+            putInt("livery", data.livery)
+            putInt("liveries_owned", data.liveriesOwned)
+            putInt("shape", data.shape)
+            putInt("shapes_owned", data.shapesOwned)
         }.apply()
     }
 

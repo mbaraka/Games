@@ -16,7 +16,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
+import com.baraka.game.trainsurvivor.model.AvatarLook
 import com.baraka.game.trainsurvivor.model.Biome
+import com.baraka.game.trainsurvivor.model.HatStyle
+import com.baraka.game.trainsurvivor.model.Livery
+import com.baraka.game.trainsurvivor.model.SURVIVORS
+import com.baraka.game.trainsurvivor.model.TrainShape
 import com.baraka.game.trainsurvivor.model.DangerLevel
 import com.baraka.game.trainsurvivor.model.WeaponType
 import com.baraka.game.trainsurvivor.model.ZombieType
@@ -36,7 +41,7 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
 
-private const val HORIZON = 470f
+internal const val HORIZON = 470f
 private val DAY_TOP = Color(0xFF3C8DD9)
 private val DAY_BOTTOM = Color(0xFFBFE4F5)
 private val NIGHT_TOP = Color(0xFF070B1F)
@@ -46,8 +51,8 @@ private val SUNSET_BOTTOM = Color(0xFFFF9E5E)
 private val SHIRTS = intArrayOf(0xFFD84315.toInt(), 0xFF1E88E5.toInt(), 0xFF43A047.toInt(), 0xFF8E24AA.toInt(), 0xFFFDD835.toInt())
 private val CAR_COLORS = longArrayOf(0xFF7A3E2B, 0xFF2F5D62, 0xFF5B4B8A, 0xFF4F6B3A, 0xFF8A5A2B)
 
-private val starField: FloatArray = Random(11).let { r -> FloatArray(90 * 3) { i -> if (i % 3 == 0) r.nextFloat() else if (i % 3 == 1) r.nextFloat() * 380f else 0.8f + r.nextFloat() * 1.6f } }
-private val path = Path()
+internal val starField: FloatArray = Random(11).let { r -> FloatArray(90 * 3) { i -> if (i % 3 == 0) r.nextFloat() else if (i % 3 == 1) r.nextFloat() * 380f else 0.8f + r.nextFloat() * 1.6f } }
+internal val path = Path()
 
 /** Rebuilds a HUD string only when its key changes, so the HUD allocates nothing on most frames. */
 private class TextCache {
@@ -77,16 +82,16 @@ private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
 }
 
 private fun c(argb: Int) = Color(argb)
-private fun smooth(x: Float): Float { val t = x.coerceIn(0f, 1f); return t * t * (3f - 2f * t) }
-private fun hash(i: Int): Float { var h = i * 374761393 + 668265263; h = (h xor (h ushr 13)) * 1274126177; return ((h xor (h ushr 16)) and 0xFFFF) / 65535f }
+internal fun smooth(x: Float): Float { val t = x.coerceIn(0f, 1f); return t * t * (3f - 2f * t) }
+internal fun hash(i: Int): Float { var h = i * 374761393 + 668265263; h = (h xor (h ushr 13)) * 1274126177; return ((h xor (h ushr 16)) and 0xFFFF) / 65535f }
 
-private fun DrawScope.box(color: Color, x: Float, y: Float, w: Float, h: Float) =
+internal fun DrawScope.box(color: Color, x: Float, y: Float, w: Float, h: Float) =
     drawRect(color, Offset(x, y), Size(w, h))
 
-private fun DrawScope.rbox(color: Color, x: Float, y: Float, w: Float, h: Float, r: Float) =
+internal fun DrawScope.rbox(color: Color, x: Float, y: Float, w: Float, h: Float, r: Float) =
     drawRoundRect(color, Offset(x, y), Size(w, h), CornerRadius(r, r))
 
-private fun DrawScope.outlinedText(text: String, x: Float, y: Float, size: Float, color: Int, alpha: Float = 1f) {
+internal fun DrawScope.outlinedText(text: String, x: Float, y: Float, size: Float, color: Int, alpha: Float = 1f) {
     val canvas = drawContext.canvas.nativeCanvas
     textPaint.textSize = size
     textPaint.style = Paint.Style.STROKE
@@ -118,6 +123,7 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
     val light = smooth((sunHeight + 0.25f) / 0.6f)
     val sunset = (1f - abs(sunHeight) / 0.4f).coerceIn(0f, 1f)
     val night = 1f - light
+    palette = g.livery
     val shakeAmount = if (g.shakeEnabled) g.shake else 0f
     val shakeX = sin(g.time * 90f) * shakeAmount * 7f
     val shakeY = cos(g.time * 77f) * shakeAmount * 7f
@@ -126,7 +132,7 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
         scale(s, s, Offset.Zero)
         translate(shakeX, -topOffset + shakeY)
     }) {
-        forRegions(g) { biome -> drawBackdrop(g, biome, light, sunset) }
+        forRegions(g) { biome -> RouteArtRegistry.artFor(biome).backdrop(this, g, light, sunset) }
         drawTransitionArt(g)
         drawRails(g)
         drawTrain(g, light)
@@ -137,17 +143,19 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
         }
         drawCrate(g)
         drawShells(g)
+        drawHazards(g)
         drawParticles(g, glow = false)
         forRegions(g) { biome ->
-            drawForeground(g, biome, light)
-            drawWeather(g, biome)
+            val art = RouteArtRegistry.artFor(biome)
+            art.foreground(this, g, light)
+            art.weather(this, g)
         }
         forRegions(g) { biome ->
-            val darkness = if (biome == Biome.TUNNEL) 0.62f else night * 0.5f
-            drawRect(Color(0xFF050A24).copy(alpha = darkness), Offset(-200f, -1200f), Size(g.worldW + 400f, 2400f))
-            if (biome == Biome.TUNNEL) drawTunnelLampGlow(g)
+            val art = RouteArtRegistry.artFor(biome)
+            drawRect(Color(0xFF050A24).copy(alpha = art.darkness(night)), Offset(-200f, -1200f), Size(g.worldW + 400f, 2400f))
+            art.afterDarkness(this, g)
         }
-        drawGlow(g, if (g.biome == Biome.TUNNEL) 0.9f else night)
+        drawGlow(g, RouteArtRegistry.artFor(g.biome).glowNight(night))
         drawParticles(g, glow = true)
         for (i in g.texts.indices) {
             val t = g.texts[i]
@@ -173,6 +181,7 @@ private fun styleOf(biome: Biome): BiomeStyle = when (biome) {
     Biome.GRAVEYARD -> BiomeStyle(Color(0xFF5A5470), Color(0xFFB9A7C8), Color(0xFF4A4562), Color(0xFF383450), 170f, 110f, false, Color(0xFF4C5A44), Color(0xFF2B3427), Color(0xFF3A3A44), Color(0xFF3A5A34))
     Biome.TUNNEL -> BiomeStyle(DAY_TOP, DAY_BOTTOM, Color.Black, Color.Black, 0f, 0f, false, Color(0xFF3A3530), Color(0xFF1E1B18), Color(0xFF2A2622), Color(0xFF3A3530))
     Biome.SWAMP -> BiomeStyle(Color(0xFF5C7F6B), Color(0xFFB8D4B0), Color(0xFF4D6B5A), Color(0xFF3C5648), 90f, 55f, false, Color(0xFF4B5B3A), Color(0xFF2A3322), Color(0xFF2F4A38), Color(0xFF5F8F3F))
+    else -> styleOf(Biome.PLAINS)
 }
 
 /** Draws one region's static world (sky or tunnel wall, mountains, ground, back scenery) in the given biome's look. */
@@ -226,7 +235,7 @@ private fun DrawScope.drawSky(g: TrainGame, style: BiomeStyle, light: Float, sun
     }
 }
 
-private fun DrawScope.drawRange(g: TrainGame, base: Float, amp: Float, freq: Float, parallax: Float, brush: Brush, phase: Float) {
+internal fun DrawScope.drawRange(g: TrainGame, base: Float, amp: Float, freq: Float, parallax: Float, brush: Brush, phase: Float) {
     path.rewind()
     path.moveTo(-20f, HORIZON + 60f)
     var x = -20f
@@ -241,7 +250,7 @@ private fun DrawScope.drawRange(g: TrainGame, base: Float, amp: Float, freq: Flo
     drawPath(path, brush)
 }
 
-private fun rangeBrush(base: Float, amp: Float, rock: Color, snowCaps: Boolean, light: Float): Brush {
+internal fun rangeBrush(base: Float, amp: Float, rock: Color, snowCaps: Boolean, light: Float): Brush {
     if (!snowCaps) return SolidColor(rock)
     val snow = lerp(Color(0xFF3A4668), Color.White, light)
     return Brush.verticalGradient(listOf(snow, snow, rock), startY = base - amp, endY = base)
@@ -387,6 +396,7 @@ private fun DrawScope.drawBackScenery(g: TrainGame, biome: Biome, light: Float) 
                 }
             }
             Biome.TUNNEL -> {}
+            else -> {}
         }
     }
 }
@@ -508,7 +518,7 @@ private fun DrawScope.drawTransitionArt(g: TrainGame) {
 
 // ------------------------------------------------------------------ train
 
-private fun DrawScope.drawWheel(cx: Float, cy: Float, r: Float, angle: Float) {
+internal fun DrawScope.drawWheel(cx: Float, cy: Float, r: Float, angle: Float) {
     drawCircle(Color(0xFF1E1F24), r, Offset(cx, cy))
     drawCircle(Color(0xFF6A6D76), r - 2f, Offset(cx, cy), style = Stroke(2.5f))
     for (k in 0 until 4) {
@@ -518,7 +528,7 @@ private fun DrawScope.drawWheel(cx: Float, cy: Float, r: Float, angle: Float) {
     drawCircle(Color(0xFFC9A227), 3.2f, Offset(cx, cy))
 }
 
-private fun DrawScope.drawArmorPlates(x: Float, w: Float, level: Int) {
+internal fun DrawScope.drawArmorPlates(x: Float, w: Float, level: Int) {
     if (level <= 0) return
     val steel = Color(0xFF626A78)
     box(steel, x + 2f, 460f, w - 4f, 24f)
@@ -535,9 +545,9 @@ private fun DrawScope.drawArmorPlates(x: Float, w: Float, level: Int) {
 private fun DrawScope.drawLoco(g: TrainGame, x0: Float) {
     box(Color(0xFF1A1A1F), x0, 480f, LOCO_W, 8f) // frame
     // Boiler.
-    rbox(Color(0xFF9E2A24), x0 + 66f, 420f, 124f, 56f, 20f)
-    box(Color(0xFFB8403A), x0 + 70f, 424f, 116f, 10f)
-    for (bx in floatArrayOf(96f, 132f, 168f)) box(Color(0xFFD1A63A), x0 + bx, 420f, 6f, 56f)
+    rbox(Color(palette.boiler), x0 + 66f, 420f, 124f, 56f, 20f)
+    box(Color(palette.boilerHi), x0 + 70f, 424f, 116f, 10f)
+    for (bx in floatArrayOf(96f, 132f, 168f)) box(Color(palette.trim), x0 + bx, 420f, 6f, 56f)
     drawCircle(Color(0xFF2B2B31), 22f, Offset(x0 + 186f, 448f)) // smokebox
     drawCircle(Color(0xFF55575E), 17f, Offset(x0 + 186f, 448f), style = Stroke(3f))
     // Stack, dome.
@@ -545,10 +555,10 @@ private fun DrawScope.drawLoco(g: TrainGame, x0: Float) {
     path.moveTo(x0 + 150f, 424f); path.lineTo(x0 + 156f, 388f); path.lineTo(x0 + 176f, 388f); path.lineTo(x0 + 182f, 424f); path.close()
     drawPath(path, Color(0xFF1C1C21))
     box(Color(0xFF2E2E35), x0 + 152f, 382f, 28f, 8f)
-    drawArc(Color(0xFFD1A63A), 180f, 180f, true, Offset(x0 + 104f, 400f), Size(34f, 40f))
+    drawArc(Color(palette.trim), 180f, 180f, true, Offset(x0 + 104f, 400f), Size(34f, 40f))
     // Cab.
-    box(Color(0xFF5E2A24), x0, 396f, 68f, 84f)
-    box(Color(0xFF3F1B17), x0 - 4f, 388f, 76f, 10f)
+    box(Color(palette.cab), x0, 396f, 68f, 84f)
+    box(Color(palette.cabDark), x0 - 4f, 388f, 76f, 10f)
     // Cowcatcher.
     path.rewind()
     path.moveTo(x0 + LOCO_W - 4f, 470f); path.lineTo(x0 + LOCO_W + COWCATCHER, 498f); path.lineTo(x0 + LOCO_W - 4f, 498f); path.close()
@@ -571,11 +581,11 @@ private fun DrawScope.drawLoco(g: TrainGame, x0: Float) {
     }
 }
 
-private fun DrawScope.drawCar(g: TrainGame, x0: Float, index: Int, slot: Int) {
+internal fun DrawScope.drawCar(g: TrainGame, x0: Float, index: Int, slot: Int, corner: Float = 4f) {
     val alive = g.carAlive(slot)
     box(Color(0xFF1A1A1F), x0 + 4f, 480f, CAR_W - 8f, 8f)
-    val body = if (alive) Color(CAR_COLORS[index % CAR_COLORS.size]) else Color(0xFF2B2522)
-    rbox(body, x0, 424f, CAR_W, 60f, 4f)
+    val body = if (alive) Color(palette.cars[index % palette.cars.size]) else Color(0xFF2B2522)
+    rbox(body, x0, 424f, CAR_W, 60f, corner)
     for (k in 1..5) box(Color.Black.copy(alpha = 0.18f), x0 + k * CAR_W / 6f, 426f, 2f, 56f)
     box(Color.White.copy(alpha = 0.12f), x0, 424f, CAR_W, 4f)
     // Roof deck with railing and sandbags.
@@ -609,7 +619,7 @@ private fun DrawScope.drawWindows(g: TrainGame, color: Color) {
     box(color, g.locoLeft + 40f, 404f, 18f, 22f)
     for (i in 1 until g.slotCount) {
         if (!g.carAlive(i)) continue
-        val x = g.locoLeft - 8f - i * 158f + 8f
+        val x = g.carLeft(i)
         for (k in 0..2) box(color, x + 20f + k * 38f, 440f, 22f, 14f)
     }
 }
@@ -617,9 +627,14 @@ private fun DrawScope.drawWindows(g: TrainGame, color: Color) {
 private fun DrawScope.drawTrain(g: TrainGame, light: Float) {
     val bob = sin(g.time * 17f) * 0.8f
     withTransform({ translate(0f, if (g.over) 0f else bob) }) {
-        for (i in g.slotCount - 1 downTo 1) drawCar(g, g.locoLeft - 8f - i * 158f + 8f, i - 1, i)
-        drawLoco(g, g.locoLeft)
-        drawWindows(g, lerp(Color(0xFF2A3440), Color(0xFF9BC4E2), light))
+        val shapeArt = TrainShapeArtRegistry.artFor(g.shape)
+        for (i in g.slotCount - 1 downTo 1) shapeArt.paintCar(this, g, g.carLeft(i), i - 1, i)
+        shapeArt.paintLoco(this, g, g.locoLeft)
+        shapeArt.paintWindows(this, g, lerp(Color(0xFF2A3440), Color(0xFF9BC4E2), light))
+        if (palette.glow) drawGlowTrim(g)
+        // Route gear: the old route's kit fades out while the new route's fades in.
+        if (g.kitBlend < 1f) RouteArtRegistry.artFor(g.kitFrom).trainKit(this, g, 1f - g.kitBlend)
+        RouteArtRegistry.artFor(g.biome).trainKit(this, g, g.kitBlend)
         // Rear spikes.
         for (k in 0 until min(g.spikeLevel, 6)) {
             val sy = 444f + k * 7f
@@ -795,9 +810,10 @@ private fun DrawScope.drawGunner(g: TrainGame, slot: Int) {
     if (!gs.alive) return
     val gx = g.gunX(slot)
     val gy = g.gunY(slot)
-    val shirt = Color(SHIRTS[slot % SHIRTS.size])
+    val look = SURVIVORS[slot % SURVIVORS.size].look
+    val shirt = Color(look.shirt)
     val weapon = gs.weapon
-    val skin = Color(0xFFE0AC69)
+    val skin = Color(look.skin)
     val heat = gs.heat[gs.weapon.ordinal]
     if (heat > 0.03f) {
         box(Color.Black.copy(alpha = 0.6f), gx - 16f, gy - 58f, 32f, 5f)
@@ -809,12 +825,12 @@ private fun DrawScope.drawGunner(g: TrainGame, slot: Int) {
             box(Color(0xFF4E342E), 6f, -12f, 26f, 12f)
             drawCircle(Color(0xFF222226), 8f, Offset(18f, -6f))
         }
-        box(Color(0xFF37474F), -6f, -14f, 5f, 14f)
-        box(Color(0xFF37474F), 1f, -14f, 5f, 14f)
+        box(Color(look.pants), -6f, -14f, 5f, 14f)
+        box(Color(look.pants), 1f, -14f, 5f, 14f)
         rbox(shirt, -8f, -34f, 16f, 22f, 4f)
         box(Color(0xFF4E342E), -9f, -32f, 5f, 14f) // pack
         drawCircle(skin, 7f, Offset(1f, -42f))
-        box(if (slot % 2 == 0) Color(0xFF3E2723) else Color(0xFF212121), -6f, -50f, 14f, 6f)
+        drawAvatarHat(look)
         drawCircle(Color(0xFF111111), 1.2f, Offset(4f, -43f))
     }
     withTransform({
@@ -832,56 +848,19 @@ private fun DrawScope.drawGunner(g: TrainGame, slot: Int) {
 private fun DrawScope.drawZombie(z: Zombie) {
     val type = z.type
     val size = type.size
-    val isClown = type == ZombieType.CLOWN || type == ZombieType.CLOWN_PRINCE
+    val isClown = type in CLOWN_TYPES
     val dir = z.facing.toFloat()
-    if (type == ZombieType.BAT || type == ZombieType.GARGOYLE) {
-        drawBat(z, dir)
-        return
-    }
-    if (type == ZombieType.ZOMBIE_DOG || type == ZombieType.RAT || type == ZombieType.SCORPION || type == ZombieType.CROCODILE) {
-        drawCreature(z, dir)
+    val customArt = MobArtRegistry[type]
+    if (customArt != null) {
+        customArt.draw(this, z, dir)
         return
     }
     val walk = sin(z.anim)
     val flash = z.flash * 0.75f
     fun tint(argb: Int) = lerp(Color(argb), Color.White, flash)
 
-    val skin = tint(when (type) {
-        ZombieType.WALKER -> 0xFF86B864.toInt()
-        ZombieType.RUNNER -> 0xFF7DBB5E.toInt()
-        ZombieType.BRUTE -> 0xFF6E8F52.toInt()
-        ZombieType.BLOATER -> 0xFFB4C45C.toInt()
-        ZombieType.TITAN -> 0xFF5C7A4A.toInt()
-        ZombieType.BALLOON -> 0xFF86B864.toInt()
-        ZombieType.CLOWN -> 0xFFE8DCC8.toInt()
-        ZombieType.CLOWN_PRINCE -> 0xFFE8DCC8.toInt()
-        ZombieType.GARGOYLE -> 0xFF7A7F8C.toInt()
-        ZombieType.BAT -> 0xFF4A2F5E.toInt()
-        ZombieType.ZOMBIE_DOG -> 0xFF7B6F57.toInt()
-        ZombieType.YETI -> 0xFFEAF2F8.toInt()
-        ZombieType.RAT -> 0xFF6D6258.toInt()
-        ZombieType.SCORPION -> 0xFFB8803F.toInt()
-        ZombieType.SKELETON -> 0xFFEDE7D6.toInt()
-        ZombieType.CROCODILE -> 0xFF5E7B3A.toInt()
-    })
-    val shirt = tint(when (type) {
-        ZombieType.WALKER -> intArrayOf(0xFF5D6D7E.toInt(), 0xFF6C5B3E.toInt(), 0xFF3F6C5B.toInt(), 0xFF7B4B4B.toInt())[(z.seed * 4).toInt().coerceIn(0, 3)]
-        ZombieType.RUNNER -> 0xFF8D3B3B.toInt()
-        ZombieType.BRUTE -> 0xFF4A3F36.toInt()
-        ZombieType.BLOATER -> 0xFF8A9A3A.toInt()
-        ZombieType.TITAN -> 0xFF3B2F2F.toInt()
-        ZombieType.BALLOON -> 0xFFFF7043.toInt()
-        ZombieType.CLOWN -> 0xFFE53935.toInt()
-        ZombieType.CLOWN_PRINCE -> 0xFF8E24AA.toInt()
-        ZombieType.GARGOYLE -> 0xFF4B4F5A.toInt()
-        ZombieType.BAT -> 0xFF4A2F5E.toInt()
-        ZombieType.ZOMBIE_DOG -> 0xFF5E5444.toInt()
-        ZombieType.YETI -> 0xFFD6E4EF.toInt()
-        ZombieType.RAT -> 0xFF574E46.toInt()
-        ZombieType.SCORPION -> 0xFF8A5E2B.toInt()
-        ZombieType.SKELETON -> 0xFF2B2B2B.toInt()
-        ZombieType.CROCODILE -> 0xFF46602B.toInt()
-    })
+    val skin = tint(MobLooks.skin(type))
+    val shirt = tint(MobLooks.shirt(type, z.seed))
     val pants = tint(if (isClown) 0xFF1E88E5.toInt() else 0xFF3A3F47.toInt())
     val hop = if (isClown && !z.attacking) abs(sin(z.anim * 1.2f)) * 7f else 0f
     val hat = if (type == ZombieType.WALKER || type == ZombieType.RUNNER) ((z.seed * 997f).toInt() % 7) else 0
@@ -913,7 +892,7 @@ private fun DrawScope.drawZombie(z: Zombie) {
         }
         // Torso.
         when (type) {
-            ZombieType.BRUTE, ZombieType.YETI -> rbox(shirt, -11f, -40f + bob, 22f, 28f, 6f)
+            ZombieType.BRUTE, ZombieType.YETI, ZombieType.STRONGMAN, ZombieType.MAGMA_GOLEM -> rbox(shirt, -11f, -40f + bob, 22f, 28f, 6f)
             ZombieType.BLOATER -> {
                 drawCircle(shirt, 17f, Offset(0f, -26f + bob))
                 drawCircle(skin, 14f, Offset(0f, -26f + bob))
@@ -974,6 +953,7 @@ private fun DrawScope.drawZombie(z: Zombie) {
             drawCircle(Color.Black, 1.5f, Offset(5f + sin(z.anim * 2f) * 1.3f, headY - 2f + cos(z.anim * 2f)))
             drawCircle(Color.Black, 1.4f, Offset(-1f + sin(z.anim * 2f) * 1.3f, headY - 2f + cos(z.anim * 2f)))
         }
+        HumanoidExtras.draw(this, z, headY, bob, skin, shirt)
         if (type == ZombieType.YETI) {
             for (k in 0..3) { // shaggy fur tufts and icy eyes
                 path.rewind(); path.moveTo(-8f + k * 5f, headY - 6f); path.lineTo(-6f + k * 5f, headY - 15f); path.lineTo(-3f + k * 5f, headY - 6f); path.close()
@@ -1008,7 +988,7 @@ private fun DrawScope.drawZombie(z: Zombie) {
         }
         // Arms reaching toward the train; raised and swinging while clawing.
         val armAngle = if (type == ZombieType.BALLOON) -82f + sin(z.anim) * 4f else if (z.attacking) -55f + sin(z.anim * 2.2f) * 22f else -12f + walk * 6f
-        val armW = when (type) { ZombieType.BRUTE, ZombieType.TITAN, ZombieType.YETI -> 8f; else -> 5f }
+        val armW = when (type) { ZombieType.BRUTE, ZombieType.TITAN, ZombieType.YETI, ZombieType.STRONGMAN, ZombieType.MAGMA_GOLEM -> 8f; else -> 5f }
         val armLen = when (type) { ZombieType.BRUTE -> 20f; ZombieType.TITAN -> 24f; else -> 16f }
         withTransform({ translate(2f, -32f + bob); rotate(armAngle, Offset.Zero) }) { box(skin, 0f, -armW / 2f, armLen, armW) }
         withTransform({ translate(0f, -30f + bob); rotate(armAngle + 12f, Offset.Zero) }) { box(tint(shirtDark(type)), 0f, -armW / 2f, armLen, armW) }
@@ -1054,7 +1034,7 @@ private fun DrawScope.drawEliteMarks(z: Zombie, time: Float) {
     drawHpBar(z)
 }
 
-private fun DrawScope.drawHpBar(z: Zombie) {
+internal fun DrawScope.drawHpBar(z: Zombie) {
     val size = z.type.size
     val w = 26f * size
     val y = z.y - (z.type.aimHeight * 2f + 6f) * size
@@ -1223,12 +1203,12 @@ private fun DrawScope.drawParticles(g: TrainGame, glow: Boolean) {
 private fun DrawScope.drawGlow(g: TrainGame, night: Float) {
     if (night > 0.05f) {
         // Headlamp cone, lit windows, glowing zombie eyes: only visible once the sky darkens.
-        val lampX = g.locoLeft + LOCO_W + 2f
+        val lampX = g.locoLeft + g.shape.locoW + 2f
         path.rewind()
         path.moveTo(lampX, 436f); path.lineTo(lampX + 420f, 400f); path.lineTo(lampX + 420f, 575f); path.lineTo(lampX, 441f); path.close()
         drawPath(path, Brush.horizontalGradient(listOf(Color(0xFFFFF3B0).copy(alpha = 0.42f * night), Color.Transparent), startX = lampX, endX = lampX + 420f))
         drawCircle(Color(0xFFFFF8D0).copy(alpha = night), 7f, Offset(lampX, 438f))
-        drawWindows(g, Color(0xFFFFC96B).copy(alpha = 0.9f * night))
+        TrainShapeArtRegistry.artFor(g.shape).paintWindows(this, g, Color(0xFFFFC96B).copy(alpha = 0.9f * night))
         for (zi in g.zombies.indices) {
             val z = g.zombies[zi]
             val dir = z.facing.toFloat()
@@ -1363,6 +1343,9 @@ fun DrawScope.drawZombiePortrait(type: ZombieType, timeSeconds: Float) {
         ZombieType.RAT -> 40f
         ZombieType.SCORPION -> 75f
         ZombieType.CROCODILE -> 100f
+        ZombieType.DRONE -> 48f
+        ZombieType.FROST_WRAITH -> 90f
+        ZombieType.TENTACLE -> 110f
         ZombieType.GARGOYLE -> 120f
         ZombieType.TITAN -> 150f
         else -> 74f * max(1f, type.size)
@@ -1373,7 +1356,7 @@ fun DrawScope.drawZombiePortrait(type: ZombieType, timeSeconds: Float) {
     z.anim = timeSeconds * 3f
     z.x = size.width / (2f * k)
     z.y = when (type) {
-        ZombieType.BAT -> height * 0.62f
+        ZombieType.BAT, ZombieType.DRONE -> height * 0.62f
         ZombieType.GARGOYLE -> height * 0.75f
         else -> height - 4f
     }
@@ -1396,3 +1379,66 @@ private inline fun DrawScope.withTransformLeft(x: Float, block: DrawScope.() -> 
         textPaint.textAlign = Paint.Align.CENTER
     }
 }
+
+
+// ------------------------------------------------------------------ glue: palette, hats, default art and registration
+
+/** The livery in use this frame (set at the start of [drawTrainScene]). */
+internal var palette: Livery = Livery.CLASSIC
+
+private val CLOWN_TYPES = setOf(ZombieType.CLOWN, ZombieType.CLOWN_PRINCE, ZombieType.JUGGLER, ZombieType.MINI_CLOWN)
+
+/** Neon and gold liveries have lit trim that glows along the train. */
+private fun DrawScope.drawGlowTrim(g: TrainGame) {
+    val pulse = 0.55f + 0.3f * sin(g.time * 3f)
+    val trim = Color(palette.trim)
+    drawLine(trim.copy(alpha = pulse), Offset(g.rearEnd, 446f), Offset(g.frontEnd - g.shape.nose, 446f), 2.5f)
+    drawLine(trim.copy(alpha = pulse * 0.4f), Offset(g.rearEnd, 446f), Offset(g.frontEnd - g.shape.nose, 446f), 7f)
+}
+
+/** Hair and headwear in the head's local coordinates (head centre at (1, -42)). */
+private fun DrawScope.drawAvatarHat(look: AvatarLook) {
+    val hat = Color(look.hatColor)
+    box(Color(look.hair), -6f, -50f, 14f, 6f)
+    when (look.hat) {
+        HatStyle.NONE -> {}
+        HatStyle.CAP -> { box(hat, -6f, -51f, 15f, 5f); box(hat, 6f, -48f, 7f, 2f) }
+        HatStyle.COWBOY -> { drawOval(hat, Offset(-10f, -51f), Size(22f, 5f)); box(hat, -4f, -58f, 10f, 8f) }
+        HatStyle.HELMET -> { drawArc(hat, 180f, 180f, true, Offset(-7f, -52f), Size(16f, 14f)); box(hat, -8f, -46f, 18f, 2f) }
+        HatStyle.BANDANA -> { box(hat, -7f, -48f, 16f, 3f); box(hat, -10f, -47f, 4f, 5f) }
+        HatStyle.BEANIE -> { drawArc(hat, 180f, 180f, true, Offset(-7f, -54f), Size(16f, 14f)); drawCircle(hat, 2f, Offset(1f, -55f)) }
+    }
+}
+
+/** The original six routes are drawn by this file's style-driven scenery functions. */
+private class ClassicRouteArt(private val biome: Biome) : RouteArt {
+    override fun backdrop(s: DrawScope, g: TrainGame, light: Float, sunset: Float) = with(s) { drawBackdrop(g, biome, light, sunset) }
+    override fun foreground(s: DrawScope, g: TrainGame, light: Float) = with(s) { drawForeground(g, biome, light) }
+    override fun weather(s: DrawScope, g: TrainGame) = with(s) { drawWeather(g, biome) }
+    override fun darkness(night: Float): Float = if (biome == Biome.TUNNEL) 0.62f else night * 0.5f
+    override fun glowNight(night: Float): Float = if (biome == Biome.TUNNEL) 0.9f else night
+    override fun afterDarkness(s: DrawScope, g: TrainGame) = with(s) { if (biome == Biome.TUNNEL) drawTunnelLampGlow(g) }
+}
+
+/** The classic steam locomotive and boxcars. */
+private object SteamShapeArt : TrainShapeArt {
+    override fun paintLoco(s: DrawScope, g: TrainGame, x0: Float) = with(s) { drawLoco(g, x0) }
+    override fun paintCar(s: DrawScope, g: TrainGame, x0: Float, index: Int, slot: Int) = with(s) { drawCar(g, x0, index, slot) }
+    override fun paintWindows(s: DrawScope, g: TrainGame, color: Color) = with(s) { drawWindows(g, color) }
+}
+
+/** Registers everything this file draws, then the art files for routes, enemies and train shapes. Runs once. */
+private fun installRenderRegistries() {
+    for (biome in listOf(Biome.PLAINS, Biome.MOUNTAIN, Biome.TUNNEL, Biome.DESERT, Biome.GRAVEYARD, Biome.SWAMP)) {
+        RouteArtRegistry.register(biome, ClassicRouteArt(biome))
+    }
+    TrainShapeArtRegistry.register(TrainShape.STEAM, SteamShapeArt)
+    MobArtRegistry.register(listOf(ZombieType.BAT, ZombieType.GARGOYLE)) { s, z, d -> with(s) { drawBat(z, d) } }
+    MobArtRegistry.register(listOf(ZombieType.ZOMBIE_DOG, ZombieType.ICE_WOLF, ZombieType.RAT, ZombieType.SCORPION, ZombieType.CROCODILE)) { s, z, d -> with(s) { drawCreature(z, d) } }
+    registerMobLooks()
+    registerMobArts()
+    registerRouteArts()
+    registerTrainShapes()
+}
+
+private val renderRegistered = installRenderRegistries()

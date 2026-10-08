@@ -179,21 +179,71 @@ adding it is part of the next change you make to that game.
    screen awake automatically via `GameApplication` - nothing to do.
 7. Verify with `./gradlew :app:assembleDebug`, then release it as a new **MINOR**.
 
-## Train Survivor pointers
+## Train Survivor: architecture and how to extend it
+
+Train Survivor is built so content is data plus small plug-in pieces. **Never hard-code content in the
+engine, renderer or UI**: no `when (type)` over content enums in `TrainGame.kt` or `TrainRenderer.kt` (use the
+behaviour flags and registries below), and no hand-maintained lists of content in screens (derive them from
+`Enum.entries`). Adding content must never require editing more files than the recipe says.
 
 Code is in `app/src/main/java/com/baraka/game/trainsurvivor/`:
 
-- `model/TrainModels.kt` - weapons, zombies, upgrades, survivors/perks, elite traits, danger levels, shop rules.
-  `model/Progression.kt` - daily goals, achievements, records, prestige.
-- `systems/TrainGame.kt` - the whole simulation (per-car health, perks, abilities, events,
-  bosses, train weapons). Follows the performance rules above.
-- `render/TrainRenderer.kt` - all drawing (Canvas), including the HUD.
-- `ui/` - `TrainSurvivorScreen.kt` (owns audio/settings, run screen), `GarageScreen.kt`,
-  `TrainSettingsScreen.kt`, `ProgressScreen.kt` (goals/achievements/records/prestige),
-  `FieldGuideScreen.kt`, `TrainDebug.kt` (this game's debug tools).
-- `data/` - `TrainSaveRepository.kt` (progress + settings in `SharedPreferences` file
-  `train_survivor`), `GameSettings.kt`, `TrainAudio.kt` (procedural music + ambience),
-  `TrainSoundEngine.kt` (effects), `Haptics.kt`.
+- `model/` - pure data, one file per concept: `Enemies.kt` (ZombieType, EliteTrait), `Routes.kt` (Biome, Spawn,
+  HazardKind), `Survivors.kt` (crew, avatar looks, perks), `TrainStyle.kt` (TrainShape, Livery), `Upgrades.kt`
+  (weapons, train upgrades, danger levels), `TrainModels.kt` (save data and shop rules), `Progression.kt`
+  (goals, achievements, records, prestige).
+- `systems/TrainGame.kt` - the simulation. It reads behaviour from the data flags (flying, leaper, ranged,
+  stationary, armor, summons...) and the train geometry from `TrainShape`. `systems/Hazards.kt` - pluggable
+  route hazards.
+- `render/` - `TrainRenderer.kt` (scene loop, HUD, the classic steam train and original six routes),
+  `Registries.kt` (the plug-in interfaces), `MobArts.kt`, `RouteArts.kt`, `TrainShapes.kt`, `HazardArt.kt`.
+- `ui/` - screens (`TrainSurvivorScreen.kt` run + audio/settings owner, `GarageScreen.kt`, `ProgressScreen.kt`,
+  `FieldGuideScreen.kt`, `TrainSettingsScreen.kt`, `TrainDebug.kt`).
+- `data/` - save repository, settings, audio, haptics.
 
-Balance numbers live in `TrainModels.kt` (costs, zombie stats) and `TrainGame.kt` (spawn
-rates, difficulty ramp, boss schedule). Use the debug tools to test late-game content.
+### Recipes
+
+**New enemy** - (1) add an entry to `ZombieType` using the flags (`flying`, `leaper`, `ranged`, `stationary`,
+`armor`, `fireImmune`, `specialEvery/summon/smash` for bosses); a boss joins the boss rotation automatically.
+(2) Put it in a route's spawn table (`signature(...)` in `Biome`). (3) Give it colours in
+`registerMobLooks()` (`MobArts.kt`); if it needs accessories register a `HumanoidExtra`, if it is not a
+humanoid write a `MobArt` and register it in `registerMobArts()`. (4) Add its `ZombieNote` in
+`FieldGuideScreen.kt` (the guide looks notes up by type). New AI behaviour that no flag covers goes in
+`TrainGame.updateZombies` behind a new flag on `ZombieType`.
+
+**New route** - (1) add a `Biome` entry: stats, `commonSpawns(...) + signature(...)`, optional
+`gravityMult/rangeMult/speedMult/repairMult/flatRegen` and `hazards`. (2) Write a `RouteArt` object in
+`RouteArts.kt` (`backdrop` required; `foreground`, `weather`, `darkness`, `glowNight`, `trainKit` optional) and
+register it in `registerRouteArts()`. Junction cards, the Field Guide, debug "Go to route" and the spawn logic
+need nothing else. Routes without art fall back to the plains look instead of crashing.
+
+**New hazard** - add a `HazardKind` (name + description), write a `Hazard` subclass in `systems/Hazards.kt`
+(`update`, optional `onTap`, `shootDown`, `trigger`), add it to `HazardRegistry`, and draw it in
+`HazardArt.kt` (the `when` there is exhaustive on purpose so a hazard can't ship invisible). List the kind in
+a route's `hazards`.
+
+**New survivor / avatar** - add a `Survivor` to `SURVIVORS` (name, role, perk, `AvatarLook`). The train gets
+another seat; saving, seat prices, garage cards, the in-run switcher and debug tools follow `SURVIVORS.size`.
+A new `Perk` needs one line in `TrainGame` where perks are resolved. A new `HatStyle` needs a branch in
+`drawAvatarHat`.
+
+**New train shape** - add a `TrainShape` entry (sizes, nose, driver position, price, optional `hpMult` /
+`speedMult`), write a `TrainShapeArt` (`paintLoco`, `paintCar`, `paintWindows`) in `TrainShapes.kt` using
+`palette` (the current livery) and register it in `registerTrainShapes()`. All car positions in the engine and
+renderer come from the shape (`carLeft`, `gunX`, `locoLeft`...), so nothing else changes.
+
+**New livery** - add a `Livery` entry (colours, price, `glow`). It appears in the Garage's Look tab.
+
+**New weapon / upgrade / elite trait / danger level** - add the enum entry. Weapons and upgrades appear in the
+shop and Field Guide automatically; an upgrade also needs its effect wired where `TrainGame` reads its level;
+a weapon with new behaviour needs a branch in `TrainGame.fire` plus art in `drawWeapon`.
+
+### Data and saving
+
+Progress and settings are stored in `SharedPreferences` file `train_survivor` by `TrainSaveRepository`. New
+persistent fields get a default in `SaveData`, load/save lines in the repository, and must tolerate old saves
+(missing keys fall back to defaults).
+
+Balance numbers live in `model/` (costs, stats, spawn tables) and `TrainGame.kt` (ramp, event timing). Use
+the debug tools (Settings -> version x7 -> Developer): "Go to <route>", spawn any enemy, trigger hazards, skip
+time, god mode, unlock everything.

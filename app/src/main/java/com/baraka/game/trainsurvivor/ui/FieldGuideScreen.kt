@@ -71,6 +71,18 @@ private val zombieNotes: Map<ZombieType, ZombieNote> = mapOf(
     ZombieType.RAT to ZombieNote("Dark Tunnel, from ~8 s", "Tiny and very fast; they swarm in packs of four.", "Splash and chain weapons shine: Shotgun, Tesla Coil, Mortar."),
     ZombieType.SCORPION to ZombieNote("Scorched Desert, from ~12 s", "A low, armored (3) crawler that skitters in quickly.", "Mid-damage weapons and the Flamethrower handle them."),
     ZombieType.SKELETON to ZombieNote("Haunted Graveyard, from ~12 s", "Brittle bones that clatter in fast.", "Anything works - save the big shots for Brutes."),
+    ZombieType.LEAPER to ZombieNote("Lunar Rails, from ~20 s", "An astronaut zombie that JUMPS over the queue and lands on a wagon roof, then claws it from above. Low gravity makes the jump slow and floaty.", "Shoot it while it floats. Wagons nearer the roof gunners cover each other."),
+    ZombieType.DRONE to ZombieNote("Orbital Station, from ~22 s", "An armored (3) flying gun platform. It hovers at a distance and shoots the train, arriving in pairs.", "Flak Turret, Rocket and Laser; the Cannon can't reach it."),
+    ZombieType.MAGMA_GOLEM to ZombieNote("Volcano Line, after ~40 s", "A walking lava rock, armor 5. Fire cannot hurt it, so the Flamethrower does nothing.", "Sniper, Rocket, Cannon, Tesla Coil."),
+    ZombieType.ICE_WOLF to ZombieNote("Frozen Tundra, from ~10 s", "A fast wolf that runs in pairs and slides in on the ice.", "Short-range fast guns; the blizzard cuts your range, so keep close weapons ready."),
+    ZombieType.FROST_WRAITH to ZombieNote("Frozen Tundra, after ~30 s", "A translucent flying ghost that drifts over the train and claws from above.", "Flak Turret and any gun except the Cannon."),
+    ZombieType.GUNSLINGER to ZombieNote("Ghost Town, from ~18 s", "Stops far from the train and SHOOTS it instead of walking up. It does not queue, so only range reaches it.", "Sniper, Laser and Rocket outrange it. Hawk's range perk helps."),
+    ZombieType.JUGGLER to ZombieNote("Carnival, from ~15 s", "A clown that stands back and pelts the train with juggling balls. Pops into two mini clowns when killed.", "Kill it at range; splash weapons clear its minis."),
+    ZombieType.STRONGMAN to ZombieNote("Carnival, after ~45 s", "A huge armored (5) circus strongman.", "Big hitters: Sniper, Rocket, Cannon."),
+    ZombieType.MINI_CLOWN to ZombieNote("Carnival (from popped clowns)", "A small fast clown that appears when a clown or juggler pops.", "Shotgun, Tesla and Mortar clear them in bulk."),
+    ZombieType.DROWNED to ZombieNote("Sea Bridge, from ~8 s", "A waterlogged walker draped in seaweed.", "Anything works; watch the sea for tentacles."),
+    ZombieType.TENTACLE to ZombieNote("Sea Bridge hazard", "Rises from the water and squeezes a wagon until it is killed (or lets go after a while).", "Shoot it fast; it only attacks the wagon it holds."),
+    ZombieType.RIOT to ZombieNote("City Ruins, from ~25 s", "A riot zombie with a shield, armor 6. Some of them drop from overpasses onto your roofs.", "Big hitters and the Tesla Coil."),
     ZombieType.CROCODILE to ZombieNote("Murky Swamp, from ~10 s", "Creeps out of the bog, then LUNGES in short bursts. Armor 3 and a brutal bite.", "Kill it before it lunges into range: Sniper and Rocket work best.")
 )
 
@@ -231,7 +243,10 @@ private fun RouteGuide() {
             ) {
                 Text(biome.displayName, color = accent, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                 Text(biome.tagline, color = Color(0xFFD0D6E0), fontSize = 11.sp)
-                Text("Signature enemy: " + biome.signature.displayName, color = Color(0xFF81C784), fontSize = 11.sp)
+                Text("Signature enemies: " + biome.signatureEnemies.joinToString(" and ") { it.displayName }, color = Color(0xFF81C784), fontSize = 11.sp)
+                for (hazard in biome.hazards) Text("Hazard - " + hazard.displayName + ": " + hazard.description, color = Color(0xFFFF8A65), fontSize = 11.sp)
+                if (biome.rangeMult != 1f) Text("Weapon range x" + fmt(biome.rangeMult), color = Color(0xFFB0BEC5), fontSize = 11.sp)
+                if (biome.gravityMult != 1f) Text("Low gravity: debris and shells float", color = Color(0xFFB0BEC5), fontSize = 11.sp)
                 Text(
                     "Coins x${fmt(biome.coinMult)}  -  zombie HP x${fmt(biome.hpMult)}  -  spawns x${fmt(biome.spawnMult)}  -  damage x${fmt(biome.dmgMult)}",
                     color = AMBER, fontSize = 11.sp, fontWeight = FontWeight.Bold

@@ -511,8 +511,8 @@ private fun RouteCard(biome: Biome, onClick: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Text(biome.displayName, color = accent, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
-        Text(biome.tagline, color = Color(0xFFB0B8C6), fontSize = 10.sp, maxLines = 2)
-        Text("Enemy: " + biome.signature.displayName, color = Color(0xFF81C784), fontSize = 10.sp)
+        Text(biome.tagline, color = Color(0xFFB0B8C6), fontSize = 10.sp, maxLines = 3)
+        Text("Enemy: " + biome.signatureEnemies.joinToString(" / ") { it.displayName }, color = Color(0xFF81C784), fontSize = 10.sp, maxLines = 1)
         val coins = "%.2f".format(biome.coinMult).trimEnd('0').trimEnd('.')
         Text("Coins x$coins", color = Color(0xFFFFD54F), fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }

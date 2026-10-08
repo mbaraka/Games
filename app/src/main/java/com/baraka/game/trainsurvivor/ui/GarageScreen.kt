@@ -58,7 +58,10 @@ import androidx.compose.foundation.layout.RowScope
 import com.baraka.game.trainsurvivor.data.GameSettings
 import com.baraka.game.trainsurvivor.model.MAX_CAR_ARMOR
 import com.baraka.game.trainsurvivor.model.DangerLevel
+import com.baraka.game.trainsurvivor.model.Livery
 import com.baraka.game.trainsurvivor.model.Progression
+import com.baraka.game.trainsurvivor.model.TrainShape
+import androidx.compose.foundation.layout.size
 import com.baraka.game.trainsurvivor.model.SURVIVORS
 import com.baraka.game.ui.debug.DebugSection
 
@@ -143,9 +146,83 @@ fun GarageScreen(
         Column(modifier = Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TabChip("TRAIN", tab == 0, Modifier.weight(1f)) { tab = 0 }
-                TabChip("CREW & WEAPONS", tab == 1, Modifier.weight(1f)) { tab = 1 }
+                TabChip("CREW", tab == 1, Modifier.weight(1f)) { tab = 1 }
+                TabChip("LOOK", tab == 2, Modifier.weight(1f)) { tab = 2 }
             }
-            if (tab == 0) TrainTab(save, onPurchase) else CrewTab(save, onPurchase)
+            when (tab) {
+                0 -> TrainTab(save, onPurchase)
+                1 -> CrewTab(save, onPurchase)
+                else -> LookTab(save, onPurchase)
+            }
+        }
+    }
+}
+
+/** Train body and paint: buy once, switch any time. Every body and livery in the model shows up here automatically. */
+@Composable
+private fun LookTab(save: SaveData, onChange: (SaveData) -> Unit) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        item { Text("TRAIN BODY", color = MUTED, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+        items(TrainShape.entries.toList()) { shape ->
+            LookCard(
+                title = shape.displayName,
+                subtitle = shape.blurb,
+                owned = save.ownsShape(shape.ordinal),
+                selected = save.selectedShape == shape,
+                cost = shape.cost,
+                coins = save.coins,
+                swatch = null,
+                onSelect = { onChange(Shop.selectShape(save, shape.ordinal)) },
+                onBuy = { Shop.buyShape(save, shape.ordinal)?.let(onChange) }
+            )
+        }
+        item { Text("PAINT", color = MUTED, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp)) }
+        items(Livery.entries.toList()) { livery ->
+            LookCard(
+                title = livery.displayName,
+                subtitle = if (livery.glow) "Glowing trim" else "Paint scheme",
+                owned = save.ownsLivery(livery.ordinal),
+                selected = save.selectedLivery == livery,
+                cost = livery.cost,
+                coins = save.coins,
+                swatch = listOf(livery.boiler, livery.cab, livery.trim, livery.cars[0], livery.cars[1]),
+                onSelect = { onChange(Shop.selectLivery(save, livery.ordinal)) },
+                onBuy = { Shop.buyLivery(save, livery.ordinal)?.let(onChange) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun LookCard(
+    title: String,
+    subtitle: String,
+    owned: Boolean,
+    selected: Boolean,
+    cost: Int,
+    coins: Int,
+    swatch: List<Long>?,
+    onSelect: () -> Unit,
+    onBuy: () -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        if (swatch != null) {
+            Row(Modifier.clip(RoundedCornerShape(6.dp))) {
+                swatch.forEach { Box(Modifier.size(width = 12.dp, height = 36.dp).background(Color(it))) }
+            }
+        }
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text(subtitle, color = MUTED, fontSize = 11.sp)
+        }
+        when {
+            selected -> Text("EQUIPPED", color = AMBER, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+            owned -> Button(onClick = onSelect, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) { Text("USE", fontSize = 12.sp) }
+            else -> BuyButton("BUY", cost, coins >= cost, Modifier.width(112.dp), onBuy)
         }
     }
 }
@@ -211,7 +288,7 @@ private fun RowScope.SmallButton(text: String, highlight: Boolean = false, onCli
 
 @Composable
 private fun TrainPreview(save: SaveData, modifier: Modifier) {
-    val game = remember(save.unlockedSlots, save.slots, save.upgrades) {
+    val game = remember(save.unlockedSlots, save.slots, save.upgrades, save.shape, save.livery) {
         TrainGame(save, spawnEnabled = false).also { it.time = 5f }
     }
     val tick = remember { mutableLongStateOf(0L) }
