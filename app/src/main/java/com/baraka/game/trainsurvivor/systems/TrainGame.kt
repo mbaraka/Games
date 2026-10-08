@@ -980,6 +980,13 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     private fun damageFor(slot: Int, weapon: WeaponType): Float =
         weapon.damage * crew[slot].powerMultiplier * damagePerk[slot] * (if (buffTime > 0f) 1.3f else 1f)
 
+    /** Damage of one shot from [slot]'s current weapon, with power upgrades, perk and any damage boost applied. */
+    fun shotDamage(slot: Int): Float = damageFor(slot, gunners[slot].weapon)
+
+    /** Total damage bonus in percent over the weapon's base damage (power level x perk x crate boost). */
+    fun damageBonusPercent(slot: Int): Int =
+        ((crew[slot].powerMultiplier * damagePerk[slot] * (if (buffTime > 0f) 1.3f else 1f) - 1f) * 100f).roundToInt()
+
     private fun fire(slot: Int, target: Zombie) {
         val g = gunners[slot]
         val weapon = g.weapon

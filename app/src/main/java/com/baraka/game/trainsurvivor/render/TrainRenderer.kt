@@ -1320,7 +1320,7 @@ private fun DrawScope.drawHud(g: TrainGame) {
         outlinedText("HORDE - coins x1.5", size.width / 2f, size.height * 0.2f, 12f * u, 0xFFFFAB91.toInt())
     }
     if (g.overdriveTime > 0f) outlinedText("OVERDRIVE", size.width / 2f, size.height * 0.16f, 14f * u, 0xFFFFAB00.toInt())
-    if (g.buffActive) outlinedText("DAMAGE BOOST", size.width / 2f, size.height * 0.16f + 16f * u, 11f * u, 0xFFFF8A65.toInt())
+    if (g.buffActive) outlinedText("DAMAGE BOOST +30%", size.width / 2f, size.height * 0.16f + 16f * u, 11f * u, 0xFFFF8A65.toInt())
 }
 
 // ------------------------------------------------------------------ field guide portraits

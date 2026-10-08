@@ -53,6 +53,7 @@ import com.baraka.game.trainsurvivor.model.TrainUpgrade
 import com.baraka.game.trainsurvivor.render.drawTrainScene
 import com.baraka.game.trainsurvivor.systems.TrainGame
 import kotlin.math.max
+import com.baraka.game.trainsurvivor.model.Perk
 import androidx.compose.foundation.layout.RowScope
 import com.baraka.game.trainsurvivor.data.GameSettings
 import com.baraka.game.trainsurvivor.model.MAX_CAR_ARMOR
@@ -247,6 +248,11 @@ private fun CrewCard(index: Int, slot: CrewSlot, save: SaveData, onPurchase: (Sa
         Text(
             if (autoMode) "AUTO - picks the best weapon for the situation" else "Always uses the ${inHand.displayName}",
             color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+        )
+        val damageFactor = slot.powerMultiplier * (if (survivor.perk == Perk.DAMAGE) 1.15f else 1f)
+        Text(
+            "${inHand.displayName}: ${Math.round(inHand.damage * damageFactor)} damage per shot (base ${inHand.damage.toInt()}, +${Math.round((damageFactor - 1f) * 100f)}%)",
+            color = Color(0xFFFFD54F), fontSize = 11.sp, fontWeight = FontWeight.Bold
         )
         Text(
             "${slot.ownedWeapons.size}/${WeaponType.entries.size} weapons  •  power ${slot.power}/$MAX_POWER (+${slot.power * 30}% damage)  •  car armor ${slot.armor}/$MAX_CAR_ARMOR",

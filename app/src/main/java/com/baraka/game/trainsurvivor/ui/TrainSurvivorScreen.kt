@@ -442,6 +442,12 @@ private fun WeaponSwitcher(game: TrainGame, tick: MutableLongState, modifier: Mo
                     if (!g.alive) "-" else if (g.isHot) g.weapon.displayName.substringBefore(' ') + " HOT" else g.weapon.displayName.substringBefore(' '),
                     color = if (g.isHot) Color(0xFFFF5252) else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1
                 )
+                if (g.alive) {
+                    val dmg = game.shotDamage(i).toInt()
+                    val bonus = game.damageBonusPercent(i)
+                    val line = remember(dmg, bonus) { "$dmg dmg" + if (bonus != 0) "  +$bonus%" else "" }
+                    Text(line, color = if (bonus > 0) Color(0xFFFFD54F) else Color(0xFFB0BEC5), fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                }
             }
         }
     }
