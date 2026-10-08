@@ -4,17 +4,19 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import android.view.WindowManager
+import com.baraka.game.keyreader.KeyReaderActivity
 
 /**
- * Keeps the screen awake in every screen of the app (hub and all games), so the display doesn't
- * time out and lock while the player is watching or thinking. The flag only holds while the
- * activity is in the foreground; the normal screen timeout applies again once the app is left.
+ * Keeps the screen awake while a game is open, so the display doesn't time out and lock while the
+ * player is watching or thinking. The hub's game-picker and the Key Reader tool are left alone and
+ * follow the normal screen timeout. The flag only holds while the activity is in the foreground.
  */
 class GameApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+                if (activity is MainActivity || activity is KeyReaderActivity) return
                 activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
 
