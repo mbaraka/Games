@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -99,17 +100,23 @@ fun GarageScreen(
                     onClick = onDepart,
                     modifier = Modifier.weight(1f).height(48.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AMBER, contentColor = Color.Black)
-                ) { Text("DEPART  ▶", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp) }
-                Button(
-                    onClick = { showGuide = true },
-                    modifier = Modifier.height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CARD, contentColor = Color.White)
-                ) { Text("Field Guide", fontSize = 12.sp) }
-                Button(
-                    onClick = { onSoundToggle(!soundEnabled) },
-                    modifier = Modifier.height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CARD, contentColor = Color.White)
-                ) { Text(if (soundEnabled) "Sound: On" else "Sound: Off", fontSize = 12.sp) }
+                ) { Text("DEPART  ▶", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, maxLines = 1, softWrap = false) }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Button(
+                            onClick = { showGuide = true },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = CARD, contentColor = Color.White)
+                        ) { Text("Field Guide", fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                        Button(
+                            onClick = { onSoundToggle(!soundEnabled) },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = CARD, contentColor = Color.White)
+                        ) { Text(if (soundEnabled) "Sound: On" else "Sound: Off", fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                    }
+                }
             }
         }
 
@@ -141,10 +148,12 @@ private fun TrainPreview(save: SaveData, modifier: Modifier) {
         }
     }
     Canvas(
-        modifier = modifier.onSizeChanged { game.worldW = max(game.trainLength + 240f, 760f) }
+        modifier = modifier.onSizeChanged { game.worldW = game.trainLength + 200f }
     ) {
         tick.longValue
-        drawTrainScene(game, topOffset = 300f, showHud = false)
+        // Frame the train: centre it vertically whatever the preview's aspect ratio.
+        val visibleHeight = game.worldW * size.height / size.width
+        drawTrainScene(game, topOffset = 450f - visibleHeight / 2f, showHud = false)
     }
 }
 
