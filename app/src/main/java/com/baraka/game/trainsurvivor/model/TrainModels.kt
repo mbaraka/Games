@@ -5,6 +5,7 @@ import kotlin.math.roundToInt
 
 const val MAX_SLOTS = 5
 const val MAX_POWER = 5
+const val MAX_CAR_ARMOR = 5
 
 /** Everything a passenger can carry, weakest to strongest. Damage is per shot (per pellet-group for the shotgun). */
 enum class WeaponType(
@@ -35,13 +36,17 @@ enum class TrainUpgrade(
     val baseCost: Int,
     val growth: Double
 ) {
-    ARMOR("Armor Plating", "+40 max train health per level", 10, 80, 1.5),
-    REPAIR("Repair Crew", "Heals the train over time", 8, 100, 1.55),
+    ARMOR("Armor Plating", "+40 train health and +25 per wagon, per level", 10, 80, 1.5),
+    REPAIR("Repair Crew", "Mechanics heal the train and its wagons over time", 8, 100, 1.55),
     SPIKES("Spiked Hull", "Zombies clinging to the train take damage", 8, 90, 1.55),
     BOUNTY("Bounty Hunter", "+12% coins from kills per level", 8, 120, 1.6),
-    DYNAMITE("Dynamite", "Bigger blast, faster cooldown", 6, 150, 1.7),
+    DYNAMITE("Dynamite", "Active: bigger blast, faster cooldown", 6, 150, 1.7),
     FLAK("Flak Turret", "Roof turret that shoots down flying enemies", 8, 200, 1.6),
-    TESLA("Tesla Coil", "Chain lightning zaps groups of zombies", 8, 250, 1.65)
+    TESLA("Tesla Coil", "Chain lightning zaps groups of zombies", 8, 250, 1.65),
+    FLAME("Flamethrower", "Cowcatcher flames scorch zombies at the front", 8, 220, 1.6),
+    MORTAR("Mortar", "Lobs shells at the biggest ground crowd", 8, 300, 1.65),
+    OVERDRIVE("Overdrive", "Active: every gun fires much faster for a few seconds", 6, 350, 1.7),
+    FIELD_REPAIR("Field Repair", "Active: heals every car and revives wrecks", 6, 300, 1.7)
 }
 
 enum class ZombieType(
@@ -51,16 +56,19 @@ enum class ZombieType(
     val damage: Float,
     val coins: Int,
     val size: Float,
-    val flying: Boolean = false
+    val flying: Boolean = false,
+    val boss: Boolean = false
 ) {
     WALKER("Walker", 30f, 38f, 5f, 2, 1.0f),
     RUNNER("Runner", 18f, 88f, 4f, 3, 0.9f),
     BRUTE("Brute", 170f, 28f, 14f, 9, 1.45f),
     BLOATER("Bloater", 55f, 36f, 0f, 5, 1.2f),
-    TITAN("Titan", 1500f, 22f, 42f, 150, 2.4f),
+    TITAN("Titan", 1000f, 22f, 32f, 150, 2.4f, boss = true),
     BAT("Zombie Bat", 14f, 125f, 3f, 2, 0.8f, flying = true),
     BALLOON("Balloon Zombie", 45f, 42f, 5f, 6, 1.0f, flying = true),
-    CLOWN("Clown", 70f, 62f, 7f, 6, 1.1f)
+    CLOWN("Clown", 70f, 62f, 7f, 6, 1.1f),
+    GARGOYLE("Gargoyle King", 900f, 55f, 26f, 180, 2.0f, flying = true, boss = true),
+    CLOWN_PRINCE("Clown Prince", 1200f, 34f, 22f, 200, 2.1f, boss = true)
 }
 
 /** A stretch of track the player can route onto at a junction: new scenery plus a risk/reward trade. */
@@ -80,30 +88,58 @@ enum class Biome(
     GRAVEYARD("Haunted Graveyard", "Brutes and bloaters hit hard", 1.6f, 1.1f, 1.0f, 1.2f, 0xFFB39DDB)
 }
 
+enum class Perk { DAMAGE, FIRE_RATE, RANGE, CRIT, SCAVENGER }
+
+/** The five named survivors, one per seat. Each brings a small passive perk to whatever weapon they hold. */
+class Survivor(val name: String, val role: String, val perk: Perk, val perkText: String)
+
+val SURVIVORS = listOf(
+    Survivor("Cole", "Driver", Perk.DAMAGE, "Steady Hands: +15% damage"),
+    Survivor("Mara", "Gunner", Perk.FIRE_RATE, "Quick Draw: +20% fire rate"),
+    Survivor("Hawk", "Scout", Perk.RANGE, "Eagle Eye: +25% weapon range"),
+    Survivor("Doc", "Medic", Perk.CRIT, "Lucky Shots: 12% chance for x2.5 damage"),
+    Survivor("Rocco", "Scrapper", Perk.SCAVENGER, "Scavenger: +25% coins from his kills")
+)
+
 const val AUTO_WEAPON = -1
 
 /**
  * One passenger's loadout: every weapon they own (bitmask over [WeaponType.ordinal]), which one they
- * prefer ([selected], or [AUTO_WEAPON] to let them pick per situation) and their shared [power] level.
+ * prefer ([selected], or [AUTO_WEAPON] to let them pick per situation), their shared [power] level
+ * and the armor on the car they ride in.
  */
-data class CrewSlot(val owned: Int = 1, val selected: Int = AUTO_WEAPON, val power: Int = 0) {
+data class CrewSlot(val owned: Int = 1, val selected: Int = AUTO_WEAPON, val power: Int = 0, val armor: Int = 0) {
     fun owns(weapon: WeaponType): Boolean = owned and (1 shl weapon.ordinal) != 0
     val ownedWeapons: List<WeaponType> get() = WeaponType.entries.filter { owns(it) }
     val bestWeapon: WeaponType get() = ownedWeapons.maxByOrNull { it.ordinal } ?: WeaponType.PISTOL
     val powerMultiplier: Float get() = 1f + 0.3f * power
 }
 
-/** Everything persisted between runs. Immutable; [Shop] returns a new copy on every purchase. */
+/** One finished run on the local leaderboard. */
+data class RunRecord(val distance: Int, val kills: Int, val coins: Int, val day: Long)
+
+/** Everything persisted between runs. Immutable; [Shop] and [Progression] return a new copy on every change. */
 data class SaveData(
     val coins: Int = 0,
     val bestDistance: Int = 0,
     val totalKills: Int = 0,
     val bossKills: Int = 0,
+    val flyerKills: Int = 0,
+    val routesTaken: Int = 0,
+    val prestige: Int = 0,
     val upgrades: Map<TrainUpgrade, Int> = emptyMap(),
     val slots: List<CrewSlot> = List(MAX_SLOTS) { CrewSlot() },
-    val unlockedSlots: Int = 2
+    val unlockedSlots: Int = 2,
+    val goalDay: Long = 0L,
+    val goalProgress: List<Int> = listOf(0, 0, 0),
+    val goalClaimed: Int = 0,
+    val milestonesClaimed: Int = 0,
+    val records: List<RunRecord> = emptyList()
 ) {
     fun level(upgrade: TrainUpgrade): Int = upgrades[upgrade] ?: 0
+
+    /** Permanent coin bonus earned by prestiging. */
+    val prestigeMultiplier: Float get() = 1f + 0.1f * prestige
 }
 
 /** Pure shop rules; every buy function returns the updated [SaveData] or null when it can't be bought. */
@@ -157,6 +193,19 @@ object Shop {
         val cost = powerCost(slot) ?: return null
         if (save.coins < cost) return null
         return save.copy(coins = save.coins - cost, slots = save.slots.replaced(index, slot.copy(power = slot.power + 1)))
+    }
+
+    /** Per-car armor: +40% health for the car this passenger rides in (the locomotive for the driver). */
+    fun carArmorCost(index: Int, slot: CrewSlot): Int? {
+        if (slot.armor >= MAX_CAR_ARMOR) return null
+        return ((60 + index * 20) * 1.7.pow(slot.armor)).roundToInt()
+    }
+
+    fun buyCarArmor(save: SaveData, index: Int): SaveData? {
+        val slot = save.slots[index]
+        val cost = carArmorCost(index, slot) ?: return null
+        if (save.coins < cost) return null
+        return save.copy(coins = save.coins - cost, slots = save.slots.replaced(index, slot.copy(armor = slot.armor + 1)))
     }
 
     private fun List<CrewSlot>.replaced(index: Int, value: CrewSlot) = mapIndexed { i, s -> if (i == index) value else s }

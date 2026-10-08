@@ -21,7 +21,7 @@ No ads, no accounts, no tracking. Just simple, fun games.
 | Pixel Collector | Collect green pixels while avoiding red obstacles. |
 | Battleship | Local 2 players or vs computer — place fleets, then take turns firing. |
 | Rhythm Runner | Run, jump, and collect to the beat. |
-| Train Survivor | Side-view train defense — gun down zombie hordes from both sides, earn coins, upgrade the train and its gunners. |
+| Train Survivor | Side-view train defense — fight ground and flying zombies and bosses, pick routes, earn coins, upgrade the train and its named survivors. |
 | Key Reader | Scan NFC keys and manage saved entries. |
 
 The full list lives in [`GAME_CATALOG`](app/src/main/java/com/baraka/game/MainActivity.kt) —

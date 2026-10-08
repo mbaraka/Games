@@ -61,7 +61,9 @@ private val zombieNotes: Map<ZombieType, ZombieNote> = mapOf(
     ZombieType.CLOWN to ZombieNote("After ~30 s", "Bouncy and loud. Honks and showers confetti when it dies.", "Worth extra coins - don't let it reach the train."),
     ZombieType.BAT to ZombieNote("After ~25 s", "Flies fast and erratically, swooping over the cars to claw them from above. Common in the Tunnel and Graveyard.", "Flak Turret and any gun except the Cannon can hit it."),
     ZombieType.BALLOON to ZombieNote("After ~40 s", "Drifts in under party balloons and hovers over the roof. Pops into confetti. Common in the Mountain Pass.", "Great coin value. Flak Turret, Rocket and Tesla Coil all work well."),
-    ZombieType.TITAN to ZombieNote("Boss: ~75 s, then every 80 s", "A giant with spikes and a glowing chest. Each new Titan has 90% more health than the last.", "Stack Dynamite blasts, Tesla chains and your strongest guns.")
+    ZombieType.TITAN to ZombieNote("Boss: ~75 s, then every 80 s", "A giant with spikes and a glowing chest. Every few seconds it SMASHES the car it is clawing for extra damage.", "Stack Dynamite blasts, Tesla chains and your strongest guns."),
+    ZombieType.GARGOYLE to ZombieNote("Boss: the 2nd, 5th, 8th...", "A stone-winged flyer that circles above the train and screeches up three bats at a time.", "Cannons can't hit it. Flak Turret, Rocket, Laser and Sniper can."),
+    ZombieType.CLOWN_PRINCE to ZombieNote("Boss: the 3rd, 6th, 9th...", "A giant clown in a crown who summons two clowns every few seconds. Honk honk.", "Focus the Prince first - the clowns are weak. Mortar and splash weapons love the crowd.")
 )
 
 @Composable

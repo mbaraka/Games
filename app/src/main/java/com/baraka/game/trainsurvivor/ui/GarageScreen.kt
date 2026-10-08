@@ -53,26 +53,54 @@ import com.baraka.game.trainsurvivor.model.TrainUpgrade
 import com.baraka.game.trainsurvivor.render.drawTrainScene
 import com.baraka.game.trainsurvivor.systems.TrainGame
 import kotlin.math.max
+import androidx.compose.foundation.layout.RowScope
+import com.baraka.game.trainsurvivor.data.GameSettings
+import com.baraka.game.trainsurvivor.model.MAX_CAR_ARMOR
+import com.baraka.game.trainsurvivor.model.Progression
+import com.baraka.game.trainsurvivor.model.SURVIVORS
+import com.baraka.game.ui.debug.DebugSection
 
 private val BG = Color(0xFF10131A)
 private val CARD = Color(0xFF1D222D)
 private val AMBER = Color(0xFFFFB300)
 private val MUTED = Color(0xFF9AA3B2)
 
+private enum class GaragePage { MAIN, GUIDE, GOALS, SETTINGS }
+
 @Composable
 fun GarageScreen(
     save: SaveData,
-    soundEnabled: Boolean,
-    onSoundToggle: (Boolean) -> Unit,
+    settings: GameSettings,
+    onSettingsChange: (GameSettings) -> Unit,
+    versionName: String,
     onPurchase: (SaveData) -> Unit,
-    onDepart: () -> Unit
+    onDepart: () -> Unit,
+    debugSections: List<DebugSection>
 ) {
     var tab by remember { mutableIntStateOf(0) }
-    var showGuide by remember { mutableStateOf(false) }
-    if (showGuide) {
-        FieldGuideScreen(onClose = { showGuide = false })
-        return
+    var page by remember { mutableStateOf(GaragePage.MAIN) }
+    when (page) {
+        GaragePage.GUIDE -> {
+            FieldGuideScreen(onClose = { page = GaragePage.MAIN })
+            return
+        }
+        GaragePage.GOALS -> {
+            ProgressScreen(save = save, onChange = onPurchase, onClose = { page = GaragePage.MAIN })
+            return
+        }
+        GaragePage.SETTINGS -> {
+            TrainSettingsScreen(
+                settings = settings,
+                onChange = onSettingsChange,
+                onClose = { page = GaragePage.MAIN },
+                versionName = versionName,
+                debugSections = debugSections
+            )
+            return
+        }
+        GaragePage.MAIN -> {}
     }
+    val goalsReady = Progression.hasClaimable(save)
 
     Row(
         modifier = Modifier
@@ -88,35 +116,23 @@ fun GarageScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("TRAIN SURVIVOR", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
                     Text(
-                        "Best ${save.bestDistance} m  •  ${save.totalKills} kills  •  ${save.bossKills} bosses",
+                        "Best ${save.bestDistance} m  •  ${save.totalKills} kills  •  ${save.bossKills} bosses" +
+                            if (save.prestige > 0) "  •  Prestige ${save.prestige}" else "",
                         color = MUTED, fontSize = 11.sp
                     )
                 }
                 CoinChip(save.coins)
             }
             TrainPreview(save, Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(14.dp)))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Button(
-                    onClick = onDepart,
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = AMBER, contentColor = Color.Black)
-                ) { Text("DEPART  ▶", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, maxLines = 1, softWrap = false) }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Button(
-                            onClick = { showGuide = true },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = CARD, contentColor = Color.White)
-                        ) { Text("Field Guide", fontSize = 12.sp, maxLines = 1, softWrap = false) }
-                        Button(
-                            onClick = { onSoundToggle(!soundEnabled) },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = CARD, contentColor = Color.White)
-                        ) { Text(if (soundEnabled) "Sound: On" else "Sound: Off", fontSize = 12.sp, maxLines = 1, softWrap = false) }
-                    }
-                }
+            Button(
+                onClick = onDepart,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AMBER, contentColor = Color.Black)
+            ) { Text("DEPART  ▶", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, maxLines = 1, softWrap = false) }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                SmallButton("Field Guide") { page = GaragePage.GUIDE }
+                SmallButton(if (goalsReady) "Goals ●" else "Goals", highlight = goalsReady) { page = GaragePage.GOALS }
+                SmallButton("Settings") { page = GaragePage.SETTINGS }
             }
         }
 
@@ -129,6 +145,19 @@ fun GarageScreen(
             if (tab == 0) TrainTab(save, onPurchase) else CrewTab(save, onPurchase)
         }
     }
+}
+
+@Composable
+private fun RowScope.SmallButton(text: String, highlight: Boolean = false, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.weight(1f).height(40.dp),
+        contentPadding = PaddingValues(horizontal = 6.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (highlight) Color(0xFF2E7D32) else CARD,
+            contentColor = Color.White
+        )
+    ) { Text(text, fontSize = 12.sp, maxLines = 1, softWrap = false) }
 }
 
 @Composable
@@ -204,20 +233,23 @@ private fun CrewTab(save: SaveData, onPurchase: (SaveData) -> Unit) {
 
 @Composable
 private fun CrewCard(index: Int, slot: CrewSlot, save: SaveData, onPurchase: (SaveData) -> Unit) {
+    val survivor = SURVIVORS[index]
     val powerCost = Shop.powerCost(slot)
+    val armorCost = Shop.carArmorCost(index, slot)
     val autoMode = slot.selected == AUTO_WEAPON
     val inHand = if (autoMode) slot.bestWeapon else WeaponType.entries[slot.selected]
     Column(
         Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Text(if (index == 0) "Driver" else "Passenger ${index + 1}", color = MUTED, fontSize = 11.sp)
+        Text("${survivor.name}  -  ${survivor.role}", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+        Text(survivor.perkText, color = Color(0xFF81C784), fontSize = 11.sp)
         Text(
             if (autoMode) "AUTO - picks the best weapon for the situation" else "Always uses the ${inHand.displayName}",
-            color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold
+            color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
         )
         Text(
-            "${slot.ownedWeapons.size}/${WeaponType.entries.size} weapons  •  power ${slot.power}/$MAX_POWER (+${slot.power * 30}% damage)",
+            "${slot.ownedWeapons.size}/${WeaponType.entries.size} weapons  •  power ${slot.power}/$MAX_POWER (+${slot.power * 30}% damage)  •  car armor ${slot.armor}/$MAX_CAR_ARMOR",
             color = MUTED, fontSize = 11.sp
         )
 
@@ -244,12 +276,20 @@ private fun CrewCard(index: Int, slot: CrewSlot, save: SaveData, onPurchase: (Sa
                 }
             }
         }
-        BuyButton(
-            label = if (powerCost != null) "+30% power (all weapons)" else "MAX POWER",
-            cost = powerCost,
-            enabled = powerCost != null && save.coins >= powerCost,
-            modifier = Modifier.fillMaxWidth()
-        ) { Shop.buyPower(save, index)?.let(onPurchase) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            BuyButton(
+                label = if (powerCost != null) "+30% power" else "MAX POWER",
+                cost = powerCost,
+                enabled = powerCost != null && save.coins >= powerCost,
+                modifier = Modifier.weight(1f)
+            ) { Shop.buyPower(save, index)?.let(onPurchase) }
+            BuyButton(
+                label = if (armorCost != null) (if (index == 0) "Loco armor +40%" else "Car armor +40%") else "MAX ARMOR",
+                cost = armorCost,
+                enabled = armorCost != null && save.coins >= armorCost,
+                modifier = Modifier.weight(1f)
+            ) { Shop.buyCarArmor(save, index)?.let(onPurchase) }
+        }
     }
 }
 

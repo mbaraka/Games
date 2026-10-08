@@ -12,7 +12,8 @@ import kotlin.random.Random
 enum class TrainSoundCue(val minGapMs: Long) {
     PISTOL(70), SMG(60), SHOTGUN(120), RIFLE(120), CANNON(150),
     ZOMBIE_DIE(60), COIN(80), TRAIN_HIT(120), DYNAMITE(200), BOSS(500), UPGRADE(80), GAME_OVER(500),
-    FLAK(120), ZAP(150), HONK(200), ROCKET(150), LASER(70)
+    FLAK(120), ZAP(150), HONK(200), ROCKET(150), LASER(70),
+    MORTAR(200), OVERDRIVE(400), REPAIR(400), HORDE(900), CRATE(300)
 }
 
 /** Procedurally synthesized effects, one static [AudioTrack] per cue (no asset files), like the other games' engines. */
@@ -22,13 +23,18 @@ class TrainSoundEngine {
     private val tracks: Map<TrainSoundCue, AudioTrack> = TrainSoundCue.entries.associateWith { build(synth(it)) }
     private val lastPlayed = HashMap<TrainSoundCue, Long>()
 
+    /** Effects volume 0..1, applied to every cue as it plays. */
+    var volume = 1f
+
     fun play(cue: TrainSoundCue) {
         val now = System.currentTimeMillis()
         if (now - (lastPlayed[cue] ?: 0L) < cue.minGapMs) return
         lastPlayed[cue] = now
         val track = tracks[cue] ?: return
+        if (volume <= 0.01f) return
         track.pause()
         track.setPlaybackHeadPosition(0)
+        track.setVolume(volume)
         track.play()
     }
 
@@ -52,6 +58,11 @@ class TrainSoundEngine {
         TrainSoundCue.HONK -> mix(sweep(380.0, 380.0, 110, 0.25f), sweep(300.0, 300.0, 110, 0.2f))
         TrainSoundCue.ROCKET -> mix(burst(260, 0.35f, 0.15), sweep(500.0, 90.0, 260, 0.25f))
         TrainSoundCue.LASER -> sweep(1700.0, 500.0, 90, 0.18f)
+        TrainSoundCue.MORTAR -> mix(burst(200, 0.3f, 0.2), sweep(260.0, 70.0, 200, 0.25f))
+        TrainSoundCue.OVERDRIVE -> arpeggio(listOf(392.0, 523.0, 659.0, 784.0, 988.0), 45, 0.2f)
+        TrainSoundCue.REPAIR -> arpeggio(listOf(659.0, 784.0, 988.0), 90, 0.2f)
+        TrainSoundCue.HORDE -> mix(sweep(90.0, 60.0, 700, 0.35f), sweep(135.0, 90.0, 700, 0.2f))
+        TrainSoundCue.CRATE -> arpeggio(listOf(784.0, 988.0, 1319.0), 60, 0.18f)
     }
 
     private fun n(ms: Int) = (rate * ms / 1000.0).roundToInt().coerceAtLeast(1)

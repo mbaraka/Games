@@ -3,6 +3,8 @@ package com.baraka.game.trainsurvivor.systems
 import com.baraka.game.trainsurvivor.data.TrainSoundCue
 import com.baraka.game.trainsurvivor.model.AUTO_WEAPON
 import com.baraka.game.trainsurvivor.model.Biome
+import com.baraka.game.trainsurvivor.model.Perk
+import com.baraka.game.trainsurvivor.model.SURVIVORS
 import com.baraka.game.trainsurvivor.model.SaveData
 import com.baraka.game.trainsurvivor.model.TrainUpgrade
 import com.baraka.game.trainsurvivor.model.WeaponType
@@ -27,6 +29,8 @@ const val WORLD_SPEED = 170f
 private const val MAX_ATTACKERS_PER_SIDE = 3
 private const val MAX_ZOMBIES = 70
 private const val MAX_PARTICLES = 420
+private const val MAX_TEXTS = 40
+private const val SHELL_GRAVITY = 1000f
 
 enum class ParticleKind { BLOOD, SPARK, SMOKE, COIN, FIRE, DEBRIS, HEAL }
 
@@ -36,13 +40,19 @@ class Zombie(val type: ZombieType, var x: Float, var y: Float, val side: Int, va
     var flash = 0f
     var attacking = false
     var dead = false
-    val isBoss get() = type == ZombieType.TITAN
+    val isBoss get() = type.boss
     val flying get() = type.flying
     /** Which way the zombie looks (+1 right); ground zombies face the train, flyers face their target. */
     var facing = -side
     var targetX = x
     var cruiseY = y
     var retarget = 0f
+    /** Countdown to this boss's next special move. */
+    var special = 4f
+    // Damage is shown as one floating number every quarter second instead of one per bullet.
+    var pendingDamage = 0f
+    var numberTimer = 0f
+    var pendingCrit = false
 }
 
 /** One member of the visible repair crew walking the train's running board. */
@@ -65,9 +75,21 @@ class Junction(val optionA: Biome, val optionB: Biome, var timeLeft: Float) {
     var chosen: Biome? = null
 }
 
-class FloatingText(var x: Float, var y: Float, val text: String, var life: Float, val color: Int)
+class FloatingText(var x: Float, var y: Float, val text: String, var life: Float, val color: Int, val size: Float = 22f)
 
-/** Per-passenger runtime state the renderer needs (aim, recoil, muzzle flash). */
+/** A supply crate drifting down on a parachute; tap it for a reward before it vanishes. */
+class Crate(var x: Float, var y: Float) {
+    var landed = false
+    var life = 8f
+    var phase = 0f
+}
+
+/** A mortar shell in flight. */
+class Shell(var x: Float, var y: Float, var vx: Float, var vy: Float, val tx: Float, val ty: Float, val total: Float) {
+    var age = 0f
+}
+
+/** Per-passenger runtime state the renderer needs (aim, recoil, muzzle flash) plus their current weapon. */
 class GunnerState {
     /** The weapon in hand right now. */
     var weapon = WeaponType.PISTOL
@@ -79,6 +101,8 @@ class GunnerState {
     var flash = 0f
     var aim = -0.15f
     var facing = 1
+    /** False once the passenger's wagon has been destroyed. */
+    var alive = true
 }
 
 fun weaponLength(weapon: WeaponType): Float = when (weapon) {
@@ -96,11 +120,19 @@ fun weaponLength(weapon: WeaponType): Float = when (weapon) {
  * The whole simulation for one run (or for the garage preview with [spawnEnabled] = false).
  * It is mutable on purpose — this is the hot loop and the renderer reads it directly every
  * frame. All gameplay decisions live here; render/TrainRenderer.kt only draws.
+ *
+ * Performance rules for this file: no allocation in per-frame loops (index loops, reusable scratch
+ * lists, no `filter`/`sortedBy`/`toList` on hot paths); lists are capped (zombies, particles, texts).
  */
 class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = true, private val rng: Random = Random(System.nanoTime())) {
 
     var onSound: ((TrainSoundCue) -> Unit)? = null
     var worldW = 1280f
+
+    // ---- options / debug switches ----
+    var damageNumbers = true
+    var shakeEnabled = true
+    var godMode = false
 
     // ---- train ----
     val slotCount = save.unlockedSlots
@@ -117,14 +149,30 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     val dynamiteLevel = save.level(TrainUpgrade.DYNAMITE)
     val flakLevel = save.level(TrainUpgrade.FLAK)
     val teslaLevel = save.level(TrainUpgrade.TESLA)
+    val flameLevel = save.level(TrainUpgrade.FLAME)
+    val mortarLevel = save.level(TrainUpgrade.MORTAR)
+    val overdriveLevel = save.level(TrainUpgrade.OVERDRIVE)
+    val fieldRepairLevel = save.level(TrainUpgrade.FIELD_REPAIR)
     val repairLevel = save.level(TrainUpgrade.REPAIR)
     val repairers: List<Repairer> =
         if (repairLevel > 0) List(((repairLevel + 1) / 2).coerceIn(1, 4)) { i -> Repairer(0f, if (i % 2 == 0) 1 else -1).also { it.timer = 0.4f + i * 0.7f } } else emptyList()
-    val maxHp = 100f + 40f * armorLevel
+
+    /** The locomotive's health is "the train": the run ends when it reaches 0. Wagons have their own health below. */
+    val maxHp = (100f + 40f * armorLevel) * (1f + 0.4f * crew[0].armor)
     var hp = maxHp
-    private val regenPerSecond = 1.5f * save.level(TrainUpgrade.REPAIR)
+    val carMaxHp = FloatArray(slotCount) { i -> (70f + 25f * armorLevel) * (1f + 0.4f * crew[i].armor) }
+    val carHp = carMaxHp.copyOf()
+    private val regenPerSecond = 1.5f * repairLevel
     private val thornsPerSecond = 7f * spikeLevel
-    private val bountyMultiplier = 1f + 0.12f * save.level(TrainUpgrade.BOUNTY)
+    private val coinMultiplier = (1f + 0.12f * save.level(TrainUpgrade.BOUNTY)) * save.prestigeMultiplier
+
+    // Passive perks of the named survivors, resolved once per run.
+    private val damagePerk = FloatArray(slotCount) { if (SURVIVORS[it].perk == Perk.DAMAGE) 1.15f else 1f }
+    private val ratePerk = FloatArray(slotCount) { if (SURVIVORS[it].perk == Perk.FIRE_RATE) 1.2f else 1f }
+    private val rangePerk = FloatArray(slotCount) { if (SURVIVORS[it].perk == Perk.RANGE) 1.25f else 1f }
+    private val critChance = FloatArray(slotCount) { if (SURVIVORS[it].perk == Perk.CRIT) 0.12f else 0f }
+    private val coinPerk = FloatArray(slotCount) { if (SURVIVORS[it].perk == Perk.SCAVENGER) 1.25f else 1f }
+
     val trainLength = LOCO_W + (slotCount - 1) * (CAR_W + CAR_GAP)
     val trainLeft get() = worldW / 2f - trainLength / 2f
     val locoLeft get() = trainLeft + trainLength - LOCO_W
@@ -137,21 +185,51 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     var wheelAngle = 0f
     var distance = 0f
     var kills = 0
+    var flyerKills = 0
     var bossKills = 0
+    var routesTaken = 0
     var runCoins = 0
     var over = false
     var shake = 0f
     var hitFlash = 0f
     var bossAlert = 0f
+    var bossName = ""
+    var boss: Zombie? = null
+
+    // ---- active abilities ----
     var dynamiteCooldown = 0f
     val dynamiteCooldownMax = 16f - 1.5f * dynamiteLevel
     val dynamiteDamage = 90f + 70f * dynamiteLevel
-    var boss: Zombie? = null
+    val dynamiteReady get() = dynamiteCooldown <= 0f
+    var overdriveTime = 0f
+    var overdriveCooldown = 0f
+    val overdriveCooldownMax = 28f - 2f * overdriveLevel
+    val overdriveDuration = 5f + 0.6f * overdriveLevel
+    val overdriveReady get() = overdriveLevel > 0 && overdriveCooldown <= 0f && overdriveTime <= 0f
+    var fieldRepairCooldown = 0f
+    val fieldRepairCooldownMax = 32f - 2.5f * fieldRepairLevel
+    val fieldRepairReady get() = fieldRepairLevel > 0 && fieldRepairCooldown <= 0f
+
+    // ---- train-mounted weapons ----
     var flakCooldown = 0f
     var flakFlash = 0f
     var teslaCooldown = 1.5f
     var teslaFlash = 0f
+    var flameFlash = 0f
+    var flameCooldown = 0f
+    val flameReach = 140f + 14f * flameLevel
+    var mortarCooldown = 2f
     private var healTextGap = 0f
+
+    // ---- events ----
+    var crate: Crate? = null
+    var hordeWarning = 0f
+    var hordeTime = 0f
+    private var hordeSide = 1
+    private var nextHordeAt = 55f
+    private var nextCrateAt = 32f
+    private var buffTime = 0f
+    val buffActive get() = buffTime > 0f
 
     // ---- routes ----
     var biome = Biome.PLAINS
@@ -165,22 +243,31 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     private var biomeSwitched = false
     private var nextJunctionAt = 40f
 
-    val zombies = ArrayList<Zombie>()
-    val particles = ArrayList<Particle>()
-    val tracers = ArrayList<Tracer>()
-    val texts = ArrayList<FloatingText>()
+    // ---- entities (index-iterated, capped) ----
+    val zombies = ArrayList<Zombie>(80)
+    /** Zombies sorted back-to-front by feet position; rebuilt at the end of every update for the renderer. */
+    val drawOrder = ArrayList<Zombie>(80)
+    val particles = ArrayList<Particle>(MAX_PARTICLES)
+    val tracers = ArrayList<Tracer>(32)
+    val texts = ArrayList<FloatingText>(MAX_TEXTS)
+    val shells = ArrayList<Shell>(8)
 
     private var spawnAccumulator = 0f
     private var smokeAccumulator = 0f
     private var nextBossAt = 75f
     private var bossNumber = 0
     private var hitSoundGap = 0f
-    private val sideBuffer = ArrayList<Zombie>()
+    private val sideBuffer = ArrayList<Zombie>(40)
+    private val scratch = ArrayList<Zombie>(16)
+    private val struck = ArrayList<Zombie>(8)
+    private var shooter = -1
 
     /** Coins banked when the run ends: kill coins plus 1 per 25 m travelled. */
-    val finalCoins get() = runCoins + (distance / 25f).toInt()
+    val finalCoins get() = runCoins + (distance / 25f * save.prestigeMultiplier).toInt()
     val distanceMeters get() = distance.roundToInt()
-    val dynamiteReady get() = dynamiteCooldown <= 0f
+
+    /** 1.0 at the start, rising to 1.8 over the first 3,200 m: the train speeds up and so does the danger. */
+    val speedFactor get() = 1f + min(0.8f, distance / 4000f)
 
     /** 0 = deep night, 1 = bright noon; also exposes the cycle position for sun/moon placement. */
     val dayCycle get() = ((time + 17f) % 170f) / 170f
@@ -192,40 +279,180 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     fun gunY(slot: Int): Float = if (slot == 0) 388f else 420f
     fun shoulderY(slot: Int): Float = gunY(slot) - 30f
     fun endX(side: Int): Float = if (side > 0) frontEnd else rearEnd
+    fun carCenterX(slot: Int): Float = if (slot == 0) locoLeft + LOCO_W / 2f else gunX(slot)
+    fun carAlive(slot: Int): Boolean = slot == 0 || carHp[slot] > 0f
     val repairBoardY = 477f
-    /** Flak turret sits on the rear car's roof; Tesla coil on the cab roof. */
+
+    /** Flak turret sits on the rear car's roof; Tesla coil on the cab roof; mortar between the cars; flame nozzle on the cowcatcher. */
     val flakX get() = if (slotCount > 1) trainLeft + 24f else locoLeft + 56f
     val flakY get() = if (slotCount > 1) 418f else 388f
     val teslaX get() = locoLeft + 62f
     val teslaY get() = 388f
+    val mortarX get() = if (slotCount > 1) locoLeft - 22f else locoLeft + 30f
+    val mortarY get() = if (slotCount > 1) 418f else 388f
+    val flameX get() = frontEnd - 14f
+    val flameY get() = 486f
+
+    private fun slotAt(x: Float): Int {
+        if (slotCount == 1 || x >= locoLeft) return 0
+        return (((locoLeft - x) / (CAR_W + CAR_GAP)).toInt() + 1).coerceIn(1, slotCount - 1)
+    }
 
     fun update(dt: Float) {
         time += dt
-        scroll += WORLD_SPEED * dt
-        wheelAngle += WORLD_SPEED * dt / 17f
+        val speed = WORLD_SPEED * speedFactor
+        scroll += speed * dt
+        wheelAngle += speed * dt / 17f
         shake = max(0f, shake - dt * 2.2f)
         hitFlash = max(0f, hitFlash - dt * 3f)
         bossAlert = max(0f, bossAlert - dt)
         biomeBanner = max(0f, biomeBanner - dt)
+        hordeWarning = max(0f, hordeWarning - dt)
         hitSoundGap -= dt
 
         if (!over) {
-            distance += 14f * dt
+            distance += 14f * speedFactor * dt
             dynamiteCooldown = max(0f, dynamiteCooldown - dt)
-            hp = min(maxHp, hp + regenPerSecond * dt)
-            if (spawnEnabled) { updateRoute(dt); spawn(dt) }
+            overdriveCooldown = max(0f, overdriveCooldown - dt)
+            fieldRepairCooldown = max(0f, fieldRepairCooldown - dt)
+            overdriveTime = max(0f, overdriveTime - dt)
+            buffTime = max(0f, buffTime - dt)
+            regenerate(dt)
+            if (spawnEnabled) {
+                updateRoute(dt)
+                updateEvents(dt)
+                spawn(dt)
+            }
             updateZombies(dt)
             updateGunners(dt)
             updateTrainWeapons(dt)
+            updateShells(dt)
             updateRepairers(dt)
             if (hp <= 0f) endRun()
         } else {
-            for (g in gunners) { g.flash = 0f }
+            for (i in gunners.indices) gunners[i].flash = 0f
         }
         emitSmoke(dt)
         updateEffects(dt)
-        zombies.removeAll { it.dead }
-        if (boss?.dead == true) boss = null
+        compactZombies()
+        rebuildDrawOrder()
+    }
+
+    // ---------------------------------------------------------------- active abilities
+
+    fun useDynamite() {
+        if (over || dynamiteCooldown > 0f) return
+        dynamiteCooldown = dynamiteCooldownMax
+        shake = max(shake, 0.8f)
+        sound(TrainSoundCue.DYNAMITE)
+        var cx = trainLeft - 20f
+        while (cx < trainLeft + trainLength + 40f) {
+            explosion(cx, 420f, 26f)
+            cx += 70f
+        }
+        shooter = -1
+        for (i in zombies.indices) {
+            val z = zombies[i]
+            if (z.dead || z.x < -20f || z.x > worldW + 20f) continue
+            explosion(z.x, z.y - 20f, 22f)
+            damageZombie(z, dynamiteDamage)
+        }
+    }
+
+    fun useOverdrive() {
+        if (over || !overdriveReady) return
+        overdriveTime = overdriveDuration
+        overdriveCooldown = overdriveCooldownMax + overdriveDuration
+        sound(TrainSoundCue.OVERDRIVE)
+        for (i in 0 until slotCount) spark(gunX(i), gunY(i) - 20f)
+    }
+
+    fun useFieldRepair() {
+        if (over || !fieldRepairReady) return
+        fieldRepairCooldown = fieldRepairCooldownMax
+        val fraction = 0.35f + 0.06f * fieldRepairLevel
+        hp = min(maxHp, hp + maxHp * fraction)
+        for (i in 1 until slotCount) {
+            if (carHp[i] <= 0f) {
+                gunners[i].alive = true
+                carHp[i] = carMaxHp[i] * 0.3f
+                if (texts.size < MAX_TEXTS) texts.add(FloatingText(carCenterX(i), 360f, "Car restored!", 1.4f, 0xFF66FF8A.toInt(), 22f))
+            }
+            carHp[i] = min(carMaxHp[i], carHp[i] + carMaxHp[i] * fraction)
+        }
+        sound(TrainSoundCue.REPAIR)
+        var x = trainLeft
+        while (x < trainLeft + trainLength) {
+            addParticle(Particle(x + rng.nextFloat() * 40f, 470f, 0f, -70f, 1.2f, 1.2f, 6f, 0xFF66FF8A.toInt(), ParticleKind.HEAL))
+            x += 24f
+        }
+    }
+
+    /** Screen tap in logical world coordinates: collects a supply crate if one was hit. */
+    fun tapAt(lx: Float, ly: Float) {
+        val c = crate ?: return
+        if (over || abs(lx - c.x) > 70f || abs(ly - c.y) > 80f) return
+        crate = null
+        sound(TrainSoundCue.CRATE)
+        confetti(c.x, c.y, 24)
+        when (rng.nextInt(3)) {
+            0 -> {
+                val coins = ((60 + time * 0.8f) * coinMultiplier).roundToInt()
+                runCoins += coins
+                texts.add(FloatingText(c.x, c.y - 30f, "+$coins coins", 1.4f, 0xFFFFD54F.toInt(), 24f))
+            }
+            1 -> {
+                buffTime = 15f
+                texts.add(FloatingText(c.x, c.y - 30f, "Damage boost!", 1.4f, 0xFFFF8A65.toInt(), 24f))
+            }
+            else -> {
+                hp = min(maxHp, hp + maxHp * 0.4f)
+                for (i in 1 until slotCount) if (carHp[i] > 0f) carHp[i] = min(carMaxHp[i], carHp[i] + carMaxHp[i] * 0.4f)
+                texts.add(FloatingText(c.x, c.y - 30f, "Repairs!", 1.4f, 0xFF66FF8A.toInt(), 24f))
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- health
+
+    private fun regenerate(dt: Float) {
+        if (regenPerSecond <= 0f) return
+        hp = min(maxHp, hp + regenPerSecond * dt)
+        for (i in 1 until slotCount) if (carHp[i] > 0f) carHp[i] = min(carMaxHp[i], carHp[i] + regenPerSecond * 0.6f * dt)
+    }
+
+    /** Damages the car at [slot]; a wrecked car passes the hit inward (toward the locomotive) at reduced strength. */
+    private fun hurtCar(slot: Int, amount: Float) {
+        if (godMode || over) return
+        var s = slot
+        var dmg = amount
+        if (s > 0 && carHp[s] <= 0f) {
+            while (s > 0 && carHp[s] <= 0f) s--
+            dmg *= 0.6f
+        }
+        if (s == 0) {
+            hp -= dmg
+        } else {
+            carHp[s] -= dmg
+            if (carHp[s] <= 0f) destroyCar(s)
+        }
+        if (dmg > 3f) hitFlash = max(hitFlash, 0.5f)
+        if (hitSoundGap <= 0f) {
+            hitSoundGap = 0.25f
+            sound(TrainSoundCue.TRAIN_HIT)
+        }
+    }
+
+    private fun rearSlot(): Int = if (slotCount > 1) slotCount - 1 else 0
+
+    private fun destroyCar(slot: Int) {
+        carHp[slot] = 0f
+        gunners[slot].alive = false
+        shake = max(shake, 0.6f)
+        val cx = carCenterX(slot)
+        for (k in 0..2) explosion(cx - 50f + k * 50f, 450f, 32f)
+        if (texts.size < MAX_TEXTS) texts.add(FloatingText(cx, 380f, "Car lost!", 1.6f, 0xFFFF5252.toInt(), 26f))
+        sound(TrainSoundCue.DYNAMITE)
     }
 
     // ---------------------------------------------------------------- routes
@@ -233,14 +460,13 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     private fun updateRoute(dt: Float) {
         val j = junction
         if (j == null && !transitioning && time >= nextJunctionAt) {
-            val options = Biome.entries.filter { it != biome }.shuffled(rng)
-            junction = Junction(options[0], options[1], 8f)
+            openJunction()
         } else if (j != null && j.chosen == null) {
             j.timeLeft -= dt
             if (j.timeLeft <= 0f) chooseRoute(j.optionA)
         }
         if (transitioning) {
-            boundaryX -= WORLD_SPEED * dt
+            boundaryX -= WORLD_SPEED * speedFactor * dt
             if (!biomeSwitched && boundaryX <= worldW / 2f) {
                 biomeSwitched = true
                 biome = nextBiome
@@ -255,6 +481,12 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         }
     }
 
+    fun openJunction() {
+        if (junction != null || transitioning) return
+        val options = Biome.entries.filter { it != biome }.shuffled(rng)
+        junction = Junction(options[0], options[1], 8f)
+    }
+
     /** Throws the switch: the chosen route's scenery sweeps in from the right and the gameplay modifiers apply once it reaches the train. */
     fun chooseRoute(choice: Biome) {
         val j = junction ?: return
@@ -265,25 +497,51 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         boundaryX = worldW + 60f
         biomeSwitched = false
         transitioning = true
+        routesTaken++
         sound(TrainSoundCue.UPGRADE)
     }
 
-    fun useDynamite() {
-        if (over || dynamiteCooldown > 0f) return
-        dynamiteCooldown = dynamiteCooldownMax
-        shake = 0.8f
-        sound(TrainSoundCue.DYNAMITE)
-        var cx = trainLeft - 20f
-        while (cx < trainLeft + trainLength + 40f) {
-            explosion(cx, 420f, 26f)
-            cx += 70f
+    // ---------------------------------------------------------------- events
+
+    private fun updateEvents(dt: Float) {
+        // Supply crate.
+        val c = crate
+        if (c == null) {
+            if (time >= nextCrateAt) {
+                crate = Crate(worldW * (0.25f + 0.5f * rng.nextFloat()), -50f)
+                nextCrateAt = time + 50f + rng.nextFloat() * 20f
+            }
+        } else {
+            c.phase += dt
+            if (!c.landed) {
+                c.y += 70f * dt
+                if (c.y >= 300f) c.landed = true
+            } else {
+                c.life -= dt
+                if (c.life <= 0f) crate = null
+            }
+            c.x += sin(c.phase * 1.6f) * 14f * dt
         }
-        for (z in zombies.toList()) {
-            if (z.dead || z.x < -20f || z.x > worldW + 20f) continue
-            explosion(z.x, z.y - 20f, 22f)
-            damageZombie(z, dynamiteDamage)
+        // Horde: a warning, then a burst of zombies from one side.
+        if (hordeTime > 0f) {
+            hordeTime -= dt
+        } else if (!hordePending && hordeWarning <= 0f && time >= nextHordeAt) {
+            hordeSide = if (rng.nextBoolean()) 1 else -1
+            hordeWarning = 3f
+            hordePending = true
+            nextHordeAt = Float.MAX_VALUE
+            sound(TrainSoundCue.HORDE)
+        }
+        if (hordePending && hordeWarning <= 0f) {
+            hordePending = false
+            hordeTime = 12f
+            nextHordeAt = time + 70f + rng.nextFloat() * 20f
         }
     }
+
+    private var hordePending = false
+
+    val hordeFromLeft get() = hordeSide < 0
 
     // ---------------------------------------------------------------- spawning
 
@@ -292,11 +550,13 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             spawnBoss()
             nextBossAt += 80f
         }
-        val rate = (0.45f + time * 0.011f).coerceAtMost(2.8f) * biome.spawnMult
+        var rate = (0.45f + time * 0.011f).coerceAtMost(2.8f) * biome.spawnMult * kotlin.math.sqrt(speedFactor)
+        if (hordeTime > 0f) rate *= 3f
+        if (boss != null) rate *= 0.55f
         spawnAccumulator += dt * rate
         while (spawnAccumulator >= 1f) {
             spawnAccumulator -= 1f
-            if (zombies.size < MAX_ZOMBIES) spawnZombie(pickType())
+            if (zombies.size < MAX_ZOMBIES) spawnZombie(pickType(), if (hordeTime > 0f) hordeSide else 0)
         }
     }
 
@@ -321,36 +581,53 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             Biome.TUNNEL -> bat = (if (time > 10f) max(bat, 3f) else bat) * 2.5f
             else -> {}
         }
-        val weights = floatArrayOf(10f, runner, brute, bloater, bat, balloon, clown)
-        val types = arrayOf(ZombieType.WALKER, ZombieType.RUNNER, ZombieType.BRUTE, ZombieType.BLOATER, ZombieType.BAT, ZombieType.BALLOON, ZombieType.CLOWN)
-        var roll = rng.nextFloat() * weights.sum()
-        for (i in types.indices) {
-            roll -= weights[i]
-            if (roll <= 0f) return types[i]
-        }
-        return ZombieType.WALKER
+        val total = 10f + runner + brute + bloater + bat + balloon + clown
+        var roll = rng.nextFloat() * total
+        roll -= 10f; if (roll <= 0f) return ZombieType.WALKER
+        roll -= runner; if (roll <= 0f) return ZombieType.RUNNER
+        roll -= brute; if (roll <= 0f) return ZombieType.BRUTE
+        roll -= bloater; if (roll <= 0f) return ZombieType.BLOATER
+        roll -= bat; if (roll <= 0f) return ZombieType.BAT
+        roll -= balloon; if (roll <= 0f) return ZombieType.BALLOON
+        return ZombieType.CLOWN
     }
 
-    private fun spawnZombie(type: ZombieType) {
-        val side = if (rng.nextBoolean()) 1 else -1
+    private fun spawnZombie(type: ZombieType, forcedSide: Int = 0) {
+        val side = if (forcedSide != 0) forcedSide else if (rng.nextBoolean()) 1 else -1
         val x = if (side > 0) worldW + 40f + rng.nextFloat() * 80f else -40f - rng.nextFloat() * 80f
-        val hpScale = (1f + time / 45f) * biome.hpMult
         val feetY = if (type.flying) 110f + rng.nextFloat() * 170f else RAIL_Y + 24f + rng.nextFloat() * 36f
+        addZombie(type, x, feetY, side)
+    }
+
+    private fun addZombie(type: ZombieType, x: Float, feetY: Float, side: Int): Zombie {
+        val hpScale = (1f + time / 45f) * biome.hpMult
         val z = Zombie(type, x, feetY, side, type.hp * hpScale, (1f + time / 140f) * biome.dmgMult, rng.nextFloat())
         if (type.flying) {
             z.targetX = trainLeft + rng.nextFloat() * (trainLength + COWCATCHER)
             z.facing = if (z.targetX > x) 1 else -1
         }
         zombies.add(z)
+        return z
     }
 
-    private fun spawnBoss() {
+    fun spawnBoss() {
+        if (boss != null) return
         val side = if (rng.nextBoolean()) 1 else -1
         val x = if (side > 0) worldW + 120f else -120f
-        val hp = ZombieType.TITAN.hp * (1f + 0.9f * bossNumber)
-        val titan = Zombie(ZombieType.TITAN, x, RAIL_Y + 30f, side, hp, 1f + time / 200f, 0.5f)
-        zombies.add(titan)
-        boss = titan
+        val type = when (bossNumber % 3) {
+            0 -> ZombieType.TITAN
+            1 -> ZombieType.GARGOYLE
+            else -> ZombieType.CLOWN_PRINCE
+        }
+        val hp = type.hp * (1f + 0.55f * bossNumber)
+        val y = if (type.flying) 190f else RAIL_Y + 30f
+        val b = Zombie(type, x, y, side, hp, 1f + time / 200f, 0.5f)
+        b.cruiseY = 200f
+        b.targetX = trainLeft + trainLength * 0.5f
+        b.facing = if (side > 0) -1 else 1
+        zombies.add(b)
+        boss = b
+        bossName = type.displayName
         bossNumber++
         bossAlert = 3.5f
         sound(TrainSoundCue.BOSS)
@@ -359,13 +636,25 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     // ---------------------------------------------------------------- zombies
 
     private fun updateZombies(dt: Float) {
-        for (z in zombies) if (!z.dead && z.flying) updateFlyer(z, dt)
-        for (side in intArrayOf(-1, 1)) {
+        for (i in zombies.indices) {
+            val z = zombies[i]
+            if (z.dead) continue
+            z.numberTimer -= dt
+            if (z.pendingDamage >= 1f && z.numberTimer <= 0f) emitDamageNumber(z)
+            if (z.flying) updateFlyer(z, dt)
+            if (z.isBoss) updateBossSpecial(z, dt)
+        }
+        var side = -1
+        while (side <= 1) {
             sideBuffer.clear()
             val end = endX(side)
-            for (z in zombies) if (!z.dead && !z.flying && z.side == side) sideBuffer.add(z)
-            sideBuffer.sortBy { abs(it.x - end) }
-            for ((rank, z) in sideBuffer.withIndex()) {
+            for (i in zombies.indices) {
+                val z = zombies[i]
+                if (!z.dead && !z.flying && z.side == side) sideBuffer.add(z)
+            }
+            sortByDistance(sideBuffer, end)
+            for (rank in sideBuffer.indices) {
+                val z = sideBuffer[rank]
                 val spot = end + side * (14f + min(rank, 16) * 22f * z.type.size.coerceAtLeast(1f))
                 val delta = spot - z.x
                 val step = z.type.speed * dt
@@ -375,20 +664,50 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
                 z.anim += dt * (z.type.speed / 14f + 2f)
                 z.flash = max(0f, z.flash - dt * 6f)
                 z.attacking = arrived && rank < MAX_ATTACKERS_PER_SIDE
-                if (z.attacking) attack(z, dt)
+                if (z.attacking) attack(z, side, dt)
             }
+            side += 2
         }
+    }
+
+    /** Insertion sort by distance to [end]; the list is short and nearly sorted frame to frame, and this allocates nothing. */
+    private fun sortByDistance(list: ArrayList<Zombie>, end: Float) {
+        for (i in 1 until list.size) {
+            val item = list[i]
+            val key = abs(item.x - end)
+            var j = i - 1
+            while (j >= 0 && abs(list[j].x - end) > key) {
+                list[j + 1] = list[j]
+                j--
+            }
+            list[j + 1] = item
+        }
+    }
+
+    private fun emitDamageNumber(z: Zombie) {
+        val amount = z.pendingDamage.toInt()
+        z.pendingDamage = 0f
+        z.numberTimer = 0.25f
+        val crit = z.pendingCrit
+        z.pendingCrit = false
+        if (!damageNumbers || texts.size >= MAX_TEXTS || z.dead) return
+        texts.add(
+            FloatingText(
+                z.x + (rng.nextFloat() - 0.5f) * 16f, z.y - 34f * z.type.size - 12f, amount.toString(), 0.7f,
+                if (crit) 0xFFFFA726.toInt() else 0xFFFFFFFF.toInt(), if (crit) 24f else 16f
+            )
+        )
     }
 
     /** Flyers ignore the queue: they cruise high, swoop over a car on the train and claw it from above. */
     private fun updateFlyer(z: Zombie, dt: Float) {
         val isBat = z.type == ZombieType.BAT
-        z.anim += dt * (if (isBat) 12f else 5f)
+        z.anim += dt * (if (isBat) 12f else if (z.isBoss) 4f else 5f)
         z.flash = max(0f, z.flash - dt * 6f)
         z.retarget -= dt
         val dx = z.targetX - z.x
-        if (isBat && z.retarget <= 0f) {
-            z.retarget = 1.8f + rng.nextFloat() * 1.5f
+        if ((isBat || z.isBoss) && z.retarget <= 0f) {
+            z.retarget = (if (z.isBoss) 3.5f else 1.8f) + rng.nextFloat() * 1.5f
             z.targetX = trainLeft + rng.nextFloat() * (trainLength + COWCATCHER)
         }
         if (abs(dx) > 14f) {
@@ -396,53 +715,81 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             z.x += (if (dx > 0f) 1f else -1f) * min(abs(dx), z.type.speed * dt)
         }
         if (isBat) z.x += sin(z.anim * 0.7f) * 40f * dt
-        val hoverY = if (isBat) 418f else 402f
+        val hoverY = if (isBat) 418f else if (z.isBoss) 350f else 402f
         val closeIn = abs(dx) < 320f
         val wantY = (if (closeIn) hoverY else z.cruiseY) + sin(z.anim * 0.5f) * (if (isBat) 10f else 6f)
         val dy = wantY - z.y
         z.y += (if (dy > 0f) 1f else -1f) * min(abs(dy), 110f * dt)
         z.attacking = abs(dx) < 26f && abs(z.y - hoverY) < 24f
-        if (z.attacking) hurtTrain(z.type.damage * z.dmgScale * dt)
+        if (z.attacking) hurtCar(slotAt(z.x), z.type.damage * z.dmgScale * dt)
     }
 
-    private fun attack(z: Zombie, dt: Float) {
+    /** Each boss has its own trick: the Titan smashes, the Gargoyle King summons bats, the Clown Prince summons clowns. */
+    private fun updateBossSpecial(z: Zombie, dt: Float) {
+        z.special -= dt
+        if (z.special > 0f) return
+        when (z.type) {
+            ZombieType.TITAN -> if (z.attacking) {
+                z.special = 5f
+                hurtCar(if (z.side > 0) 0 else rearSlot(), 22f * z.dmgScale)
+                explosion(z.x - z.side * 30f, 470f, 40f)
+                shake = max(shake, 0.7f)
+                if (texts.size < MAX_TEXTS) texts.add(FloatingText(z.x, z.y - 150f, "SMASH!", 0.9f, 0xFFFF7043.toInt(), 28f))
+            }
+            ZombieType.GARGOYLE -> {
+                z.special = 7f
+                if (zombies.size < MAX_ZOMBIES - 3) repeat(3) { addZombie(ZombieType.BAT, z.x + (it - 1) * 30f, z.y, z.side) }
+                if (texts.size < MAX_TEXTS) texts.add(FloatingText(z.x, z.y - 90f, "SCREECH!", 0.9f, 0xFFB39DDB.toInt(), 26f))
+            }
+            ZombieType.CLOWN_PRINCE -> {
+                z.special = 8f
+                if (zombies.size < MAX_ZOMBIES - 2) repeat(2) { addZombie(ZombieType.CLOWN, z.x + (it * 2 - 1) * 24f, RAIL_Y + 30f, z.side) }
+                sound(TrainSoundCue.HONK)
+                if (texts.size < MAX_TEXTS) texts.add(FloatingText(z.x, z.y - 150f, "TA-DA!", 0.9f, 0xFFFF4081.toInt(), 26f))
+            }
+            else -> z.special = 99f
+        }
+    }
+
+    private fun attack(z: Zombie, side: Int, dt: Float) {
+        val slot = if (side > 0) 0 else rearSlot()
         if (z.type == ZombieType.BLOATER) {
             // Bloaters burst on contact instead of clawing.
             z.dead = true
-            hurtTrain(30f * z.dmgScale)
+            hurtCar(slot, 30f * z.dmgScale)
             explosion(z.x, z.y - 20f, 34f)
             greenBurst(z.x, z.y - 24f, 22)
             return
         }
-        hurtTrain(z.type.damage * z.dmgScale * dt)
+        hurtCar(slot, z.type.damage * z.dmgScale * dt)
         if (thornsPerSecond > 0f) {
+            shooter = -1
             damageZombie(z, thornsPerSecond * dt, silent = true)
             if (rng.nextFloat() < dt * 8f) spark(z.x, z.y - 24f)
         }
     }
 
-    private fun hurtTrain(amount: Float) {
-        hp -= amount
-        hitFlash = max(hitFlash, if (amount > 3f) 0.5f else hitFlash)
-        if (hitSoundGap <= 0f) {
-            hitSoundGap = 0.25f
-            sound(TrainSoundCue.TRAIN_HIT)
-        }
-    }
-
-    private fun damageZombie(z: Zombie, amount: Float, silent: Boolean = false) {
+    private fun damageZombie(z: Zombie, amount: Float, silent: Boolean = false, crit: Boolean = false) {
         if (z.dead) return
         z.hp -= amount
-        if (!silent) z.flash = 1f
+        if (!silent) {
+            z.flash = 1f
+            z.pendingDamage += amount
+            if (crit) z.pendingCrit = true
+        }
         if (z.hp <= 0f) killZombie(z)
     }
 
     private fun killZombie(z: Zombie) {
         z.dead = true
         kills++
-        val coins = max(1, (z.type.coins * bountyMultiplier * biome.coinMult).roundToInt())
+        if (z.flying) flyerKills++
+        var mult = coinMultiplier * biome.coinMult
+        if (hordeTime > 0f) mult *= 1.5f
+        if (shooter >= 0 && shooter < slotCount) mult *= coinPerk[shooter]
+        val coins = max(1, (z.type.coins * mult).roundToInt())
         runCoins += coins
-        texts.add(FloatingText(z.x, z.y - 60f * z.type.size, "+$coins", 1.0f, 0xFFFFD54F.toInt()))
+        if (texts.size < MAX_TEXTS) texts.add(FloatingText(z.x, z.y - 60f * z.type.size, "+$coins", 1.0f, 0xFFFFD54F.toInt(), 22f))
         greenBurst(z.x, z.y - 24f * z.type.size, if (z.isBoss) 60 else 12)
         repeat(if (z.isBoss) 18 else min(4, 1 + coins / 3)) {
             addParticle(Particle(z.x, z.y - 30f, (rng.nextFloat() - 0.5f) * 160f, -150f - rng.nextFloat() * 120f, 0.9f, 0.9f, 5f, 0xFFFFC107.toInt(), ParticleKind.COIN))
@@ -451,36 +798,71 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         sound(TrainSoundCue.COIN)
         if (z.isBoss) {
             bossKills++
-            shake = 0.7f
+            shake = max(shake, 0.7f)
             explosion(z.x, z.y - 60f, 60f)
         }
-        if (z.type == ZombieType.CLOWN) {
+        if (z.type == ZombieType.CLOWN || z.type == ZombieType.CLOWN_PRINCE) {
             sound(TrainSoundCue.HONK)
-            texts.add(FloatingText(z.x, z.y - 90f, "HONK!", 1.0f, 0xFFFF5252.toInt()))
+            if (texts.size < MAX_TEXTS) texts.add(FloatingText(z.x, z.y - 90f, "HONK!", 1.0f, 0xFFFF5252.toInt(), 22f))
             confetti(z.x, z.y - 40f, 26)
         }
         if (z.type == ZombieType.BALLOON) confetti(z.x, z.y - 90f, 22)
         if (z.type == ZombieType.BLOATER) {
             // A shot bloater pops and hurts the zombies around it.
             explosion(z.x, z.y - 20f, 30f)
-            for (other in zombies) if (!other.dead && abs(other.x - z.x) < 100f) damageZombie(other, 35f * z.dmgScale)
+            for (i in zombies.indices) {
+                val other = zombies[i]
+                if (!other.dead && abs(other.x - z.x) < 100f) damageZombie(other, 35f * z.dmgScale)
+            }
+        }
+    }
+
+    private fun compactZombies() {
+        var write = 0
+        for (read in zombies.indices) {
+            val z = zombies[read]
+            if (!z.dead) zombies[write++] = z
+        }
+        while (zombies.size > write) zombies.removeAt(zombies.size - 1)
+        if (boss?.dead == true) boss = null
+    }
+
+    private fun rebuildDrawOrder() {
+        drawOrder.clear()
+        drawOrder.addAll(zombies)
+        for (i in 1 until drawOrder.size) {
+            val item = drawOrder[i]
+            var j = i - 1
+            while (j >= 0 && drawOrder[j].y > item.y) {
+                drawOrder[j + 1] = drawOrder[j]
+                j--
+            }
+            drawOrder[j + 1] = item
         }
     }
 
     // ---------------------------------------------------------------- gunners
 
     private fun updateGunners(dt: Float) {
+        val boost = if (overdriveTime > 0f) 1.6f else 1f
         for (i in 0 until slotCount) {
             val g = gunners[i]
+            if (!carAlive(i)) {
+                g.alive = false
+                continue
+            }
+            g.alive = true
             updateLoadout(i, dt)
             val weapon = g.weapon
-            g.cooldown -= dt
+            g.cooldown -= dt * boost * ratePerk[i]
             g.recoil = max(0f, g.recoil - dt * 9f)
             g.flash = max(0f, g.flash - dt)
             val gx = gunX(i)
+            val range = weapon.range * rangePerk[i]
             var target: Zombie? = null
-            var best = weapon.range
-            for (z in zombies) {
+            var best = range
+            for (k in zombies.indices) {
+                val z = zombies[k]
                 if (z.dead || z.x < -10f || z.x > worldW + 10f) continue
                 if (weapon.groundOnly && z.flying) continue
                 val d = abs(z.x - gx)
@@ -503,211 +885,14 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
 
     private fun targetY(z: Zombie) = z.y - 28f * z.type.size
 
-    // ---------------------------------------------------------------- weapon switching
-
-    /** Tap-to-cycle used by the in-run switcher: AUTO, then each owned weapon, then AUTO again. */
-    fun cycleWeapon(slot: Int) {
-        if (over || slot !in gunners.indices) return
-        val g = gunners[slot]
-        val owned = crew[slot].ownedWeapons
-        val next = if (g.mode == AUTO_WEAPON) owned.first().ordinal else owned.firstOrNull { it.ordinal > g.mode }?.ordinal ?: AUTO_WEAPON
-        g.mode = next
-        g.autoCheck = 0f
-        if (next != AUTO_WEAPON) equip(slot, WeaponType.entries[next])
-    }
-
-    private fun equip(slot: Int, weapon: WeaponType) {
-        val g = gunners[slot]
-        if (g.weapon == weapon) return
-        g.weapon = weapon
-        g.cooldown = max(g.cooldown, 0.35f) // swapping takes a moment, so flip-flopping has a cost
-        if (time > 0.5f) texts.add(FloatingText(gunX(slot), gunY(slot) - 66f, weapon.displayName, 0.9f, 0xFFFFFFFF.toInt()))
-    }
-
-    private fun updateLoadout(slot: Int, dt: Float) {
-        val g = gunners[slot]
-        if (g.mode != AUTO_WEAPON) {
-            equip(slot, WeaponType.entries[g.mode])
-            return
-        }
-        g.autoCheck -= dt
-        if (g.autoCheck > 0f) return
-        g.autoCheck = 0.3f
-        val owned = crew[slot].ownedWeapons
-        if (owned.size < 2) return
-        var best = g.weapon
-        var bestScore = 0f
-        var currentScore = 0f
-        for (w in owned) {
-            val score = weaponScore(slot, w)
-            if (w == g.weapon) currentScore = score
-            if (score > bestScore) { bestScore = score; best = w }
-        }
-        // Stick with the current weapon unless another is clearly better here.
-        if (best != g.weapon && bestScore > currentScore * 1.2f) equip(slot, best)
-    }
-
-    /**
-     * Estimated damage per second [weapon] would deal from [slot] right now: nearest target in range
-     * (shots are capped at the target's remaining health, so big guns are wasted on weak zombies), plus
-     * what its splash or piercing would add on neighbouring zombies.
-     */
-    private fun weaponScore(slot: Int, weapon: WeaponType): Float {
-        val gx = gunX(slot)
-        var target: Zombie? = null
-        var nearest = weapon.range
-        for (z in zombies) {
-            if (z.dead || z.x < -10f || z.x > worldW + 10f) continue
-            if (weapon.groundOnly && z.flying) continue
-            val d = abs(z.x - gx)
-            if (d < nearest) { nearest = d; target = z }
-        }
-        if (target == null) return 0f
-        val damage = weapon.damage * crew[slot].powerMultiplier
-        var total = min(damage, target.hp)
-        if (weapon.splashRadius > 0f || weapon.pierce > 1) {
-            val dir = if (target.x >= gx) 1 else -1
-            var pierced = 0
-            for (o in zombies) {
-                if (o === target || o.dead || o.x < -10f || o.x > worldW + 10f) continue
-                if (weapon.groundOnly && o.flying) continue
-                val dx = o.x - target.x
-                if (weapon.splashRadius > 0f && abs(dx) <= weapon.splashRadius) {
-                    total += 0.6f * min(damage, o.hp)
-                } else if (weapon.pierce > 1 && pierced < weapon.pierce - 1 && dx * dir > 0f && abs(dx) < 260f) {
-                    total += 0.8f * min(damage, o.hp)
-                    pierced++
-                }
-            }
-        }
-        return total / weapon.interval
-    }
-
-    // ---------------------------------------------------------------- train-mounted weapons
-
-    private fun updateTrainWeapons(dt: Float) {
-        flakFlash = max(0f, flakFlash - dt)
-        teslaFlash = max(0f, teslaFlash - dt)
-        if (flakLevel > 0) {
-            flakCooldown -= dt
-            if (flakCooldown <= 0f) {
-                var target: Zombie? = null
-                var best = 560f
-                for (z in zombies) {
-                    if (z.dead || !z.flying || z.x < -10f || z.x > worldW + 10f) continue
-                    val d = abs(z.x - flakX)
-                    if (d < best) { best = d; target = z }
-                }
-                if (target != null) {
-                    flakCooldown = max(0.5f, 1.2f - 0.1f * flakLevel)
-                    flakFlash = 0.1f
-                    val tx = target.x
-                    val ty = targetY(target)
-                    val dmg = 40f + 25f * flakLevel
-                    tracers.add(Tracer(flakX, flakY - 26f, tx, ty, 0.12f, 3.5f, 0xFFFFD54F.toInt()))
-                    explosion(tx, ty, 30f)
-                    sound(TrainSoundCue.FLAK)
-                    val splash = zombies.filter { it !== target && !it.dead && it.flying && abs(it.x - tx) < 90f }
-                    damageZombie(target, dmg)
-                    for (z in splash) damageZombie(z, dmg * 0.6f)
-                } else {
-                    flakCooldown = 0.15f
-                }
-            }
-        }
-        if (teslaLevel > 0) {
-            teslaCooldown -= dt
-            if (teslaCooldown <= 0f) zapChain()
-        }
-    }
-
-    /** Tesla coil: lightning leaps from the coil to the nearest zombie, then chains to neighbours. */
-    private fun zapChain() {
-        var from: Zombie? = null
-        var best = 520f
-        for (z in zombies) {
-            if (z.dead || z.x < -10f || z.x > worldW + 10f) continue
-            val d = abs(z.x - teslaX)
-            if (d < best) { best = d; from = z }
-        }
-        if (from == null) {
-            teslaCooldown = 0.2f
-            return
-        }
-        teslaCooldown = max(1.2f, 3.0f - 0.3f * teslaLevel)
-        teslaFlash = 0.25f
-        sound(TrainSoundCue.ZAP)
-        val jumps = min(8, 2 + teslaLevel)
-        val damage = 25f + 18f * teslaLevel
-        val hit = ArrayList<Zombie>(jumps)
-        var px = teslaX
-        var py = teslaY - 34f
-        var current: Zombie? = from
-        while (current != null && hit.size < jumps) {
-            val ty = targetY(current)
-            tracers.add(Tracer(px, py, current.x, ty, 0.2f, 2.6f, 0xFF9FE8FF.toInt(), jagged = true))
-            hit.add(current)
-            px = current.x
-            py = ty
-            val here = current
-            current = zombies
-                .filter { !it.dead && it !in hit && abs(it.x - here.x) < 170f && abs(it.y - here.y) < 320f }
-                .minByOrNull { abs(it.x - here.x) }
-        }
-        for (z in hit) {
-            spark(z.x, targetY(z))
-            damageZombie(z, damage)
-        }
-    }
-
-    // ---------------------------------------------------------------- repair crew
-
-    private fun updateRepairers(dt: Float) {
-        if (repairers.isEmpty()) return
-        val healing = hp < maxHp - 0.5f
-        val left = trainLeft + 12f
-        val right = frontEnd - 36f
-        healTextGap -= dt
-        for ((i, r) in repairers.withIndex()) {
-            if (r.x == 0f) r.x = left + (right - left) * (i + 0.5f) / repairers.size
-            r.timer -= dt
-            if (r.hammering) {
-                r.anim += dt * 16f
-                r.effectTimer -= dt
-                if (healing && r.effectTimer <= 0f) {
-                    r.effectTimer = 0.18f
-                    spark(r.x + r.dir * 11f, repairBoardY - 10f)
-                }
-                if (healing && rng.nextFloat() < dt * 3f) {
-                    addParticle(Particle(r.x + (rng.nextFloat() - 0.5f) * 14f, repairBoardY - 28f, 0f, -42f, 1.1f, 1.1f, 5f, 0xFF66FF8A.toInt(), ParticleKind.HEAL))
-                }
-                if (healing && healTextGap <= 0f) {
-                    healTextGap = 1.1f
-                    texts.add(FloatingText(r.x, repairBoardY - 44f, "+" + "%.1f".format(regenPerSecond), 0.9f, 0xFF66FF8A.toInt()))
-                }
-                if (r.timer <= 0f) {
-                    r.hammering = false
-                    r.timer = 1.2f + rng.nextFloat() * 1.6f
-                    if (rng.nextBoolean()) r.dir = -r.dir
-                }
-            } else {
-                r.x += r.dir * 34f * dt
-                if (r.x < left) { r.x = left; r.dir = 1 }
-                if (r.x > right) { r.x = right; r.dir = -1 }
-                r.anim += dt * 9f
-                if (r.timer <= 0f) {
-                    r.hammering = true
-                    r.timer = 1.1f + rng.nextFloat() * 0.9f
-                    r.effectTimer = 0f
-                }
-            }
-        }
-    }
+    private fun damageFor(slot: Int, weapon: WeaponType): Float =
+        weapon.damage * crew[slot].powerMultiplier * damagePerk[slot] * (if (buffTime > 0f) 1.3f else 1f)
 
     private fun fire(slot: Int, target: Zombie) {
         val g = gunners[slot]
         val weapon = g.weapon
-        val damage = weapon.damage * crew[slot].powerMultiplier
+        val crit = critChance[slot] > 0f && rng.nextFloat() < critChance[slot]
+        val damage = damageFor(slot, weapon) * (if (crit) 2.5f else 1f)
         val gx = gunX(slot)
         val len = weaponLength(weapon)
         val mx = gx + g.facing * cos(g.aim) * len
@@ -747,22 +932,341 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             }
         )
 
-        val struck = ArrayList<Zombie>(4)
-        struck.add(target)
+        shooter = slot
+        // Piercing: the next zombies further along the line of fire take most of the damage too.
+        struck.clear()
         if (weapon.pierce > 1) {
-            // Walk further along the line of fire and hit the next zombies on that side.
-            zombies.filter { !it.dead && it !== target && !(weapon.groundOnly && it.flying) && (it.x - tx) * g.facing > 0f && abs(it.x - tx) < (if (weapon == WeaponType.LASER) 320f else 220f) }
-                .sortedBy { abs(it.x - tx) }
-                .take(weapon.pierce - 1)
-                .forEach { struck.add(it) }
+            val reach = if (weapon == WeaponType.LASER) 320f else 220f
+            repeat(weapon.pierce - 1) {
+                var next: Zombie? = null
+                var nextDist = reach
+                for (k in zombies.indices) {
+                    val z = zombies[k]
+                    if (z.dead || z === target || struck.contains(z)) continue
+                    if (weapon.groundOnly && z.flying) continue
+                    val d = (z.x - tx) * g.facing
+                    if (d > 0f && d < nextDist) { nextDist = d; next = z }
+                }
+                if (next != null) struck.add(next)
+            }
         }
-        val splashTargets = if (weapon.splashRadius > 0f) {
-            zombies.filter { !it.dead && it !== target && !(weapon.groundOnly && it.flying) && abs(it.x - tx) <= weapon.splashRadius }
-        } else emptyList()
+        damageZombie(target, damage, crit = crit)
+        for (k in struck.indices) damageZombie(struck[k], damage * 0.8f)
+        if (weapon.splashRadius > 0f) {
+            for (k in zombies.indices) {
+                val z = zombies[k]
+                if (z.dead || z === target) continue
+                if (weapon.groundOnly && z.flying) continue
+                if (abs(z.x - tx) <= weapon.splashRadius) damageZombie(z, damage * 0.6f)
+            }
+        }
+        shooter = -1
+    }
 
-        damageZombie(target, damage)
-        for (i in 1 until struck.size) damageZombie(struck[i], damage * 0.8f)
-        for (z in splashTargets) damageZombie(z, damage * 0.6f)
+    // ---------------------------------------------------------------- weapon switching
+
+    /** Tap-to-cycle used by the in-run switcher: AUTO, then each owned weapon, then AUTO again. */
+    fun cycleWeapon(slot: Int) {
+        if (over || slot !in gunners.indices) return
+        val g = gunners[slot]
+        val owned = crew[slot].ownedWeapons
+        val next = if (g.mode == AUTO_WEAPON) owned.first().ordinal else owned.firstOrNull { it.ordinal > g.mode }?.ordinal ?: AUTO_WEAPON
+        g.mode = next
+        g.autoCheck = 0f
+        if (next != AUTO_WEAPON) equip(slot, WeaponType.entries[next])
+    }
+
+    private fun equip(slot: Int, weapon: WeaponType) {
+        val g = gunners[slot]
+        if (g.weapon == weapon) return
+        g.weapon = weapon
+        g.cooldown = max(g.cooldown, 0.35f) // swapping takes a moment, so flip-flopping has a cost
+        if (time > 0.5f && texts.size < MAX_TEXTS) texts.add(FloatingText(gunX(slot), gunY(slot) - 66f, weapon.displayName, 0.9f, 0xFFFFFFFF.toInt(), 18f))
+    }
+
+    private fun updateLoadout(slot: Int, dt: Float) {
+        val g = gunners[slot]
+        if (g.mode != AUTO_WEAPON) {
+            equip(slot, WeaponType.entries[g.mode])
+            return
+        }
+        g.autoCheck -= dt
+        if (g.autoCheck > 0f) return
+        g.autoCheck = 0.3f
+        val owned = crew[slot].ownedWeapons
+        if (owned.size < 2) return
+        var best = g.weapon
+        var bestScore = 0f
+        var currentScore = 0f
+        for (k in owned.indices) {
+            val w = owned[k]
+            val score = weaponScore(slot, w)
+            if (w == g.weapon) currentScore = score
+            if (score > bestScore) { bestScore = score; best = w }
+        }
+        // Stick with the current weapon unless another is clearly better here.
+        if (best != g.weapon && bestScore > currentScore * 1.2f) equip(slot, best)
+    }
+
+    /**
+     * Estimated damage per second [weapon] would deal from [slot] right now: nearest target in range
+     * (shots are capped at the target's remaining health, so big guns are wasted on weak zombies), plus
+     * what its splash or piercing would add on neighbouring zombies.
+     */
+    private fun weaponScore(slot: Int, weapon: WeaponType): Float {
+        val gx = gunX(slot)
+        var target: Zombie? = null
+        var nearest = weapon.range * rangePerk[slot]
+        for (k in zombies.indices) {
+            val z = zombies[k]
+            if (z.dead || z.x < -10f || z.x > worldW + 10f) continue
+            if (weapon.groundOnly && z.flying) continue
+            val d = abs(z.x - gx)
+            if (d < nearest) { nearest = d; target = z }
+        }
+        if (target == null) return 0f
+        val damage = damageFor(slot, weapon)
+        var total = min(damage, target.hp)
+        if (weapon.splashRadius > 0f || weapon.pierce > 1) {
+            val dir = if (target.x >= gx) 1 else -1
+            var pierced = 0
+            for (k in zombies.indices) {
+                val o = zombies[k]
+                if (o === target || o.dead || o.x < -10f || o.x > worldW + 10f) continue
+                if (weapon.groundOnly && o.flying) continue
+                val dx = o.x - target.x
+                if (weapon.splashRadius > 0f && abs(dx) <= weapon.splashRadius) {
+                    total += 0.6f * min(damage, o.hp)
+                } else if (weapon.pierce > 1 && pierced < weapon.pierce - 1 && dx * dir > 0f && abs(dx) < 260f) {
+                    total += 0.8f * min(damage, o.hp)
+                    pierced++
+                }
+            }
+        }
+        return total / weapon.interval
+    }
+
+    // ---------------------------------------------------------------- train-mounted weapons
+
+    private fun updateTrainWeapons(dt: Float) {
+        val boost = if (overdriveTime > 0f) 1.3f else 1f
+        flakFlash = max(0f, flakFlash - dt)
+        teslaFlash = max(0f, teslaFlash - dt)
+        flameFlash = max(0f, flameFlash - dt)
+        if (flakLevel > 0) {
+            flakCooldown -= dt * boost
+            if (flakCooldown <= 0f) fireFlak()
+        }
+        if (teslaLevel > 0) {
+            teslaCooldown -= dt * boost
+            if (teslaCooldown <= 0f) zapChain()
+        }
+        if (flameLevel > 0) {
+            flameCooldown -= dt * boost
+            if (flameCooldown <= 0f) burnFront()
+        }
+        if (mortarLevel > 0) {
+            mortarCooldown -= dt * boost
+            if (mortarCooldown <= 0f) fireMortar()
+        }
+    }
+
+    private fun fireFlak() {
+        var target: Zombie? = null
+        var best = 560f
+        for (k in zombies.indices) {
+            val z = zombies[k]
+            if (z.dead || !z.flying || z.x < -10f || z.x > worldW + 10f) continue
+            val d = abs(z.x - flakX)
+            if (d < best) { best = d; target = z }
+        }
+        if (target == null) {
+            flakCooldown = 0.15f
+            return
+        }
+        flakCooldown = max(0.5f, 1.2f - 0.1f * flakLevel)
+        flakFlash = 0.1f
+        val tx = target.x
+        val ty = targetY(target)
+        val dmg = (40f + 25f * flakLevel) * (if (buffTime > 0f) 1.3f else 1f)
+        tracers.add(Tracer(flakX, flakY - 26f, tx, ty, 0.12f, 3.5f, 0xFFFFD54F.toInt()))
+        explosion(tx, ty, 30f)
+        sound(TrainSoundCue.FLAK)
+        shooter = -1
+        damageZombie(target, dmg)
+        for (k in zombies.indices) {
+            val z = zombies[k]
+            if (z !== target && !z.dead && z.flying && abs(z.x - tx) < 90f) damageZombie(z, dmg * 0.6f)
+        }
+    }
+
+    /** Tesla coil: lightning leaps from the coil to the nearest zombie, then chains to neighbours. */
+    private fun zapChain() {
+        var from: Zombie? = null
+        var best = 520f
+        for (k in zombies.indices) {
+            val z = zombies[k]
+            if (z.dead || z.x < -10f || z.x > worldW + 10f) continue
+            val d = abs(z.x - teslaX)
+            if (d < best) { best = d; from = z }
+        }
+        if (from == null) {
+            teslaCooldown = 0.2f
+            return
+        }
+        teslaCooldown = max(1.2f, 3.0f - 0.3f * teslaLevel)
+        teslaFlash = 0.25f
+        sound(TrainSoundCue.ZAP)
+        val jumps = min(8, 2 + teslaLevel)
+        val damage = (25f + 18f * teslaLevel) * (if (buffTime > 0f) 1.3f else 1f)
+        scratch.clear()
+        var px = teslaX
+        var py = teslaY - 34f
+        var current: Zombie? = from
+        while (current != null && scratch.size < jumps) {
+            val ty = targetY(current)
+            tracers.add(Tracer(px, py, current.x, ty, 0.2f, 2.6f, 0xFF9FE8FF.toInt(), jagged = true))
+            scratch.add(current)
+            px = current.x
+            py = ty
+            val here = current
+            var next: Zombie? = null
+            var nextDist = 170f
+            for (k in zombies.indices) {
+                val z = zombies[k]
+                if (z.dead || scratch.contains(z) || abs(z.y - here.y) > 320f) continue
+                val d = abs(z.x - here.x)
+                if (d < nextDist) { nextDist = d; next = z }
+            }
+            current = next
+        }
+        shooter = -1
+        for (k in scratch.indices) {
+            val z = scratch[k]
+            spark(z.x, targetY(z))
+            damageZombie(z, damage)
+        }
+    }
+
+    /** Flamethrower: scorches ground zombies in front of the cowcatcher a few times a second. */
+    private fun burnFront() {
+        var any = false
+        val dmg = (5f + 3.5f * flameLevel) * (if (buffTime > 0f) 1.3f else 1f)
+        shooter = -1
+        for (k in zombies.indices) {
+            val z = zombies[k]
+            if (z.dead || z.flying || z.x < flameX - 12f || z.x > flameX + flameReach) continue
+            any = true
+            damageZombie(z, dmg)
+            if (rng.nextFloat() < 0.3f) spark(z.x, z.y - 20f)
+        }
+        if (any) {
+            flameFlash = 0.2f
+            flameCooldown = 0.12f
+        } else {
+            flameCooldown = 0.15f
+        }
+    }
+
+    private fun fireMortar() {
+        var target: Zombie? = null
+        var bestCount = 0
+        for (k in zombies.indices) {
+            val z = zombies[k]
+            if (z.dead || z.flying || z.x < 20f || z.x > worldW - 20f || abs(z.x - mortarX) > 650f || abs(z.x - mortarX) < 70f) continue
+            var count = 0
+            for (m in zombies.indices) {
+                val o = zombies[m]
+                if (!o.dead && !o.flying && abs(o.x - z.x) < 110f) count++
+            }
+            if (count > bestCount) { bestCount = count; target = z }
+        }
+        if (target == null) {
+            mortarCooldown = 0.3f
+            return
+        }
+        mortarCooldown = max(1.8f, 4.2f - 0.35f * mortarLevel)
+        val sx = mortarX
+        val sy = mortarY - 18f
+        val flight = 0.9f
+        shells.add(Shell(sx, sy, (target.x - sx) / flight, (target.y - 10f - sy) / flight - 0.5f * SHELL_GRAVITY * flight, target.x, target.y - 10f, flight))
+        sound(TrainSoundCue.MORTAR)
+        spark(sx, sy)
+    }
+
+    private fun updateShells(dt: Float) {
+        var i = 0
+        while (i < shells.size) {
+            val s = shells[i]
+            s.age += dt
+            s.x += s.vx * dt
+            s.y += s.vy * dt
+            s.vy += SHELL_GRAVITY * dt
+            if (s.age >= s.total) {
+                detonateShell(s)
+                shells[i] = shells[shells.size - 1]
+                shells.removeAt(shells.size - 1)
+            } else {
+                i++
+            }
+        }
+    }
+
+    private fun detonateShell(s: Shell) {
+        explosion(s.tx, s.ty, 50f)
+        shake = max(shake, 0.3f)
+        val dmg = (70f + 45f * mortarLevel) * (if (buffTime > 0f) 1.3f else 1f)
+        shooter = -1
+        for (k in zombies.indices) {
+            val z = zombies[k]
+            if (!z.dead && !z.flying && abs(z.x - s.tx) <= 130f) damageZombie(z, dmg)
+        }
+    }
+
+    // ---------------------------------------------------------------- repair crew
+
+    private fun updateRepairers(dt: Float) {
+        if (repairers.isEmpty()) return
+        var healing = hp < maxHp - 0.5f
+        for (i in 1 until slotCount) if (carHp[i] > 0.01f && carHp[i] < carMaxHp[i] - 0.5f) healing = true
+        val left = trainLeft + 12f
+        val right = frontEnd - 36f
+        healTextGap -= dt
+        for (i in repairers.indices) {
+            val r = repairers[i]
+            if (r.x == 0f) r.x = left + (right - left) * (i + 0.5f) / repairers.size
+            r.timer -= dt
+            if (r.hammering) {
+                r.anim += dt * 16f
+                r.effectTimer -= dt
+                if (healing && r.effectTimer <= 0f) {
+                    r.effectTimer = 0.18f
+                    spark(r.x + r.dir * 11f, repairBoardY - 10f)
+                }
+                if (healing && rng.nextFloat() < dt * 3f) {
+                    addParticle(Particle(r.x + (rng.nextFloat() - 0.5f) * 14f, repairBoardY - 28f, 0f, -42f, 1.1f, 1.1f, 5f, 0xFF66FF8A.toInt(), ParticleKind.HEAL))
+                }
+                if (healing && healTextGap <= 0f && texts.size < MAX_TEXTS) {
+                    healTextGap = 1.1f
+                    texts.add(FloatingText(r.x, repairBoardY - 44f, "+" + "%.1f".format(regenPerSecond), 0.9f, 0xFF66FF8A.toInt(), 18f))
+                }
+                if (r.timer <= 0f) {
+                    r.hammering = false
+                    r.timer = 1.2f + rng.nextFloat() * 1.6f
+                    if (rng.nextBoolean()) r.dir = -r.dir
+                }
+            } else {
+                r.x += r.dir * 34f * dt
+                if (r.x < left) { r.x = left; r.dir = 1 }
+                if (r.x > right) { r.x = right; r.dir = -1 }
+                r.anim += dt * 9f
+                if (r.timer <= 0f) {
+                    r.hammering = true
+                    r.timer = 1.1f + rng.nextFloat() * 0.9f
+                    r.effectTimer = 0f
+                }
+            }
+        }
     }
 
     // ---------------------------------------------------------------- effects
@@ -787,11 +1291,15 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     }
 
     private fun updateEffects(dt: Float) {
-        val iterator = particles.iterator()
-        while (iterator.hasNext()) {
-            val p = iterator.next()
+        var i = 0
+        while (i < particles.size) {
+            val p = particles[i]
             p.life -= dt
-            if (p.life <= 0f) { iterator.remove(); continue }
+            if (p.life <= 0f) {
+                particles[i] = particles[particles.size - 1]
+                particles.removeAt(particles.size - 1)
+                continue
+            }
             p.x += p.vx * dt
             p.y += p.vy * dt
             when (p.kind) {
@@ -799,15 +1307,26 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
                 ParticleKind.SMOKE -> { p.vx -= 6f * dt; p.vy -= 4f * dt }
                 else -> {}
             }
+            i++
         }
-        for (t in tracers) t.life -= dt
-        tracers.removeAll { it.life <= 0f }
-        val textIterator = texts.iterator()
-        while (textIterator.hasNext()) {
-            val t = textIterator.next()
+        i = 0
+        while (i < tracers.size) {
+            val t = tracers[i]
+            t.life -= dt
+            if (t.life <= 0f) {
+                tracers[i] = tracers[tracers.size - 1]
+                tracers.removeAt(tracers.size - 1)
+            } else i++
+        }
+        i = 0
+        while (i < texts.size) {
+            val t = texts[i]
             t.life -= dt
             t.y -= 36f * dt
-            if (t.life <= 0f) textIterator.remove()
+            if (t.life <= 0f) {
+                texts[i] = texts[texts.size - 1]
+                texts.removeAt(texts.size - 1)
+            } else i++
         }
     }
 
@@ -847,10 +1366,55 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             val s = 80f + rng.nextFloat() * 200f
             addParticle(Particle(x, y, cos(a) * s, sin(a) * s - 60f, 0.6f, 0.6f, 3f + rng.nextFloat() * 3f, 0xFF4E342E.toInt(), ParticleKind.DEBRIS))
         }
-        shake = max(shake, 0.25f)
+        if (shakeEnabled) shake = max(shake, 0.25f)
     }
 
     private fun sound(cue: TrainSoundCue) {
         onSound?.invoke(cue)
+    }
+
+    // ---------------------------------------------------------------- debug hooks (used by the developer tools)
+
+    fun debugSpawn(type: ZombieType, count: Int) {
+        repeat(count) { if (zombies.size < MAX_ZOMBIES) spawnZombie(type) }
+    }
+
+    fun debugKillAll() {
+        shooter = -1
+        for (i in zombies.indices) {
+            val z = zombies[i]
+            if (!z.dead) damageZombie(z, z.hp + 1f)
+        }
+    }
+
+    fun debugHeal() {
+        hp = maxHp
+        for (i in 1 until slotCount) {
+            carHp[i] = carMaxHp[i]
+            gunners[i].alive = true
+        }
+    }
+
+    fun debugAddCoins(amount: Int) {
+        runCoins += amount
+    }
+
+    fun debugSkipTime(seconds: Float) {
+        time += seconds
+        distance += 14f * seconds
+    }
+
+    fun debugCrate() {
+        crate = Crate(worldW * 0.5f, -50f)
+    }
+
+    fun debugHorde() {
+        if (hordeTime <= 0f && !hordePending) nextHordeAt = 0f
+    }
+
+    fun debugResetCooldowns() {
+        dynamiteCooldown = 0f
+        overdriveCooldown = 0f
+        fieldRepairCooldown = 0f
     }
 }

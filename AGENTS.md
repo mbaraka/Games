@@ -116,6 +116,54 @@ same key every time, so a newer release installs over an older one as a normal u
 - Local release builds without the key env vars still work but are unsigned; use debug
   builds for local testing. One-time key creation steps are in `RELEASING.md`.
 
+## Requirements for EVERY game
+
+These are mandatory for each game in the hub, new or existing. If a game is missing one,
+adding it is part of the next change you make to that game.
+
+### 1. A settings screen
+
+- Every game has its own Settings screen, reachable from the game's start/garage screen
+  **and** from its in-game pause menu. Changes apply immediately and are persisted.
+- Typical contents: separate volume controls for each sound channel that exists (music,
+  sound effects, ambience), a vibration toggle if the game vibrates, display options
+  (e.g. screen shake, damage numbers), and a "Show FPS counter" toggle. Every sound or
+  effect the game has must be controllable - never ship audio with no setting for it.
+- Build it from the shared rows in
+  `app/src/main/java/com/baraka/game/ui/components/SettingsControls.kt`
+  (`SettingsSection`, `SettingsToggleRow`, `SettingsSliderRow`) so all games look alike.
+- Keep a small immutable settings data class per game (see
+  `trainsurvivor/data/GameSettings.kt`) stored through the game's repository.
+- The screen shows the app version; tapping it 7 times unlocks developer tools (below).
+
+### 2. A debug tool
+
+- Every game ships a developer panel built on the shared kit in
+  `app/src/main/java/com/baraka/game/ui/debug/DebugKit.kt`:
+  - describe cheats as `DebugSection`s of `DebugItem.Action` / `Toggle` / `Info`;
+  - show them with `DebugPanel(...)`; gate with `DebugKit.isUnlocked(context)` (true for
+    debuggable builds, or after the 7-tap unlock in Settings);
+  - show live frame rate with `FpsOverlay(FrameStats)` when "Show FPS counter" is on.
+- Put the game's cheat lists in their own file (example: `trainsurvivor/ui/TrainDebug.kt`).
+  Provide at least: economy cheats (add coins/currency), progress cheats (unlock/max
+  everything, reset all progress), and, for real-time games, in-run tools (god mode, heal,
+  skip ahead in difficulty, spawn each enemy type, spawn boss, trigger events, slow motion /
+  fast forward). The purpose is to let anyone test balance and late-game content in minutes.
+- Debug actions may bypass normal rules but must go through the game's real state/save
+  code paths, so they cannot leave the game in an impossible state.
+
+### 3. Performance is a feature
+
+- Target a steady 60 fps on a mid-range phone. Check with the FPS overlay, not by feel.
+- No allocation in per-frame code: use index loops (`for (i in list.indices)`), reusable
+  scratch lists, pre-sized collections, and in-place sorting. Avoid `filter`, `map`,
+  `sortedBy`, `toList`, string templates, and `listOf`/`floatArrayOf` inside the update or
+  draw loops. Cache HUD strings and rebuild them only when the value changes.
+- Cap every collection that gameplay can grow (enemies, particles, floating texts).
+- Keep simulation and drawing separate (see `TrainGame.kt` vs `TrainRenderer.kt`).
+- When you add a feature, think about its worst case (hundreds of bullets, full screen of
+  enemies) before merging it.
+
 ## Adding a new game (checklist)
 
 1. Create the package `com.baraka.game.<game>` with an `Activity` that wraps a Compose
@@ -125,12 +173,27 @@ same key every time, so a newer release installs over an older one as a normal u
 3. Add a `GameCatalogEntry` to `GAME_CATALOG` in `MainActivity.kt` and a row to the
    table in `README.md`.
 4. Persist progress with `SharedPreferences` (pattern: `*SettingsRepository`).
-5. Verify with `./gradlew :app:assembleDebug`, then release it as a new **MINOR**.
+5. Add the **settings screen** and the **debug tool** described above, and keep to the
+   performance rules.
+6. Screen-on: any `Activity` that is not `MainActivity` or `KeyReaderActivity` keeps the
+   screen awake automatically via `GameApplication` - nothing to do.
+7. Verify with `./gradlew :app:assembleDebug`, then release it as a new **MINOR**.
 
 ## Train Survivor pointers
 
 Code is in `app/src/main/java/com/baraka/game/trainsurvivor/`:
-`model/` (weapons, zombies, upgrades, shop rules), `systems/TrainGame.kt` (the whole
-simulation), `render/TrainRenderer.kt` (all drawing), `ui/` (run screen, garage, field
-guide), `data/` (save repository, procedural sound). Progress (coins, best distance,
-kills, upgrades, owned weapons) is saved to `SharedPreferences` file `train_survivor`.
+
+- `model/TrainModels.kt` - weapons, zombies, upgrades, survivors/perks, shop rules.
+  `model/Progression.kt` - daily goals, achievements, records, prestige.
+- `systems/TrainGame.kt` - the whole simulation (per-car health, perks, abilities, events,
+  bosses, train weapons). Follows the performance rules above.
+- `render/TrainRenderer.kt` - all drawing (Canvas), including the HUD.
+- `ui/` - `TrainSurvivorScreen.kt` (owns audio/settings, run screen), `GarageScreen.kt`,
+  `TrainSettingsScreen.kt`, `ProgressScreen.kt` (goals/achievements/records/prestige),
+  `FieldGuideScreen.kt`, `TrainDebug.kt` (this game's debug tools).
+- `data/` - `TrainSaveRepository.kt` (progress + settings in `SharedPreferences` file
+  `train_survivor`), `GameSettings.kt`, `TrainAudio.kt` (procedural music + ambience),
+  `TrainSoundEngine.kt` (effects), `Haptics.kt`.
+
+Balance numbers live in `TrainModels.kt` (costs, zombie stats) and `TrainGame.kt` (spawn
+rates, difficulty ramp, boss schedule). Use the debug tools to test late-game content.

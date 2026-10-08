@@ -48,6 +48,27 @@ private val CAR_COLORS = longArrayOf(0xFF7A3E2B, 0xFF2F5D62, 0xFF5B4B8A, 0xFF4F6
 private val starField: FloatArray = Random(11).let { r -> FloatArray(90 * 3) { i -> if (i % 3 == 0) r.nextFloat() else if (i % 3 == 1) r.nextFloat() * 380f else 0.8f + r.nextFloat() * 1.6f } }
 private val path = Path()
 
+/** Rebuilds a HUD string only when its key changes, so the HUD allocates nothing on most frames. */
+private class TextCache {
+    var key = Int.MIN_VALUE
+    var text = ""
+    inline fun get(newKey: Int, build: () -> String): String {
+        if (newKey != key) {
+            key = newKey
+            text = build()
+        }
+        return text
+    }
+}
+
+private val hpText = TextCache()
+private val coinText = TextCache()
+private val distText = TextCache()
+private val killText = TextCache()
+private val biomeText = TextCache()
+private val bossText = TextCache()
+private val speedText = TextCache()
+
 private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
     typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     textAlign = Paint.Align.CENTER
@@ -95,8 +116,9 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
     val light = smooth((sunHeight + 0.25f) / 0.6f)
     val sunset = (1f - abs(sunHeight) / 0.4f).coerceIn(0f, 1f)
     val night = 1f - light
-    val shakeX = (sin(g.time * 90f) * g.shake * 7f)
-    val shakeY = (cos(g.time * 77f) * g.shake * 7f)
+    val shakeAmount = if (g.shakeEnabled) g.shake else 0f
+    val shakeX = sin(g.time * 90f) * shakeAmount * 7f
+    val shakeY = cos(g.time * 77f) * shakeAmount * 7f
 
     withTransform({
         scale(s, s, Offset.Zero)
@@ -106,7 +128,10 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
         drawTransitionArt(g)
         drawRails(g)
         drawTrain(g, light)
-        for (z in g.zombies.sortedBy { it.y }) drawZombie(z)
+        val order = g.drawOrder
+        for (i in order.indices) drawZombie(order[i])
+        drawCrate(g)
+        drawShells(g)
         drawParticles(g, glow = false)
         forRegions(g) { biome ->
             drawForeground(g, biome, light)
@@ -119,7 +144,10 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
         }
         drawGlow(g, if (g.biome == Biome.TUNNEL) 0.9f else night)
         drawParticles(g, glow = true)
-        for (t in g.texts) outlinedText(t.text, t.x, t.y, 22f, t.color, (t.life / 1f).coerceIn(0f, 1f))
+        for (i in g.texts.indices) {
+            val t = g.texts[i]
+            outlinedText(t.text, t.x, t.y, t.size, t.color, t.life.coerceIn(0f, 1f))
+        }
     }
     if (showHud) drawHud(g)
 }
@@ -495,9 +523,10 @@ private fun DrawScope.drawLoco(g: TrainGame, x0: Float) {
     }
 }
 
-private fun DrawScope.drawCar(g: TrainGame, x0: Float, index: Int) {
+private fun DrawScope.drawCar(g: TrainGame, x0: Float, index: Int, slot: Int) {
+    val alive = g.carAlive(slot)
     box(Color(0xFF1A1A1F), x0 + 4f, 480f, CAR_W - 8f, 8f)
-    val body = Color(CAR_COLORS[index % CAR_COLORS.size])
+    val body = if (alive) Color(CAR_COLORS[index % CAR_COLORS.size]) else Color(0xFF2B2522)
     rbox(body, x0, 424f, CAR_W, 60f, 4f)
     for (k in 1..5) box(Color.Black.copy(alpha = 0.18f), x0 + k * CAR_W / 6f, 426f, 2f, 56f)
     box(Color.White.copy(alpha = 0.12f), x0, 424f, CAR_W, 4f)
@@ -510,12 +539,28 @@ private fun DrawScope.drawCar(g: TrainGame, x0: Float, index: Int) {
     for (wx in floatArrayOf(24f, 50f, 100f, 126f)) drawWheel(x0 + wx, 486f, 13f, g.wheelAngle * 1.3f)
     // Coupling.
     box(Color(0xFF111114), x0 + CAR_W - 2f, 474f, 12f, 5f)
+    if (!alive) {
+        // Burnt-out wreck: flickering flames on the roof.
+        for (k in 0..2) {
+            val fx = x0 + 30f + k * 45f
+            val h = 24f + sin(g.time * 9f + k * 2f) * 9f
+            path.rewind(); path.moveTo(fx - 10f, 424f); path.lineTo(fx, 424f - h); path.lineTo(fx + 10f, 424f); path.close()
+            drawPath(path, Color(0xFFFF7043))
+            path.rewind(); path.moveTo(fx - 5f, 424f); path.lineTo(fx, 424f - h * 0.55f); path.lineTo(fx + 5f, 424f); path.close()
+            drawPath(path, Color(0xFFFFEB3B))
+        }
+    } else if (g.carHp[slot] < g.carMaxHp[slot] - 0.5f) {
+        val frac = (g.carHp[slot] / g.carMaxHp[slot]).coerceIn(0f, 1f)
+        box(Color.Black.copy(alpha = 0.6f), x0 + 20f, 432f, 110f, 6f)
+        box(lerp(Color(0xFFE53935), Color(0xFF66BB6A), frac), x0 + 20f, 432f, 110f * frac, 6f)
+    }
 }
 
 private fun DrawScope.drawWindows(g: TrainGame, color: Color) {
     box(color, g.locoLeft + 12f, 404f, 22f, 22f)
     box(color, g.locoLeft + 40f, 404f, 18f, 22f)
     for (i in 1 until g.slotCount) {
+        if (!g.carAlive(i)) continue
         val x = g.locoLeft - 8f - i * 158f + 8f
         for (k in 0..2) box(color, x + 20f + k * 38f, 440f, 22f, 14f)
     }
@@ -524,7 +569,7 @@ private fun DrawScope.drawWindows(g: TrainGame, color: Color) {
 private fun DrawScope.drawTrain(g: TrainGame, light: Float) {
     val bob = sin(g.time * 17f) * 0.8f
     withTransform({ translate(0f, if (g.over) 0f else bob) }) {
-        for (i in g.slotCount - 1 downTo 1) drawCar(g, g.locoLeft - 8f - i * 158f + 8f, i - 1)
+        for (i in g.slotCount - 1 downTo 1) drawCar(g, g.locoLeft - 8f - i * 158f + 8f, i - 1, i)
         drawLoco(g, g.locoLeft)
         drawWindows(g, lerp(Color(0xFF2A3440), Color(0xFF9BC4E2), light))
         // Rear spikes.
@@ -537,7 +582,76 @@ private fun DrawScope.drawTrain(g: TrainGame, light: Float) {
         if (g.repairLevel > 0) drawRepairCrew(g)
         if (g.flakLevel > 0) drawFlak(g)
         if (g.teslaLevel > 0) drawTesla(g)
+        if (g.mortarLevel > 0) drawMortar(g)
+        if (g.flameLevel > 0) drawFlamer(g)
         for (i in 0 until g.slotCount) drawGunner(g, i)
+    }
+}
+
+private fun DrawScope.drawMortar(g: TrainGame) {
+    val x = g.mortarX
+    val y = g.mortarY
+    box(Color(0xFF37474F), x - 11f, y - 6f, 22f, 6f)
+    withTransform({ translate(x, y - 6f); rotate(-64f, Offset.Zero) }) {
+        box(Color(0xFF455A64), 0f, -6f, 28f, 12f)
+        box(Color(0xFF263238), 24f, -8f, 6f, 16f)
+        box(Color(0xFF8A6A3A), 8f, -6f, 3f, 12f)
+    }
+}
+
+private fun DrawScope.drawFlamer(g: TrainGame) {
+    rbox(Color(0xFFB71C1C), g.flameX - 30f, g.flameY - 12f, 20f, 15f, 4f)
+    box(Color(0xFF37474F), g.flameX - 10f, g.flameY - 6f, 22f, 8f)
+    box(Color(0xFF90A4AE), g.flameX + 10f, g.flameY - 8f, 5f, 12f)
+}
+
+private fun DrawScope.drawCrate(g: TrainGame) {
+    val c = g.crate ?: return
+    val fade = if (c.landed) (c.life / 1.5f).coerceIn(0f, 1f) else 1f
+    if (!c.landed) {
+        drawArc(Color(0xFFE53935).copy(alpha = fade), 180f, 180f, true, Offset(c.x - 36f, c.y - 78f), Size(72f, 56f))
+        drawArc(Color.White.copy(alpha = fade), 220f, 50f, true, Offset(c.x - 36f, c.y - 78f), Size(72f, 56f))
+        drawLine(Color.White.copy(alpha = fade), Offset(c.x - 34f, c.y - 50f), Offset(c.x - 16f, c.y - 16f), 1.5f)
+        drawLine(Color.White.copy(alpha = fade), Offset(c.x + 34f, c.y - 50f), Offset(c.x + 16f, c.y - 16f), 1.5f)
+    } else {
+        val pulse = 0.5f + 0.5f * sin(c.phase * 8f)
+        drawCircle(Color(0xFFFFD54F).copy(alpha = 0.25f * pulse * fade), 46f, Offset(c.x, c.y))
+        outlinedText("TAP!", c.x, c.y - 30f, 20f, 0xFFFFD54F.toInt(), fade)
+    }
+    rbox(Color(0xFF8D6E63).copy(alpha = fade), c.x - 18f, c.y - 18f, 36f, 36f, 4f)
+    box(Color(0xFF5D4037).copy(alpha = fade), c.x - 18f, c.y - 3f, 36f, 6f)
+    box(Color(0xFF5D4037).copy(alpha = fade), c.x - 3f, c.y - 18f, 6f, 36f)
+    drawCircle(Color(0xFFFFC107).copy(alpha = fade), 5f, Offset(c.x, c.y))
+}
+
+private fun DrawScope.drawShells(g: TrainGame) {
+    for (i in g.shells.indices) {
+        val s = g.shells[i]
+        drawLine(Color(0xFF90A4AE).copy(alpha = 0.6f), Offset(s.x - s.vx * 0.04f, s.y - s.vy * 0.04f), Offset(s.x, s.y), 3f)
+        drawCircle(Color(0xFF263238), 6f, Offset(s.x, s.y))
+        drawCircle(Color(0xFFFF7043), 2.5f, Offset(s.x, s.y))
+    }
+}
+
+private fun DrawScope.drawFlame(g: TrainGame) {
+    if (g.flameLevel <= 0 || g.flameFlash <= 0f) return
+    val nx = g.flameX + 14f
+    val ny = g.flameY - 2f
+    val reach = g.flameReach * (0.85f + 0.15f * sin(g.time * 40f))
+    path.rewind()
+    path.moveTo(nx, ny - 3f); path.lineTo(nx + reach, ny - 30f + sin(g.time * 33f) * 6f); path.lineTo(nx + reach * 0.92f, ny + 12f); path.lineTo(nx, ny + 4f); path.close()
+    drawPath(path, Color(0xFFFF6D00).copy(alpha = 0.8f))
+    path.rewind()
+    path.moveTo(nx, ny - 2f); path.lineTo(nx + reach * 0.7f, ny - 14f + sin(g.time * 47f) * 4f); path.lineTo(nx + reach * 0.65f, ny + 6f); path.lineTo(nx, ny + 3f); path.close()
+    drawPath(path, Color(0xFFFFEB3B).copy(alpha = 0.9f))
+}
+
+private fun DrawScope.drawOverdrive(g: TrainGame) {
+    if (g.overdriveTime <= 0f) return
+    val pulse = 0.55f + 0.45f * sin(g.time * 14f)
+    for (i in 0 until g.slotCount) {
+        if (!g.gunners[i].alive) continue
+        drawCircle(Color(0xFFFFAB00).copy(alpha = 0.55f * pulse), 30f, Offset(g.gunX(i), g.gunY(i) - 26f), style = Stroke(3f))
     }
 }
 
@@ -630,6 +744,7 @@ private fun DrawScope.drawWeapon(weapon: WeaponType, recoil: Float) {
 
 private fun DrawScope.drawGunner(g: TrainGame, slot: Int) {
     val gs = g.gunners[slot]
+    if (!gs.alive) return
     val gx = g.gunX(slot)
     val gy = g.gunY(slot)
     val shirt = Color(SHIRTS[slot % SHIRTS.size])
@@ -664,8 +779,9 @@ private fun DrawScope.drawGunner(g: TrainGame, slot: Int) {
 private fun DrawScope.drawZombie(z: Zombie) {
     val type = z.type
     val size = type.size
+    val isClown = type == ZombieType.CLOWN || type == ZombieType.CLOWN_PRINCE
     val dir = z.facing.toFloat()
-    if (type == ZombieType.BAT) {
+    if (type == ZombieType.BAT || type == ZombieType.GARGOYLE) {
         drawBat(z, dir)
         return
     }
@@ -681,6 +797,8 @@ private fun DrawScope.drawZombie(z: Zombie) {
         ZombieType.TITAN -> 0xFF5C7A4A.toInt()
         ZombieType.BALLOON -> 0xFF86B864.toInt()
         ZombieType.CLOWN -> 0xFFE8DCC8.toInt()
+        ZombieType.CLOWN_PRINCE -> 0xFFE8DCC8.toInt()
+        ZombieType.GARGOYLE -> 0xFF7A7F8C.toInt()
         ZombieType.BAT -> 0xFF4A2F5E.toInt()
     })
     val shirt = tint(when (type) {
@@ -691,10 +809,12 @@ private fun DrawScope.drawZombie(z: Zombie) {
         ZombieType.TITAN -> 0xFF3B2F2F.toInt()
         ZombieType.BALLOON -> 0xFFFF7043.toInt()
         ZombieType.CLOWN -> 0xFFE53935.toInt()
+        ZombieType.CLOWN_PRINCE -> 0xFF8E24AA.toInt()
+        ZombieType.GARGOYLE -> 0xFF4B4F5A.toInt()
         ZombieType.BAT -> 0xFF4A2F5E.toInt()
     })
-    val pants = tint(if (type == ZombieType.CLOWN) 0xFF1E88E5.toInt() else 0xFF3A3F47.toInt())
-    val hop = if (type == ZombieType.CLOWN && !z.attacking) abs(sin(z.anim * 1.2f)) * 7f else 0f
+    val pants = tint(if (isClown) 0xFF1E88E5.toInt() else 0xFF3A3F47.toInt())
+    val hop = if (isClown && !z.attacking) abs(sin(z.anim * 1.2f)) * 7f else 0f
     val hat = if (type == ZombieType.WALKER || type == ZombieType.RUNNER) ((z.seed * 997f).toInt() % 7) else 0
 
     // Ground shadow.
@@ -785,7 +905,15 @@ private fun DrawScope.drawZombie(z: Zombie) {
             drawCircle(Color.Black, 1.5f, Offset(5f + sin(z.anim * 2f) * 1.3f, headY - 2f + cos(z.anim * 2f)))
             drawCircle(Color.Black, 1.4f, Offset(-1f + sin(z.anim * 2f) * 1.3f, headY - 2f + cos(z.anim * 2f)))
         }
-        if (type == ZombieType.CLOWN) {
+        if (type == ZombieType.CLOWN_PRINCE) {
+            for (k in 0..3) { // crown
+                path.rewind(); path.moveTo(-6f + k * 4.6f, headY - 12f); path.lineTo(-4f + k * 4.6f, headY - 22f); path.lineTo(-2f + k * 4.6f, headY - 12f); path.close()
+                drawPath(path, Color(0xFFFFC107))
+            }
+            path.rewind(); path.moveTo(1f, -34f + bob); path.lineTo(-9f, -40f + bob); path.lineTo(-9f, -28f + bob); path.close(); drawPath(path, Color(0xFFFF4081))
+            path.rewind(); path.moveTo(1f, -34f + bob); path.lineTo(11f, -40f + bob); path.lineTo(11f, -28f + bob); path.close(); drawPath(path, Color(0xFFFF4081))
+        }
+        if (isClown) {
             val afro = intArrayOf(0xFFE53935.toInt(), 0xFFFF9800.toInt(), 0xFFFFEB3B.toInt(), 0xFF43A047.toInt(), 0xFF1E88E5.toInt(), 0xFF8E24AA.toInt())
             for (k in afro.indices) drawCircle(tint(afro[k]), 5.6f, Offset(-7f + k * 3.3f, headY - 8f - (k % 2) * 3f))
             drawCircle(Color(0xFFE53935), 3.6f, Offset(8f, headY + 1.5f)) // red nose
@@ -822,9 +950,11 @@ private fun DrawScope.drawZombie(z: Zombie) {
 
 private fun DrawScope.drawBat(z: Zombie, dir: Float) {
     val flap = sin(z.anim)
-    val body = lerp(Color(0xFF4A2F5E), Color.White, z.flash * 0.75f)
-    val wing = lerp(Color(0xFF301E40), Color.White, z.flash * 0.75f)
-    withTransform({ translate(z.x, z.y - 20f); scale(dir, 1f, Offset.Zero) }) {
+    val big = z.type == ZombieType.GARGOYLE
+    val bigScale = if (big) 2.6f else 1f
+    val body = lerp(if (big) Color(0xFF7A7F8C) else Color(0xFF4A2F5E), Color.White, z.flash * 0.75f)
+    val wing = lerp(if (big) Color(0xFF4B4F5A) else Color(0xFF301E40), Color.White, z.flash * 0.75f)
+    withTransform({ translate(z.x, z.y - 20f * bigScale); scale(dir * bigScale, bigScale, Offset.Zero) }) {
         for (sgn in floatArrayOf(-1f, 1f)) {
             path.rewind()
             path.moveTo(sgn * 3f, -3f)
@@ -844,6 +974,12 @@ private fun DrawScope.drawBat(z: Zombie, dir: Float) {
         drawCircle(Color(0xFFD50000), 1f, Offset(-3.5f, -3f)); drawCircle(Color(0xFFD50000), 1f, Offset(3.5f, -3f))
         box(Color.White, -3f, 3.5f, 2f, 4f); box(Color.White, 1f, 3.5f, 2f, 4f) // fangs
         drawOval(Color(0xFFFF6E91), Offset(-2f, 5f), Size(4f, 6f)) // tongue out
+        if (big) {
+            for (k in 0..2) { // crown of horns
+                path.rewind(); path.moveTo(-6f + k * 6f, -10f); path.lineTo(-4f + k * 6f, -20f); path.lineTo(-2f + k * 6f, -10f); path.close()
+                drawPath(path, Color(0xFFFFC107))
+            }
+        }
     }
 }
 
@@ -852,7 +988,8 @@ private fun shirtDark(type: ZombieType): Int = if (type == ZombieType.BLOATER) 0
 // ------------------------------------------------------------------ effects
 
 private fun DrawScope.drawParticles(g: TrainGame, glow: Boolean) {
-    for (p in g.particles) {
+    for (pi in g.particles.indices) {
+        val p = g.particles[pi]
         val t = (p.life / p.maxLife).coerceIn(0f, 1f)
         val isGlow = p.kind == ParticleKind.FIRE || p.kind == ParticleKind.SPARK
         if (isGlow != glow) continue
@@ -886,7 +1023,8 @@ private fun DrawScope.drawGlow(g: TrainGame, night: Float) {
         drawPath(path, Brush.horizontalGradient(listOf(Color(0xFFFFF3B0).copy(alpha = 0.42f * night), Color.Transparent), startX = lampX, endX = lampX + 420f))
         drawCircle(Color(0xFFFFF8D0).copy(alpha = night), 7f, Offset(lampX, 438f))
         drawWindows(g, Color(0xFFFFC96B).copy(alpha = 0.9f * night))
-        for (z in g.zombies) {
+        for (zi in g.zombies.indices) {
+            val z = g.zombies[zi]
             val dir = z.facing.toFloat()
             val ex = z.x + dir * 6f * z.type.size
             val ey = z.y - 45f * z.type.size
@@ -904,6 +1042,8 @@ private fun DrawScope.drawGlow(g: TrainGame, night: Float) {
         val r = if (gs.weapon == WeaponType.CANNON) 20f else 11f
         drawCircle(Brush.radialGradient(listOf(Color(0xFFFFF59D), Color(0xFFFFB300).copy(alpha = 0.6f), Color.Transparent), center = Offset(mx, my), radius = r), r, Offset(mx, my))
     }
+    drawFlame(g)
+    drawOverdrive(g)
     if (g.teslaLevel > 0 && g.teslaFlash > 0f) {
         val cx = g.teslaX
         val cy = g.teslaY - 38f
@@ -912,7 +1052,8 @@ private fun DrawScope.drawGlow(g: TrainGame, night: Float) {
     if (g.flakLevel > 0 && g.flakFlash > 0f) {
         drawCircle(Brush.radialGradient(listOf(Color(0xFFFFF59D), Color.Transparent), center = Offset(g.flakX + 12f, g.flakY - 28f), radius = 18f), 18f, Offset(g.flakX + 12f, g.flakY - 28f))
     }
-    for (t in g.tracers) {
+    for (ti in g.tracers.indices) {
+        val t = g.tracers[ti]
         val a = (t.life / 0.1f).coerceIn(0.3f, 1f)
         if (t.jagged) {
             var px = t.x1
@@ -950,30 +1091,38 @@ private fun DrawScope.drawHud(g: TrainGame) {
     val frac = (g.hp / g.maxHp).coerceIn(0f, 1f)
     val hpColor = lerp(Color(0xFFE53935), Color(0xFF66BB6A), frac)
     rbox(hpColor, barX + 2f * u, barY + 2f * u, (barW - 4f * u) * frac, barH - 4f * u, 5f * u)
-    outlinedText("TRAIN  ${g.hp.toInt()}/${g.maxHp.toInt()}", barX + barW / 2f, barY + barH - 3.5f * u, 11f * u, 0xFFFFFFFF.toInt())
+    outlinedText(hpText.get(g.hp.toInt() * 100000 + g.maxHp.toInt()) { "TRAIN  ${g.hp.toInt()}/${g.maxHp.toInt()}" }, barX + barW / 2f, barY + barH - 3.5f * u, 11f * u, 0xFFFFFFFF.toInt())
 
     // Coins.
     drawCircle(Color(0xFFFFC107), 8f * u, Offset(barX + 8f * u, barY + 36f * u))
     drawCircle(Color(0xFFFFE082), 4.5f * u, Offset(barX + 8f * u, barY + 36f * u), style = Stroke(1.6f * u))
-    withTransformLeft(barX + 22f * u) { outlinedText("${g.runCoins}", 0f, barY + 41f * u, 15f * u, 0xFFFFD54F.toInt()) }
+    withTransformLeft(barX + 22f * u) { outlinedText(coinText.get(g.runCoins) { g.runCoins.toString() }, 0f, barY + 41f * u, 15f * u, 0xFFFFD54F.toInt()) }
 
     // Distance / kills on the right.
-    outlinedText("${g.distanceMeters} m", size.width - 110f * u, barY + 14f * u, 15f * u, 0xFFFFFFFF.toInt())
-    outlinedText("${g.kills} kills", size.width - 110f * u, barY + 32f * u, 11f * u, 0xFFE0E0E0.toInt())
+    outlinedText(distText.get(g.distanceMeters) { "${g.distanceMeters} m" }, size.width - 110f * u, barY + 14f * u, 15f * u, 0xFFFFFFFF.toInt())
+    outlinedText(killText.get(g.kills) { "${g.kills} kills" }, size.width - 110f * u, barY + 32f * u, 11f * u, 0xFFE0E0E0.toInt())
 
-    val coinText = "%.2f".format(g.biome.coinMult).trimEnd('0').trimEnd('.')
     outlinedText(
-        if (g.biome == Biome.PLAINS) g.biome.displayName else g.biome.displayName + "  x" + coinText + " coins",
+        biomeText.get(g.biome.ordinal) {
+            if (g.biome == Biome.PLAINS) g.biome.displayName
+            else g.biome.displayName + "  x" + "%.2f".format(g.biome.coinMult).trimEnd('0').trimEnd('.') + " coins"
+        },
         size.width - 110f * u, barY + 46f * u, 10f * u, g.biome.accent.toInt()
     )
+    outlinedText(speedText.get((g.speedFactor * 100f).toInt()) { "${(60f * g.speedFactor).toInt()} km/h" }, size.width - 110f * u, barY + 59f * u, 10f * u, 0xFFB0BEC5.toInt())
 
     g.boss?.let { boss ->
         val w = 240f * u
         val x = (size.width - w) / 2f
         val y = 14f * u
         rbox(Color.Black.copy(alpha = 0.6f), x, y, w, 14f * u, 6f * u)
-        rbox(Color(0xFF8E24AA), x + 2f * u, y + 2f * u, (w - 4f * u) * (boss.hp / boss.maxHp).coerceIn(0f, 1f), 10f * u, 5f * u)
-        outlinedText("TITAN", size.width / 2f, y + 11f * u, 10f * u, 0xFFFFFFFF.toInt())
+        val bossColor = when (boss.type) {
+            ZombieType.GARGOYLE -> Color(0xFF78909C)
+            ZombieType.CLOWN_PRINCE -> Color(0xFFE91E63)
+            else -> Color(0xFF8E24AA)
+        }
+        rbox(bossColor, x + 2f * u, y + 2f * u, (w - 4f * u) * (boss.hp / boss.maxHp).coerceIn(0f, 1f), 10f * u, 5f * u)
+        outlinedText(bossText.get(g.bossName.hashCode()) { g.bossName.uppercase() }, size.width / 2f, y + 11f * u, 10f * u, 0xFFFFFFFF.toInt())
     }
     if (g.biomeBanner > 0f) {
         val a = g.biomeBanner.coerceIn(0f, 1f)
@@ -984,6 +1133,14 @@ private fun DrawScope.drawHud(g: TrainGame) {
         val pulse = 0.65f + 0.35f * sin(g.time * 12f)
         outlinedText("BOSS APPROACHING!", size.width / 2f, size.height * 0.3f, 26f * u, 0xFFFF5252.toInt(), pulse)
     }
+    if (g.hordeWarning > 0f) {
+        val pulse = 0.65f + 0.35f * sin(g.time * 14f)
+        outlinedText(if (g.hordeFromLeft) "HORDE INCOMING FROM THE LEFT!" else "HORDE INCOMING FROM THE RIGHT!", size.width / 2f, size.height * 0.24f, 22f * u, 0xFFFF7043.toInt(), pulse)
+    } else if (g.hordeTime > 0f) {
+        outlinedText("HORDE - coins x1.5", size.width / 2f, size.height * 0.2f, 12f * u, 0xFFFFAB91.toInt())
+    }
+    if (g.overdriveTime > 0f) outlinedText("OVERDRIVE", size.width / 2f, size.height * 0.16f, 14f * u, 0xFFFFAB00.toInt())
+    if (g.buffActive) outlinedText("DAMAGE BOOST", size.width / 2f, size.height * 0.16f + 16f * u, 11f * u, 0xFFFF8A65.toInt())
 }
 
 // ------------------------------------------------------------------ field guide portraits
@@ -993,6 +1150,7 @@ fun DrawScope.drawZombiePortrait(type: ZombieType, timeSeconds: Float) {
     val height = when (type) {
         ZombieType.BALLOON -> 150f
         ZombieType.BAT -> 48f
+        ZombieType.GARGOYLE -> 120f
         ZombieType.TITAN -> 150f
         else -> 74f * max(1f, type.size)
     }
@@ -1001,7 +1159,11 @@ fun DrawScope.drawZombiePortrait(type: ZombieType, timeSeconds: Float) {
     z.facing = 1
     z.anim = timeSeconds * 3f
     z.x = size.width / (2f * k)
-    z.y = if (type == ZombieType.BAT) height * 0.62f else height - 4f
+    z.y = when (type) {
+        ZombieType.BAT -> height * 0.62f
+        ZombieType.GARGOYLE -> height * 0.75f
+        else -> height - 4f
+    }
     withTransform({ scale(k, k, Offset.Zero) }) { drawZombie(z) }
 }
 
