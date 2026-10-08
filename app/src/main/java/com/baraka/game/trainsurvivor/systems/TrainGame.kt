@@ -1,6 +1,7 @@
 package com.baraka.game.trainsurvivor.systems
 
 import com.baraka.game.trainsurvivor.data.TrainSoundCue
+import com.baraka.game.trainsurvivor.model.Biome
 import com.baraka.game.trainsurvivor.model.SaveData
 import com.baraka.game.trainsurvivor.model.TrainUpgrade
 import com.baraka.game.trainsurvivor.model.WeaponType
@@ -43,6 +44,11 @@ class Particle(
 )
 
 class Tracer(val x1: Float, val y1: Float, val x2: Float, val y2: Float, var life: Float, val width: Float, val color: Int)
+
+/** A fork in the track: the player has until [timeLeft] runs out to pick; [chosen] is set once they (or the timeout) do. */
+class Junction(val optionA: Biome, val optionB: Biome, var timeLeft: Float) {
+    var chosen: Biome? = null
+}
 
 class FloatingText(var x: Float, var y: Float, val text: String, var life: Float, val color: Int)
 
@@ -109,6 +115,18 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     val dynamiteDamage = 90f + 70f * dynamiteLevel
     var boss: Zombie? = null
 
+    // ---- routes ----
+    var biome = Biome.PLAINS
+    var fromBiome = Biome.PLAINS
+    var nextBiome = Biome.PLAINS
+    var junction: Junction? = null
+    var transitioning = false
+    /** While [transitioning], the screen x where the old biome (left) meets the new one (right); it sweeps left as the train drives on. */
+    var boundaryX = 0f
+    var biomeBanner = 0f
+    private var biomeSwitched = false
+    private var nextJunctionAt = 40f
+
     val zombies = ArrayList<Zombie>()
     val particles = ArrayList<Particle>()
     val tracers = ArrayList<Tracer>()
@@ -144,13 +162,14 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         shake = max(0f, shake - dt * 2.2f)
         hitFlash = max(0f, hitFlash - dt * 3f)
         bossAlert = max(0f, bossAlert - dt)
+        biomeBanner = max(0f, biomeBanner - dt)
         hitSoundGap -= dt
 
         if (!over) {
             distance += 14f * dt
             dynamiteCooldown = max(0f, dynamiteCooldown - dt)
             hp = min(maxHp, hp + regenPerSecond * dt)
-            if (spawnEnabled) spawn(dt)
+            if (spawnEnabled) { updateRoute(dt); spawn(dt) }
             updateZombies(dt)
             updateGunners(dt)
             if (hp <= 0f) endRun()
@@ -161,6 +180,46 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         updateEffects(dt)
         zombies.removeAll { it.dead }
         if (boss?.dead == true) boss = null
+    }
+
+    // ---------------------------------------------------------------- routes
+
+    private fun updateRoute(dt: Float) {
+        val j = junction
+        if (j == null && !transitioning && time >= nextJunctionAt) {
+            val options = Biome.entries.filter { it != biome }.shuffled(rng)
+            junction = Junction(options[0], options[1], 8f)
+        } else if (j != null && j.chosen == null) {
+            j.timeLeft -= dt
+            if (j.timeLeft <= 0f) chooseRoute(j.optionA)
+        }
+        if (transitioning) {
+            boundaryX -= WORLD_SPEED * dt
+            if (!biomeSwitched && boundaryX <= worldW / 2f) {
+                biomeSwitched = true
+                biome = nextBiome
+                biomeBanner = 4f
+                sound(TrainSoundCue.UPGRADE)
+            }
+            if (boundaryX < -200f) {
+                transitioning = false
+                junction = null
+                nextJunctionAt = time + 50f
+            }
+        }
+    }
+
+    /** Throws the switch: the chosen route's scenery sweeps in from the right and the gameplay modifiers apply once it reaches the train. */
+    fun chooseRoute(choice: Biome) {
+        val j = junction ?: return
+        if (j.chosen != null || transitioning) return
+        j.chosen = choice
+        fromBiome = biome
+        nextBiome = choice
+        boundaryX = worldW + 60f
+        biomeSwitched = false
+        transitioning = true
+        sound(TrainSoundCue.UPGRADE)
     }
 
     fun useDynamite() {
@@ -187,7 +246,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             spawnBoss()
             nextBossAt += 80f
         }
-        val rate = (0.45f + time * 0.011f).coerceAtMost(2.8f)
+        val rate = (0.45f + time * 0.011f).coerceAtMost(2.8f) * biome.spawnMult
         spawnAccumulator += dt * rate
         while (spawnAccumulator >= 1f) {
             spawnAccumulator -= 1f
@@ -196,12 +255,19 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     }
 
     private fun pickType(): ZombieType {
-        val weights = floatArrayOf(
-            10f,
-            if (time > 20f) 4f + time / 30f else 0f,
-            if (time > 70f) 1.5f + (time - 70f) / 60f else 0f,
-            if (time > 45f) 2.5f else 0f
-        )
+        var runner = if (time > 20f) 4f + time / 30f else 0f
+        var brute = if (time > 70f) 1.5f + (time - 70f) / 60f else 0f
+        var bloater = if (time > 45f) 2.5f else 0f
+        when (biome) {
+            Biome.DESERT -> runner = max(runner, 4f) * 2.5f
+            Biome.MOUNTAIN -> brute = (if (time > 40f) max(brute, 1.5f) else brute) * 1.8f
+            Biome.GRAVEYARD -> {
+                brute = (if (time > 30f) max(brute, 1.5f) else brute) * 2.5f
+                bloater = (if (time > 20f) max(bloater, 2.5f) else bloater) * 3f
+            }
+            else -> {}
+        }
+        val weights = floatArrayOf(10f, runner, brute, bloater)
         val types = arrayOf(ZombieType.WALKER, ZombieType.RUNNER, ZombieType.BRUTE, ZombieType.BLOATER)
         var roll = rng.nextFloat() * weights.sum()
         for (i in types.indices) {
@@ -214,8 +280,8 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     private fun spawnZombie(type: ZombieType) {
         val side = if (rng.nextBoolean()) 1 else -1
         val x = if (side > 0) worldW + 40f + rng.nextFloat() * 80f else -40f - rng.nextFloat() * 80f
-        val hpScale = 1f + time / 45f
-        zombies.add(Zombie(type, x, RAIL_Y + 24f + rng.nextFloat() * 36f, side, type.hp * hpScale, 1f + time / 140f, rng.nextFloat()))
+        val hpScale = (1f + time / 45f) * biome.hpMult
+        zombies.add(Zombie(type, x, RAIL_Y + 24f + rng.nextFloat() * 36f, side, type.hp * hpScale, (1f + time / 140f) * biome.dmgMult, rng.nextFloat()))
     }
 
     private fun spawnBoss() {
@@ -287,7 +353,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     private fun killZombie(z: Zombie) {
         z.dead = true
         kills++
-        val coins = max(1, (z.type.coins * bountyMultiplier).roundToInt())
+        val coins = max(1, (z.type.coins * bountyMultiplier * biome.coinMult).roundToInt())
         runCoins += coins
         texts.add(FloatingText(z.x, z.y - 60f * z.type.size, "+$coins", 1.0f, 0xFFFFD54F.toInt()))
         greenBurst(z.x, z.y - 24f * z.type.size, if (z.isBoss) 60 else 12)

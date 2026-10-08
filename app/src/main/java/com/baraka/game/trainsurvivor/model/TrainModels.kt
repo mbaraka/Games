@@ -54,6 +54,23 @@ enum class ZombieType(
     TITAN("Titan", 1500f, 22f, 42f, 150, 2.4f)
 }
 
+/** A stretch of track the player can route onto at a junction: new scenery plus a risk/reward trade. */
+enum class Biome(
+    val displayName: String,
+    val tagline: String,
+    val coinMult: Float,
+    val hpMult: Float,
+    val spawnMult: Float,
+    val dmgMult: Float,
+    val accent: Long
+) {
+    PLAINS("Open Plains", "Steady and familiar", 1.0f, 1.0f, 1.0f, 1.0f, 0xFF8BC34A),
+    MOUNTAIN("Mountain Pass", "Frozen, tougher zombies", 1.5f, 1.3f, 1.0f, 1.0f, 0xFF81D4FA),
+    TUNNEL("Dark Tunnel", "Dense hordes in the dark", 1.35f, 1.0f, 1.4f, 1.0f, 0xFFFFB74D),
+    DESERT("Scorched Desert", "Fast swarming runners", 1.25f, 0.9f, 1.25f, 1.0f, 0xFFFFD54F),
+    GRAVEYARD("Haunted Graveyard", "Brutes and bloaters hit hard", 1.6f, 1.1f, 1.0f, 1.2f, 0xFFB39DDB)
+}
+
 data class CrewSlot(val weaponTier: Int = 0, val power: Int = 0) {
     val weapon: WeaponType get() = WeaponType.entries[weaponTier]
     val damage: Float get() = weapon.damage * (1f + 0.3f * power)

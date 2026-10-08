@@ -8,11 +8,15 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
+import com.baraka.game.trainsurvivor.model.Biome
 import com.baraka.game.trainsurvivor.model.WeaponType
 import com.baraka.game.trainsurvivor.model.ZombieType
 import com.baraka.game.trainsurvivor.systems.CAR_W
@@ -71,6 +75,16 @@ private fun DrawScope.outlinedText(text: String, x: Float, y: Float, size: Float
     canvas.drawText(text, x, y, textPaint)
 }
 
+/** Draws [block] once for the whole screen, or twice (old biome left of the route boundary, new biome right of it) while a route change sweeps past. */
+private inline fun DrawScope.forRegions(g: TrainGame, block: DrawScope.(Biome) -> Unit) {
+    if (!g.transitioning) {
+        block(g.biome)
+        return
+    }
+    clipRect(-400f, -1400f, g.boundaryX, 1400f) { block(g.fromBiome) }
+    clipRect(g.boundaryX, -1400f, g.worldW + 400f, 1400f) { block(g.nextBiome) }
+}
+
 /**
  * Draws one frame of the whole scene. [topOffset] shifts the camera down (garage preview crops to the train);
  * the world is scaled so [TrainGame.worldW] logical units span the canvas width.
@@ -88,17 +102,22 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
         scale(s, s, Offset.Zero)
         translate(shakeX, -topOffset + shakeY)
     }) {
-        drawSky(g, light, sunset)
-        drawMountains(g, light)
-        drawGround(g, light)
-        drawBackScenery(g, light)
+        forRegions(g) { biome -> drawBackdrop(g, biome, light, sunset) }
+        drawTransitionArt(g)
         drawRails(g)
         drawTrain(g, light)
         for (z in g.zombies.sortedBy { it.y }) drawZombie(z)
         drawParticles(g, glow = false)
-        drawForeground(g, light)
-        drawRect(Color(0xFF050A24).copy(alpha = night * 0.5f), Offset(-200f, -1200f), Size(g.worldW + 400f, 2400f))
-        drawGlow(g, night)
+        forRegions(g) { biome ->
+            drawForeground(g, biome, light)
+            drawWeather(g, biome)
+        }
+        forRegions(g) { biome ->
+            val darkness = if (biome == Biome.TUNNEL) 0.62f else night * 0.5f
+            drawRect(Color(0xFF050A24).copy(alpha = darkness), Offset(-200f, -1200f), Size(g.worldW + 400f, 2400f))
+            if (biome == Biome.TUNNEL) drawTunnelLampGlow(g)
+        }
+        drawGlow(g, if (g.biome == Biome.TUNNEL) 0.9f else night)
         drawParticles(g, glow = true)
         for (t in g.texts) outlinedText(t.text, t.x, t.y, 22f, t.color, (t.life / 1f).coerceIn(0f, 1f))
     }
@@ -107,9 +126,35 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
 
 // ------------------------------------------------------------------ environment
 
-private fun DrawScope.drawSky(g: TrainGame, light: Float, sunset: Float) {
-    val top = lerp(lerp(NIGHT_TOP, DAY_TOP, light), SUNSET_TOP, sunset * 0.65f)
-    val bottom = lerp(lerp(NIGHT_BOTTOM, DAY_BOTTOM, light), SUNSET_BOTTOM, sunset * 0.8f)
+private class BiomeStyle(
+    val dayTop: Color, val dayBottom: Color,
+    val farRock: Color, val nearRock: Color, val farAmp: Float, val nearAmp: Float, val snowCaps: Boolean,
+    val groundTop: Color, val groundBottom: Color,
+    val foreground: Color, val tuft: Color
+)
+
+private fun styleOf(biome: Biome): BiomeStyle = when (biome) {
+    Biome.PLAINS -> BiomeStyle(DAY_TOP, DAY_BOTTOM, Color(0xFF8FA9C9), Color(0xFF6F8A9E), 190f, 120f, false, Color(0xFF9A8A58), Color(0xFF5E5236), Color(0xFF6B6558), Color(0xFF55703A))
+    Biome.MOUNTAIN -> BiomeStyle(Color(0xFF5B9BD5), Color(0xFFDCEBF7), Color(0xFF7E8DA0), Color(0xFF5F6F82), 280f, 170f, true, Color(0xFFE6EEF4), Color(0xFFB0C0D2), Color(0xFFC9D6E2), Color(0xFFF2F7FB))
+    Biome.DESERT -> BiomeStyle(Color(0xFF4A9AD6), Color(0xFFFAD9A0), Color(0xFFC48E5E), Color(0xFFD9A86C), 110f, 70f, false, Color(0xFFD9B26F), Color(0xFF9A7B45), Color(0xFFB38A55), Color(0xFF7E9A3A))
+    Biome.GRAVEYARD -> BiomeStyle(Color(0xFF5A5470), Color(0xFFB9A7C8), Color(0xFF4A4562), Color(0xFF383450), 170f, 110f, false, Color(0xFF4C5A44), Color(0xFF2B3427), Color(0xFF3A3A44), Color(0xFF3A5A34))
+    Biome.TUNNEL -> BiomeStyle(DAY_TOP, DAY_BOTTOM, Color.Black, Color.Black, 0f, 0f, false, Color(0xFF3A3530), Color(0xFF1E1B18), Color(0xFF2A2622), Color(0xFF3A3530))
+}
+
+/** Draws one region's static world (sky or tunnel wall, mountains, ground, back scenery) in the given biome's look. */
+private fun DrawScope.drawBackdrop(g: TrainGame, biome: Biome, light: Float, sunset: Float) {
+    val style = styleOf(biome)
+    if (biome == Biome.TUNNEL) drawTunnelWall(g) else {
+        drawSky(g, style, light, sunset)
+        drawMountains(g, style, light)
+    }
+    drawGround(g, style, light)
+    if (biome != Biome.TUNNEL) drawBackScenery(g, biome, light)
+}
+
+private fun DrawScope.drawSky(g: TrainGame, style: BiomeStyle, light: Float, sunset: Float) {
+    val top = lerp(lerp(NIGHT_TOP, style.dayTop, light), SUNSET_TOP, sunset * 0.65f)
+    val bottom = lerp(lerp(NIGHT_BOTTOM, style.dayBottom, light), SUNSET_BOTTOM, sunset * 0.8f)
     drawRect(Brush.verticalGradient(listOf(top, bottom), startY = 0f, endY = HORIZON + 30f), Offset(-200f, -1200f), Size(g.worldW + 400f, HORIZON + 1230f))
 
     val night = 1f - light
@@ -147,7 +192,7 @@ private fun DrawScope.drawSky(g: TrainGame, light: Float, sunset: Float) {
     }
 }
 
-private fun DrawScope.drawRange(g: TrainGame, base: Float, amp: Float, freq: Float, parallax: Float, color: Color, phase: Float) {
+private fun DrawScope.drawRange(g: TrainGame, base: Float, amp: Float, freq: Float, parallax: Float, brush: Brush, phase: Float) {
     path.rewind()
     path.moveTo(-20f, HORIZON + 60f)
     var x = -20f
@@ -159,50 +204,137 @@ private fun DrawScope.drawRange(g: TrainGame, base: Float, amp: Float, freq: Flo
     }
     path.lineTo(g.worldW + 30f, HORIZON + 60f)
     path.close()
-    drawPath(path, color)
+    drawPath(path, brush)
 }
 
-private fun DrawScope.drawMountains(g: TrainGame, light: Float) {
-    drawRange(g, HORIZON - 8f, 190f, 0.0042f, 0.06f, lerp(Color(0xFF111B38), Color(0xFF8FA9C9), light), 0f)
-    drawRange(g, HORIZON + 6f, 120f, 0.0068f, 0.14f, lerp(Color(0xFF0B1228), Color(0xFF6F8A9E), light), 2.4f)
+private fun rangeBrush(base: Float, amp: Float, rock: Color, snowCaps: Boolean, light: Float): Brush {
+    if (!snowCaps) return SolidColor(rock)
+    val snow = lerp(Color(0xFF3A4668), Color.White, light)
+    return Brush.verticalGradient(listOf(snow, snow, rock), startY = base - amp, endY = base)
 }
 
-private fun DrawScope.drawGround(g: TrainGame, light: Float) {
-    val top = lerp(Color(0xFF1B2230), Color(0xFF9A8A58), light)
-    val bottom = lerp(Color(0xFF0E121B), Color(0xFF5E5236), light)
+private fun DrawScope.drawMountains(g: TrainGame, style: BiomeStyle, light: Float) {
+    val farBase = HORIZON - 8f
+    val nearBase = HORIZON + 6f
+    val far = lerp(Color(0xFF111B38), style.farRock, light)
+    val near = lerp(Color(0xFF0B1228), style.nearRock, light)
+    drawRange(g, farBase, style.farAmp, 0.0042f, 0.06f, rangeBrush(farBase, style.farAmp, far, style.snowCaps, light), 0f)
+    drawRange(g, nearBase, style.nearAmp, 0.0068f, 0.14f, rangeBrush(nearBase, style.nearAmp, near, style.snowCaps, light), 2.4f)
+}
+
+private fun DrawScope.drawGround(g: TrainGame, style: BiomeStyle, light: Float) {
+    val top = lerp(Color(0xFF1B2230), style.groundTop, light.coerceAtLeast(0.15f))
+    val bottom = lerp(Color(0xFF0E121B), style.groundBottom, light.coerceAtLeast(0.15f))
     drawRect(Brush.verticalGradient(listOf(top, bottom), startY = HORIZON, endY = 720f), Offset(-200f, HORIZON), Size(g.worldW + 400f, 800f))
 }
 
-private fun DrawScope.drawBackScenery(g: TrainGame, light: Float) {
-    val spacing = 230f
+private fun DrawScope.drawTunnelWall(g: TrainGame) {
+    drawRect(
+        Brush.verticalGradient(listOf(Color(0xFF14110F), Color(0xFF3A342E), Color(0xFF2A2622)), startY = -100f, endY = HORIZON + 20f),
+        Offset(-200f, -1200f), Size(g.worldW + 400f, HORIZON + 1220f)
+    )
+    // Rock strata.
+    val span = 190f
+    val first = (g.scroll / span).toInt() - 1
+    val count = (g.worldW / span).toInt() + 3
+    for (idx in first until first + count) {
+        for (row in 0 until 7) {
+            val h = hash(idx * 31 + row)
+            val x = idx * span + h * 120f - g.scroll
+            box(Color.Black.copy(alpha = 0.16f), x, 110f + row * 52f + h * 10f, 50f + h * 110f, 3f)
+        }
+    }
+    // Timber supports and hanging lamps.
+    val gap = 300f
+    val f = (g.scroll / gap).toInt() - 1
+    for (i in f..f + (g.worldW / gap).toInt() + 3) {
+        val x = i * gap - g.scroll
+        box(Color(0xFF3B2A1C), x, 80f, 18f, 400f)
+        box(Color(0xFF4A3524), x - 8f, 76f, gap * 0.5f + 10f, 14f)
+        drawLine(Color(0xFF3B2A1C), Offset(x + 18f, 150f), Offset(x + 70f, 92f), 8f)
+        val lx = x + gap * 0.5f + 30f
+        drawLine(Color(0xFF222222), Offset(lx, 0f), Offset(lx, 118f), 2f)
+        drawCircle(Color(0xFFFFE0A0), 7f, Offset(lx, 122f))
+        drawCircle(Color(0xFF333333), 8f, Offset(lx, 122f), style = Stroke(2f))
+    }
+    drawRect(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.75f), Color.Transparent), startY = -50f, endY = 140f), Offset(-200f, -50f), Size(g.worldW + 400f, 190f))
+}
+
+private fun DrawScope.drawTunnelLampGlow(g: TrainGame) {
+    val gap = 300f
+    val f = (g.scroll / gap).toInt() - 1
+    for (i in f..f + (g.worldW / gap).toInt() + 3) {
+        val lx = i * gap - g.scroll + gap * 0.5f + 30f
+        drawCircle(Brush.radialGradient(listOf(Color(0xFFFFD58A).copy(alpha = 0.55f), Color.Transparent), center = Offset(lx, 122f), radius = 190f), 190f, Offset(lx, 122f))
+    }
+}
+
+private fun DrawScope.drawDeadTree(color: Color, x: Float, baseY: Float, h: Float) {
+    drawLine(color, Offset(x, baseY), Offset(x, baseY - h), 4f)
+    drawLine(color, Offset(x, baseY - h * 0.55f), Offset(x - 18f, baseY - h * 0.85f), 3f)
+    drawLine(color, Offset(x, baseY - h * 0.7f), Offset(x + 16f, baseY - h * 0.98f), 3f)
+}
+
+private fun DrawScope.drawBackScenery(g: TrainGame, biome: Biome, light: Float) {
+    val spacing = if (biome == Biome.DESERT) 300f else 230f
     val parallax = 0.55f
     val first = ((g.scroll * parallax - 100f) / spacing).toInt() - 1
     val last = ((g.scroll * parallax + g.worldW + 100f) / spacing).toInt() + 1
     val trunk = lerp(Color(0xFF0B0F18), Color(0xFF4A3A2A), light)
     val leaf = lerp(Color(0xFF0B1A14), Color(0xFF3E6B3A), light)
+    val snow = lerp(Color(0xFF3A4668), Color.White, light)
+    val stone = lerp(Color(0xFF0C0E14), Color(0xFF8A8A94), light)
+    val cactus = lerp(Color(0xFF0B1A12), Color(0xFF4F8A45), light)
     for (i in first..last) {
         val r = hash(i)
         if (r < 0.25f) continue
         val x = i * spacing + r * 120f - g.scroll * parallax
         val h = 50f + hash(i + 77) * 50f
         val baseY = RAIL_Y - 4f
-        if (r < 0.6f) {
-            // Dead tree.
-            drawLine(trunk, Offset(x, baseY), Offset(x, baseY - h), 4f)
-            drawLine(trunk, Offset(x, baseY - h * 0.55f), Offset(x - 18f, baseY - h * 0.85f), 3f)
-            drawLine(trunk, Offset(x, baseY - h * 0.7f), Offset(x + 16f, baseY - h * 0.98f), 3f)
-        } else {
-            // Pine.
-            for (k in 0..2) {
-                path.rewind()
-                val y0 = baseY - k * h * 0.28f
-                path.moveTo(x - 20f + k * 4f, y0)
-                path.lineTo(x, y0 - h * 0.45f)
-                path.lineTo(x + 20f - k * 4f, y0)
-                path.close()
-                drawPath(path, leaf)
+        when (biome) {
+            Biome.DESERT -> {
+                drawLine(cactus, Offset(x, baseY), Offset(x, baseY - h), 8f, cap = StrokeCap.Round)
+                drawLine(cactus, Offset(x, baseY - h * 0.45f), Offset(x - 16f, baseY - h * 0.45f), 6f, cap = StrokeCap.Round)
+                drawLine(cactus, Offset(x - 16f, baseY - h * 0.45f), Offset(x - 16f, baseY - h * 0.75f), 6f, cap = StrokeCap.Round)
+                drawLine(cactus, Offset(x, baseY - h * 0.6f), Offset(x + 15f, baseY - h * 0.6f), 6f, cap = StrokeCap.Round)
+                drawLine(cactus, Offset(x + 15f, baseY - h * 0.6f), Offset(x + 15f, baseY - h * 0.85f), 6f, cap = StrokeCap.Round)
             }
-            drawRect(trunk, Offset(x - 2f, baseY - 6f), Size(4f, 8f))
+            Biome.GRAVEYARD -> when {
+                r < 0.5f -> drawDeadTree(trunk, x, baseY, h)
+                r < 0.75f -> {
+                    box(stone, x - 3f, baseY - 34f, 6f, 36f)
+                    box(stone, x - 12f, baseY - 26f, 24f, 6f)
+                }
+                else -> {
+                    rbox(stone, x - 11f, baseY - 30f, 22f, 32f, 10f)
+                    box(Color.Black.copy(alpha = 0.25f), x - 6f, baseY - 20f, 12f, 2f)
+                }
+            }
+            Biome.MOUNTAIN, Biome.PLAINS -> {
+                if (biome == Biome.PLAINS && r < 0.6f) {
+                    drawDeadTree(trunk, x, baseY, h)
+                } else {
+                    for (k in 0..2) {
+                        path.rewind()
+                        val y0 = baseY - k * h * 0.28f
+                        path.moveTo(x - 20f + k * 4f, y0)
+                        path.lineTo(x, y0 - h * 0.45f)
+                        path.lineTo(x + 20f - k * 4f, y0)
+                        path.close()
+                        drawPath(path, leaf)
+                        if (biome == Biome.MOUNTAIN) {
+                            path.rewind()
+                            path.moveTo(x - 9f + k * 2f, y0 - h * 0.2f)
+                            path.lineTo(x, y0 - h * 0.45f)
+                            path.lineTo(x + 9f - k * 2f, y0 - h * 0.2f)
+                            path.close()
+                            drawPath(path, snow)
+                        }
+                    }
+                    drawRect(trunk, Offset(x - 2f, baseY - 6f), Size(4f, 8f))
+                }
+            }
+            Biome.TUNNEL -> {}
         }
     }
 }
@@ -219,13 +351,15 @@ private fun DrawScope.drawRails(g: TrainGame) {
     box(Color(0xFF6D737C), -200f, RAIL_Y + 3f, g.worldW + 400f, 2f)
 }
 
-private fun DrawScope.drawForeground(g: TrainGame, light: Float) {
+private fun DrawScope.drawForeground(g: TrainGame, biome: Biome, light: Float) {
+    if (biome == Biome.TUNNEL) return
+    val style = styleOf(biome)
     val spacing = 310f
     val parallax = 1.35f
     val first = ((g.scroll * parallax - 100f) / spacing).toInt() - 1
     val last = ((g.scroll * parallax + g.worldW + 100f) / spacing).toInt() + 1
-    val rock = lerp(Color(0xFF0A0D14), Color(0xFF6B6558), light)
-    val grass = lerp(Color(0xFF0C1710), Color(0xFF55703A), light)
+    val rock = lerp(Color(0xFF0A0D14), style.foreground, light)
+    val grass = lerp(Color(0xFF0C1710), style.tuft, light)
     for (i in first..last) {
         val r = hash(i + 500)
         val x = i * spacing + r * 200f - g.scroll * parallax
@@ -236,6 +370,64 @@ private fun DrawScope.drawForeground(g: TrainGame, light: Float) {
             for (k in 0..4) drawLine(grass, Offset(x + k * 5f, y + 14f), Offset(x + k * 7f - 8f, y - 10f - (k % 3) * 5f), 2.5f)
         }
     }
+}
+
+/** Biome weather drawn over the action: snowfall, graveyard fog, desert dust. */
+private fun DrawScope.drawWeather(g: TrainGame, biome: Biome) {
+    when (biome) {
+        Biome.MOUNTAIN -> {
+            val span = g.worldW + 300f
+            for (i in 0 until 110) {
+                val x = ((hash(i) * span - g.time * (40f + hash(i + 1) * 50f) + sin(g.time + i) * 14f) % span + span) % span - 100f
+                val y = (hash(i + 9) * 760f + g.time * (50f + hash(i + 3) * 60f)) % 740f - 20f
+                drawCircle(Color.White.copy(alpha = 0.85f), 1.3f + hash(i + 5) * 2f, Offset(x, y))
+            }
+        }
+        Biome.GRAVEYARD -> {
+            drawRect(
+                Brush.verticalGradient(listOf(Color.Transparent, Color(0xFFC9B8E0).copy(alpha = 0.26f), Color.Transparent), startY = 410f, endY = 600f),
+                Offset(-200f, 410f), Size(g.worldW + 400f, 190f)
+            )
+            for (i in 0 until 6) {
+                val span = g.worldW + 500f
+                val x = ((i * 330f - g.time * (14f + i * 4f)) % span + span) % span - 250f
+                drawOval(Color(0xFFD8CCE8).copy(alpha = 0.09f), Offset(x, 470f + (i % 3) * 38f), Size(340f, 50f))
+            }
+        }
+        Biome.DESERT -> {
+            val span = g.worldW + 300f
+            for (i in 0 until 14) {
+                val x = ((hash(i) * span - g.time * (320f + hash(i + 2) * 200f)) % span + span) % span - 100f
+                val y = 520f + hash(i + 7) * 190f
+                drawLine(Color(0xFFE8CFA0).copy(alpha = 0.3f), Offset(x, y), Offset(x + 34f + hash(i + 4) * 30f, y), 1.8f)
+            }
+        }
+        else -> {}
+    }
+}
+
+/** The fork where the route changes: signpost, lever and the branch not taken, plus a stone portal when a tunnel is involved. */
+private fun DrawScope.drawTransitionArt(g: TrainGame) {
+    if (!g.transitioning) return
+    val bx = g.boundaryX
+    if (g.fromBiome == Biome.TUNNEL || g.nextBiome == Biome.TUNNEL) {
+        box(Color(0xFF59544C), bx - 30f, -1300f, 60f, 2000f)
+        var y = -1300f
+        while (y < 720f) { box(Color.Black.copy(alpha = 0.25f), bx - 30f, y, 60f, 2f); y += 26f }
+        box(Color(0xFF3C3832), bx - 30f, -1300f, 8f, 2000f)
+    }
+    // The branch not taken peels off toward the foreground.
+    drawLine(Color(0xFF8A9098), Offset(bx, RAIL_Y + 6f), Offset(bx + 320f, RAIL_Y + 78f), 4f)
+    drawLine(Color(0xFF3A2E24), Offset(bx, RAIL_Y + 14f), Offset(bx + 320f, RAIL_Y + 86f), 3f)
+    // Signpost with the destination board and a switch lever.
+    val px = bx + 70f
+    drawLine(Color(0xFF4A4F58), Offset(px, RAIL_Y - 2f), Offset(px, RAIL_Y - 120f), 5f)
+    rbox(Color(0xFF3E2F1F), px - 70f, RAIL_Y - 150f, 140f, 30f, 6f)
+    outlinedText(g.nextBiome.displayName, px, RAIL_Y - 129f, 15f, g.nextBiome.accent.toInt())
+    drawCircle(Color(0xFF4CAF50), 7f, Offset(px, RAIL_Y - 104f))
+    drawCircle(Color(0xFF4CAF50).copy(alpha = 0.3f), 15f, Offset(px, RAIL_Y - 104f))
+    box(Color(0xFF30343B), px + 14f, RAIL_Y - 12f, 20f, 12f)
+    drawLine(Color(0xFFD32F2F), Offset(px + 24f, RAIL_Y - 10f), Offset(px + 40f, RAIL_Y - 34f), 4f, cap = StrokeCap.Round)
 }
 
 // ------------------------------------------------------------------ train
@@ -588,6 +780,12 @@ private fun DrawScope.drawHud(g: TrainGame) {
     outlinedText("${g.distanceMeters} m", size.width - 110f * u, barY + 14f * u, 15f * u, 0xFFFFFFFF.toInt())
     outlinedText("${g.kills} kills", size.width - 110f * u, barY + 32f * u, 11f * u, 0xFFE0E0E0.toInt())
 
+    val coinText = "%.2f".format(g.biome.coinMult).trimEnd('0').trimEnd('.')
+    outlinedText(
+        if (g.biome == Biome.PLAINS) g.biome.displayName else g.biome.displayName + "  x" + coinText + " coins",
+        size.width - 110f * u, barY + 46f * u, 10f * u, g.biome.accent.toInt()
+    )
+
     g.boss?.let { boss ->
         val w = 240f * u
         val x = (size.width - w) / 2f
@@ -595,6 +793,11 @@ private fun DrawScope.drawHud(g: TrainGame) {
         rbox(Color.Black.copy(alpha = 0.6f), x, y, w, 14f * u, 6f * u)
         rbox(Color(0xFF8E24AA), x + 2f * u, y + 2f * u, (w - 4f * u) * (boss.hp / boss.maxHp).coerceIn(0f, 1f), 10f * u, 5f * u)
         outlinedText("TITAN", size.width / 2f, y + 11f * u, 10f * u, 0xFFFFFFFF.toInt())
+    }
+    if (g.biomeBanner > 0f) {
+        val a = g.biomeBanner.coerceIn(0f, 1f)
+        outlinedText("ENTERING " + g.biome.displayName.uppercase(), size.width / 2f, size.height * 0.45f, 22f * u, g.biome.accent.toInt(), a)
+        outlinedText(g.biome.tagline, size.width / 2f, size.height * 0.45f + 20f * u, 12f * u, 0xFFFFFFFF.toInt(), a)
     }
     if (g.bossAlert > 0f) {
         val pulse = 0.65f + 0.35f * sin(g.time * 12f)

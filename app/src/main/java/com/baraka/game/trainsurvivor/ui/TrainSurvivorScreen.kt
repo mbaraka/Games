@@ -3,7 +3,10 @@ package com.baraka.game.trainsurvivor.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.width
+import com.baraka.game.trainsurvivor.model.Biome
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,14 +57,6 @@ import kotlin.math.max
 
 private val PANEL = Color(0xFF1B1F29)
 private val AMBER = Color(0xFFFFB300)
-
-/** Folds a finished (or abandoned) run into the persistent save. */
-private fun applyRun(save: SaveData, game: TrainGame): SaveData = save.copy(
-    coins = save.coins + game.finalCoins,
-    bestDistance = max(save.bestDistance, game.distanceMeters),
-    totalKills = save.totalKills + game.kills,
-    bossKills = save.bossKills + game.bossKills
-)
 
 private class RunResult(val distance: Int, val kills: Int, val bossKills: Int, val coins: Int, val killCoins: Int, val isBest: Boolean)
 
@@ -122,32 +117,48 @@ private fun RunScreen(
     val tick = remember { mutableLongStateOf(0L) }
     val game = remember(runId) { TrainGame(repository.load()).also { it.onSound = playSound } }
     var banked by remember(runId) { mutableStateOf(false) }
+    val bestAtStart = remember(runId) { repository.load().bestDistance }
+    // What this run has already written to disk, so every checkpoint only adds the difference.
+    val written = remember(runId) { intArrayOf(0, 0, 0) }
+
+    /** Writes this run's progress so far (coins, kills, bosses, best distance) to disk. Safe to call repeatedly. */
+    fun checkpoint() {
+        val current = repository.load()
+        val updated = current.copy(
+            coins = current.coins + game.finalCoins - written[0],
+            totalKills = current.totalKills + game.kills - written[1],
+            bossKills = current.bossKills + game.bossKills - written[2],
+            bestDistance = max(current.bestDistance, game.distanceMeters)
+        )
+        written[0] = game.finalCoins
+        written[1] = game.kills
+        written[2] = game.bossKills
+        repository.save(updated)
+        onSaved(updated)
+    }
 
     fun bank() {
         if (banked) return
         banked = true
-        val before = repository.load()
-        val after = applyRun(before, game)
-        repository.save(after)
-        onSaved(after)
+        checkpoint()
         result = RunResult(
             distance = game.distanceMeters,
             kills = game.kills,
             bossKills = game.bossKills,
             coins = game.finalCoins,
             killCoins = game.runCoins,
-            isBest = game.distanceMeters > before.bestDistance
+            isBest = game.distanceMeters > bestAtStart
         )
     }
 
-    // Leaving mid-run (home button, activity closed) still keeps the coins earned so far.
+    // Leaving mid-run (home button, activity closed) still keeps everything earned so far.
     DisposableEffect(game) {
-        onDispose { if (!banked) repository.save(applyRun(repository.load(), game)) }
+        onDispose { if (!banked) checkpoint() }
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) paused = true }
+    DisposableEffect(lifecycleOwner, game) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) { paused = true; if (!banked) checkpoint() } }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
@@ -186,6 +197,7 @@ private fun RunScreen(
                     onClick = { paused = true }
                 )
                 DynamiteButton(game, tick, Modifier.align(Alignment.BottomEnd))
+                JunctionPanel(game, tick, Modifier.align(Alignment.BottomCenter))
             }
         }
 
@@ -239,6 +251,50 @@ private fun RoundButton(label: String, modifier: Modifier, size: Int, onClick: (
         modifier = modifier.size(size.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.55f)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) { Text(label, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp) }
+}
+
+/** Shown while a fork is ahead and no route has been picked yet: two route cards plus a countdown. */
+@Composable
+private fun JunctionPanel(game: TrainGame, tick: androidx.compose.runtime.MutableLongState, modifier: Modifier) {
+    tick.longValue
+    val junction = game.junction ?: return
+    if (junction.chosen != null) return
+    Column(
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            "JUNCTION AHEAD - choose your route (${kotlin.math.ceil(junction.timeLeft).toInt()}s)",
+            color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            RouteCard(junction.optionA) { game.chooseRoute(junction.optionA) }
+            RouteCard(junction.optionB) { game.chooseRoute(junction.optionB) }
+        }
+    }
+}
+
+@Composable
+private fun RouteCard(biome: Biome, onClick: () -> Unit) {
+    val accent = Color(biome.accent)
+    Column(
+        modifier = Modifier
+            .width(170.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF1B1F29))
+            .border(2.dp, accent, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(biome.displayName, color = accent, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+        Text(biome.tagline, color = Color(0xFFB0B8C6), fontSize = 10.sp)
+        val coins = "%.2f".format(biome.coinMult).trimEnd('0').trimEnd('.')
+        Text("Coins x$coins", color = Color(0xFFFFD54F), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+    }
 }
 
 @Composable
