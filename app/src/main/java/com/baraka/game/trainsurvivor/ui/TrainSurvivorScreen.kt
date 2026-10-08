@@ -64,6 +64,7 @@ import com.baraka.game.trainsurvivor.data.TrainSaveRepository
 import com.baraka.game.trainsurvivor.data.TrainSoundCue
 import com.baraka.game.trainsurvivor.model.AUTO_WEAPON
 import com.baraka.game.trainsurvivor.model.Biome
+import com.baraka.game.trainsurvivor.model.DangerLevel
 import com.baraka.game.trainsurvivor.model.Progression
 import com.baraka.game.trainsurvivor.model.RunDelta
 import com.baraka.game.trainsurvivor.model.RunRecord
@@ -86,7 +87,8 @@ private class RunResult(
     val coins: Int,
     val killCoins: Int,
     val isBest: Boolean,
-    val goalsReady: Boolean
+    val goalsReady: Boolean,
+    val unlocked: DangerLevel?
 )
 
 /**
@@ -212,7 +214,8 @@ private fun RunScreen(
             bestDistance = max(current.bestDistance, game.distanceMeters)
         )
         updated = Progression.applyProgress(updated, RunDelta(dKills, dFlyers, dBosses, dRoutes, game.finalCoins, game.distanceMeters))
-        if (final) updated = Progression.addRecord(updated, RunRecord(game.distanceMeters, game.kills, game.finalCoins, Progression.today()))
+        updated = updated.copy(dangerBest = updated.dangerBest.mapIndexed { i, v -> if (i == game.danger.ordinal) max(v, game.distanceMeters) else v })
+        if (final) updated = Progression.addRecord(updated, RunRecord(game.distanceMeters, game.kills, game.finalCoins, Progression.today(), game.danger.ordinal))
         written[0] = game.finalCoins
         written[1] = game.kills
         written[2] = game.bossKills
@@ -226,7 +229,10 @@ private fun RunScreen(
     fun bank() {
         if (banked) return
         banked = true
+        val before = repository.load()
         val updated = checkpoint(final = true)
+        val nextIndex = game.danger.ordinal + 1
+        val newlyUnlocked = DangerLevel.entries.getOrNull(nextIndex)?.takeIf { !before.dangerUnlocked(nextIndex) && updated.dangerUnlocked(nextIndex) }
         result = RunResult(
             distance = game.distanceMeters,
             kills = game.kills,
@@ -234,7 +240,8 @@ private fun RunScreen(
             coins = game.finalCoins,
             killCoins = game.runCoins,
             isBest = game.distanceMeters > bestAtStart,
-            goalsReady = Progression.hasClaimable(updated)
+            goalsReady = Progression.hasClaimable(updated),
+            unlocked = newlyUnlocked
         )
     }
 
@@ -366,6 +373,9 @@ private fun RunScreen(
                 if (finished.isBest) Text("New best distance!", color = AMBER, fontWeight = FontWeight.Bold)
                 Text("${finished.distance} m   •   ${finished.kills} zombies   •   ${finished.bossKills} bosses", color = Color.White, fontSize = 15.sp)
                 Text("+${finished.coins} coins banked (${finished.killCoins} from kills)", color = AMBER, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                finished.unlocked?.let { level ->
+                    Text("New danger level unlocked: ${level.displayName}!", color = Color(level.color), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
                 if (finished.goalsReady) Text("A goal or achievement is ready to claim in the Garage!", color = Color(0xFF66BB6A), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(

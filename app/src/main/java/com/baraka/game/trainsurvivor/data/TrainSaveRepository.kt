@@ -42,7 +42,9 @@ class TrainSaveRepository private constructor(private val prefs: SharedPreferenc
         goalProgress = List(3) { prefs.getInt("goal_progress_$it", 0) },
         goalClaimed = prefs.getInt("goal_claimed", 0),
         milestonesClaimed = prefs.getInt("milestones_claimed", 0),
-        records = decodeRecords(prefs.getString("records", "") ?: "")
+        records = decodeRecords(prefs.getString("records", "") ?: ""),
+        dangerLevel = prefs.getInt("danger_level", 0),
+        dangerBest = List(5) { prefs.getInt("danger_best_$it", 0) }
     )
 
     fun save(data: SaveData) {
@@ -67,6 +69,8 @@ class TrainSaveRepository private constructor(private val prefs: SharedPreferenc
             putInt("goal_claimed", data.goalClaimed)
             putInt("milestones_claimed", data.milestonesClaimed)
             putString("records", encodeRecords(data.records))
+            putInt("danger_level", data.dangerLevel)
+            data.dangerBest.forEachIndexed { i, v -> putInt("danger_best_$i", v) }
         }.apply()
     }
 
@@ -103,12 +107,12 @@ class TrainSaveRepository private constructor(private val prefs: SharedPreferenc
     }
 
     private fun encodeRecords(records: List<RunRecord>): String =
-        records.joinToString(";") { "${it.distance},${it.kills},${it.coins},${it.day}" }
+        records.joinToString(";") { "${it.distance},${it.kills},${it.coins},${it.day},${it.level}" }
 
     private fun decodeRecords(raw: String): List<RunRecord> = raw.split(';').mapNotNull { part ->
         val f = part.split(',')
-        if (f.size != 4) return@mapNotNull null
-        runCatching { RunRecord(f[0].toInt(), f[1].toInt(), f[2].toInt(), f[3].toLong()) }.getOrNull()
+        if (f.size != 4 && f.size != 5) return@mapNotNull null
+        runCatching { RunRecord(f[0].toInt(), f[1].toInt(), f[2].toInt(), f[3].toLong(), f.getOrNull(4)?.toInt() ?: 0) }.getOrNull()
     }
 
     companion object {

@@ -57,6 +57,7 @@ import com.baraka.game.trainsurvivor.model.Perk
 import androidx.compose.foundation.layout.RowScope
 import com.baraka.game.trainsurvivor.data.GameSettings
 import com.baraka.game.trainsurvivor.model.MAX_CAR_ARMOR
+import com.baraka.game.trainsurvivor.model.DangerLevel
 import com.baraka.game.trainsurvivor.model.Progression
 import com.baraka.game.trainsurvivor.model.SURVIVORS
 import com.baraka.game.ui.debug.DebugSection
@@ -125,6 +126,7 @@ fun GarageScreen(
                 CoinChip(save.coins)
             }
             TrainPreview(save, Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(14.dp)))
+            DangerSelector(save, onPurchase)
             Button(
                 onClick = onDepart,
                 modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -147,6 +149,52 @@ fun GarageScreen(
         }
     }
 }
+
+@Composable
+private fun DangerSelector(save: SaveData, onChange: (SaveData) -> Unit) {
+    val selected = save.selectedDanger
+    val firstLocked = DangerLevel.entries.firstOrNull { !save.dangerUnlocked(it.ordinal) }
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Danger", color = MUTED, fontSize = 11.sp)
+            DangerLevel.entries.forEach { level ->
+                val unlocked = save.dangerUnlocked(level.ordinal)
+                val isSelected = level == selected
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(if (isSelected) Color(level.color) else Color(0xFF2A2F3A))
+                        .clickable(enabled = unlocked) { onChange(save.copy(dangerLevel = level.ordinal)) }
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Text(
+                        if (unlocked) level.displayName else "Locked " + level.displayName,
+                        color = if (isSelected) Color.Black else if (unlocked) Color.White else MUTED,
+                        fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1
+                    )
+                }
+            }
+        }
+        Text(
+            if (selected == DangerLevel.NORMAL) "Normal: the standard challenge."
+            else "${selected.displayName}: zombies x${fmtMult(selected.hpMult)} health, x${fmtMult(selected.dmgMult)} damage, x${fmtMult(selected.spawnMult)} spawns, more elites. Coins x${fmtMult(selected.coinMult)}.",
+            color = Color(selected.color), fontSize = 10.sp, maxLines = 2
+        )
+        if (firstLocked != null) {
+            val previous = DangerLevel.entries[firstLocked.ordinal - 1]
+            Text(
+                "Unlock ${firstLocked.displayName}: reach ${firstLocked.requirementMeters} m on ${previous.displayName} (best ${save.dangerBest.getOrElse(previous.ordinal) { 0 }} m).",
+                color = MUTED, fontSize = 10.sp, maxLines = 2
+            )
+        }
+    }
+}
+
+private fun fmtMult(x: Float): String = "%.2f".format(x).trimEnd('0').trimEnd('.')
 
 @Composable
 private fun RowScope.SmallButton(text: String, highlight: Boolean = false, onClick: () -> Unit) {

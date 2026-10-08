@@ -45,6 +45,7 @@ fun garageDebugSections(save: SaveData, onSave: (SaveData) -> Unit, onReset: () 
                 onSave(synced.copy(goalProgress = Progression.goalsForDay(synced.goalDay).map { it.target }))
             },
             DebugItem.Action("Best distance = 5,000 m") { onSave(save.copy(bestDistance = max(save.bestDistance, 5_000))) },
+            DebugItem.Action("Unlock every danger level") { onSave(save.copy(dangerBest = List(5) { 99_999 })) },
             DebugItem.Action("Force +1 prestige") { onSave(save.copy(prestige = save.prestige + 1)) },
             DebugItem.Action("RESET ALL PROGRESS", onReset)
         )
@@ -85,6 +86,9 @@ fun runDebugSections(
             DebugItem.Action("Spawn 5 ${type.displayName}") { game.debugSpawn(type, 5) }
         } + listOf(
             DebugItem.Action("Spawn the next boss") { game.spawnBoss() },
+        ) + com.baraka.game.trainsurvivor.model.EliteTrait.entries.map { trait ->
+            DebugItem.Action("Spawn ${trait.displayName} elite") { game.debugSpawnElite(trait) }
+        } + listOf(
             DebugItem.Action("Kill everything") { game.debugKillAll() }
         )
     ),

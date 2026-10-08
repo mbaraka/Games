@@ -136,8 +136,39 @@ data class CrewSlot(val owned: Int = 1, val selected: Int = AUTO_WEAPON, val pow
     val powerMultiplier: Float get() = 1f + 0.3f * power
 }
 
+/** A random upgrade some zombies spawn with; elites are tougher, worth 2.5x coins, and each trait calls for a different answer. */
+enum class EliteTrait(val displayName: String, val color: Long, val blurb: String, val counter: String) {
+    SHIELDED("Shielded", 0xFF40C4FF, "Wears an energy shield worth 60% of its health.", "Burst damage: Rocket, Cannon, Mortar, Dynamite."),
+    REGEN("Regenerating", 0xFF69F0AE, "Heals quickly whenever you stop hitting it for a moment.", "Keep constant fire on it: Minigun, Tesla, Flamethrower."),
+    SWIFT("Swift", 0xFFFFEB3B, "Moves 60% faster.", "Kill it early: Sniper and Laser reach far."),
+    VOLATILE("Volatile", 0xFFFF7043, "Explodes when it dies, hurting the train if it is close.", "Kill it before it reaches the train."),
+    ARMORED("Plated", 0xFFB0BEC5, "Wears extra armor: 8 less damage on every hit.", "Big hitters: Sniper, Rocket, Cannon, Laser."),
+    BULLETPROOF("Bulletproof", 0xFFE040FB, "Guns deal only 30% damage to it.", "Use train weapons and abilities: Tesla, Flamethrower, Mortar, Flak, Dynamite.")
+}
+
+/**
+ * Difficulty chosen before a run. Higher levels make every zombie stronger and more numerous, add more
+ * elites, and pay more coins. Each level unlocks by reaching [requirementMeters] on the level below it.
+ */
+enum class DangerLevel(
+    val displayName: String,
+    val hpMult: Float,
+    val dmgMult: Float,
+    val spawnMult: Float,
+    val eliteMult: Float,
+    val coinMult: Float,
+    val requirementMeters: Int,
+    val color: Long
+) {
+    NORMAL("Normal", 1f, 1f, 1f, 1f, 1f, 0, 0xFF8BC34A),
+    HARD("Hard", 1.35f, 1.2f, 1.15f, 1.5f, 1.35f, 800, 0xFFFFD54F),
+    BRUTAL("Brutal", 1.8f, 1.45f, 1.3f, 2.2f, 1.8f, 1200, 0xFFFF9800),
+    NIGHTMARE("Nightmare", 2.5f, 1.8f, 1.5f, 3f, 2.4f, 1600, 0xFFFF5252),
+    INFERNO("Inferno", 3.5f, 2.3f, 1.7f, 4f, 3.2f, 2000, 0xFFE040FB)
+}
+
 /** One finished run on the local leaderboard. */
-data class RunRecord(val distance: Int, val kills: Int, val coins: Int, val day: Long)
+data class RunRecord(val distance: Int, val kills: Int, val coins: Int, val day: Long, val level: Int = 0)
 
 /** Everything persisted between runs. Immutable; [Shop] and [Progression] return a new copy on every change. */
 data class SaveData(
@@ -155,9 +186,22 @@ data class SaveData(
     val goalProgress: List<Int> = listOf(0, 0, 0),
     val goalClaimed: Int = 0,
     val milestonesClaimed: Int = 0,
-    val records: List<RunRecord> = emptyList()
+    val records: List<RunRecord> = emptyList(),
+    /** The danger level chosen for the next run, and the furthest distance reached on each level. */
+    val dangerLevel: Int = 0,
+    val dangerBest: List<Int> = List(5) { 0 }
 ) {
     fun level(upgrade: TrainUpgrade): Int = upgrades[upgrade] ?: 0
+
+    fun dangerUnlocked(index: Int): Boolean =
+        index <= 0 || dangerBest.getOrElse(index - 1) { 0 } >= DangerLevel.entries[index.coerceAtMost(DangerLevel.entries.lastIndex)].requirementMeters
+
+    /** The chosen danger level, falling back to Normal if it isn't unlocked. */
+    val selectedDanger: DangerLevel
+        get() {
+            val i = dangerLevel.coerceIn(0, DangerLevel.entries.lastIndex)
+            return DangerLevel.entries[if (dangerUnlocked(i)) i else 0]
+        }
 
     /** Permanent coin bonus earned by prestiging. */
     val prestigeMultiplier: Float get() = 1f + 0.1f * prestige

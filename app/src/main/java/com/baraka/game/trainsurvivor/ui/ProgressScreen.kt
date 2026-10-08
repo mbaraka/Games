@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.baraka.game.trainsurvivor.model.DangerLevel
 import com.baraka.game.trainsurvivor.model.Milestone
 import com.baraka.game.trainsurvivor.model.Progression
 import com.baraka.game.trainsurvivor.model.SaveData
@@ -131,7 +132,7 @@ private fun Records(save: SaveData) {
             ) {
                 Text("#${i + 1}", color = AMBER, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.width(40.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("${r.distance} m", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text("${r.distance} m" + if (r.level > 0) "   -   " + DangerLevel.entries[r.level.coerceIn(0, DangerLevel.entries.lastIndex)].displayName else "", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Text("${r.kills} zombies   -   ${r.coins} coins", color = MUTED, fontSize = 12.sp)
                 }
                 Text(runCatching { LocalDate.ofEpochDay(r.day).toString() }.getOrDefault(""), color = MUTED, fontSize = 12.sp)

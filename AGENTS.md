@@ -183,7 +183,7 @@ adding it is part of the next change you make to that game.
 
 Code is in `app/src/main/java/com/baraka/game/trainsurvivor/`:
 
-- `model/TrainModels.kt` - weapons, zombies, upgrades, survivors/perks, shop rules.
+- `model/TrainModels.kt` - weapons, zombies, upgrades, survivors/perks, elite traits, danger levels, shop rules.
   `model/Progression.kt` - daily goals, achievements, records, prestige.
 - `systems/TrainGame.kt` - the whole simulation (per-car health, perks, abilities, events,
   bosses, train weapons). Follows the performance rules above.

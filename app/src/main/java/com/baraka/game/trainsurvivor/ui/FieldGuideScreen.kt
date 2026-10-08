@@ -39,6 +39,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.trainsurvivor.model.Biome
+import com.baraka.game.trainsurvivor.model.DangerLevel
+import com.baraka.game.trainsurvivor.model.EliteTrait
 import com.baraka.game.trainsurvivor.model.TrainUpgrade
 import com.baraka.game.trainsurvivor.model.WeaponType
 import com.baraka.game.trainsurvivor.model.ZombieType
@@ -101,14 +103,15 @@ fun FieldGuideScreen(onClose: () -> Unit) {
                 colors = ButtonDefaults.buttonColors(containerColor = CARD, contentColor = Color.White)
             ) { Text("< Back", fontSize = 12.sp) }
             Text("FIELD GUIDE", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
-            listOf("ZOMBIES", "WEAPONS", "ROUTES").forEachIndexed { i, label ->
+            listOf("ZOMBIES", "WEAPONS", "ROUTES", "ELITES").forEachIndexed { i, label ->
                 GuideTab(label, tab == i) { tab = i }
             }
         }
         when (tab) {
             0 -> ZombieGuide(time)
             1 -> WeaponGuide(time)
-            else -> RouteGuide()
+            2 -> RouteGuide()
+            else -> EliteGuide()
         }
     }
 }
@@ -240,6 +243,59 @@ private fun RouteGuide() {
                 "A junction appears every ~50 s of a run. Pick a route before the countdown ends, or you take the first one offered.",
                 color = MUTED, fontSize = 11.sp, modifier = Modifier.padding(4.dp)
             )
+        }
+    }
+}
+
+@Composable
+private fun EliteGuide() {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
+            Text(
+                "ELITE zombies have a glowing ring and a diamond over their head. They have 60% more health and pay 2.5x coins, and each carries a trait that calls for a different answer. They appear more often the longer you survive and the higher the danger level.",
+                color = MUTED, fontSize = 11.sp, modifier = Modifier.padding(4.dp)
+            )
+        }
+        items(EliteTrait.entries.toList()) { trait ->
+            Column(
+                Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Canvas(Modifier.size(18.dp)) {
+                        drawCircle(Color(trait.color).copy(alpha = 0.7f), size.minDimension / 2f - 1f, style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
+                        drawCircle(Color(trait.color), size.minDimension / 5f)
+                    }
+                    Text(trait.displayName, color = Color(trait.color), fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+                }
+                Text(trait.blurb, color = Color(0xFFD0D6E0), fontSize = 11.sp)
+                Text("Counter: " + trait.counter, color = Color(0xFF81C784), fontSize = 11.sp)
+            }
+        }
+        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
+            Text("DANGER LEVELS", color = AMBER, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
+        }
+        items(DangerLevel.entries.toList()) { level ->
+            Column(
+                Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(level.displayName, color = Color(level.color), fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+                Text(
+                    "Zombie health x${fmt(level.hpMult)}  -  damage x${fmt(level.dmgMult)}  -  spawns x${fmt(level.spawnMult)}  -  elites x${fmt(level.eliteMult)}",
+                    color = Color(0xFFD0D6E0), fontSize = 11.sp
+                )
+                Text("Coins x${fmt(level.coinMult)}", color = AMBER, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    if (level == DangerLevel.NORMAL) "Always available" else "Unlock: reach ${level.requirementMeters} m on ${DangerLevel.entries[level.ordinal - 1].displayName}" +
+                        if (level == DangerLevel.INFERNO) " - elites can carry two traits" else "",
+                    color = MUTED, fontSize = 11.sp
+                )
+            }
         }
     }
 }

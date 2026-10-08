@@ -3,6 +3,8 @@ package com.baraka.game.trainsurvivor.systems
 import com.baraka.game.trainsurvivor.data.TrainSoundCue
 import com.baraka.game.trainsurvivor.model.AUTO_WEAPON
 import com.baraka.game.trainsurvivor.model.Biome
+import com.baraka.game.trainsurvivor.model.DangerLevel
+import com.baraka.game.trainsurvivor.model.EliteTrait
 import com.baraka.game.trainsurvivor.model.Perk
 import com.baraka.game.trainsurvivor.model.SURVIVORS
 import com.baraka.game.trainsurvivor.model.SaveData
@@ -62,7 +64,7 @@ private const val HEAT_RECOVER = 0.35f
 
 enum class ParticleKind { BLOOD, SPARK, SMOKE, COIN, FIRE, DEBRIS, HEAL }
 
-class Zombie(val type: ZombieType, var x: Float, var y: Float, val side: Int, val maxHp: Float, val dmgScale: Float, val seed: Float) {
+class Zombie(val type: ZombieType, var x: Float, var y: Float, val side: Int, var maxHp: Float, val dmgScale: Float, val seed: Float) {
     var hp = maxHp
     var anim = seed * 6f
     var flash = 0f
@@ -81,6 +83,13 @@ class Zombie(val type: ZombieType, var x: Float, var y: Float, val side: Int, va
     var pendingDamage = 0f
     var numberTimer = 0f
     var pendingCrit = false
+    /** Elite traits (a second one appears on Inferno), the remaining shield, and movement/regen state. */
+    var elite: EliteTrait? = null
+    var elite2: EliteTrait? = null
+    var shield = 0f
+    var speedMul = 1f
+    var sinceHit = 0f
+    fun has(trait: EliteTrait) = elite == trait || elite2 == trait
 }
 
 /** One member of the visible repair crew walking the train's running board. */
@@ -198,6 +207,9 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     private val thornsPerSecond = 7f * spikeLevel
     private val coinMultiplier = (1f + 0.12f * save.level(TrainUpgrade.BOUNTY)) * save.prestigeMultiplier
 
+    /** The difficulty chosen in the Garage for this run. */
+    val danger: DangerLevel = save.selectedDanger
+
     // Passive perks of the named survivors, resolved once per run.
     private val damagePerk = FloatArray(slotCount) { if (SURVIVORS[it].perk == Perk.DAMAGE) 1.15f else 1f }
     private val ratePerk = FloatArray(slotCount) { if (SURVIVORS[it].perk == Perk.FIRE_RATE) 1.2f else 1f }
@@ -295,7 +307,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     private var shooter = -1
 
     /** Coins banked when the run ends: kill coins plus 1 per 25 m travelled. */
-    val finalCoins get() = runCoins + (distance / 25f * save.prestigeMultiplier).toInt()
+    val finalCoins get() = runCoins + (distance / 25f * save.prestigeMultiplier * danger.coinMult).toInt()
     val distanceMeters get() = distance.roundToInt()
 
     /** 1.0 at the start, rising to 1.8 over the first 3,200 m: the train speeds up and so does the danger. */
@@ -603,7 +615,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             spawnBoss()
             nextBossAt += 80f
         }
-        var rate = (0.45f + time * 0.011f).coerceAtMost(2.8f) * biome.spawnMult * kotlin.math.sqrt(speedFactor)
+        var rate = (0.45f + time * 0.011f).coerceAtMost(2.8f) * biome.spawnMult * danger.spawnMult * kotlin.math.sqrt(speedFactor)
         if (hordeTime > 0f) rate *= 3f
         if (boss != null) rate *= 0.55f
         spawnAccumulator += dt * rate
@@ -654,8 +666,9 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     }
 
     private fun addZombie(type: ZombieType, x: Float, feetY: Float, side: Int): Zombie {
-        val hpScale = (1f + time / 45f) * biome.hpMult
-        val z = Zombie(type, x, feetY, side, type.hp * hpScale, (1f + time / 140f) * biome.dmgMult, rng.nextFloat())
+        val hpScale = (1f + time / 45f) * biome.hpMult * danger.hpMult
+        val z = Zombie(type, x, feetY, side, type.hp * hpScale, (1f + time / 140f) * biome.dmgMult * danger.dmgMult, rng.nextFloat())
+        if (!type.boss) rollElite(z)
         if (type.flying) {
             z.targetX = trainLeft + rng.nextFloat() * (trainLength + COWCATCHER)
             z.facing = if (z.targetX > x) 1 else -1
@@ -673,9 +686,9 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             1 -> ZombieType.GARGOYLE
             else -> ZombieType.CLOWN_PRINCE
         }
-        val hp = type.hp * (1f + 0.55f * bossNumber)
+        val hp = type.hp * (1f + 0.55f * bossNumber) * danger.hpMult
         val y = if (type.flying) 190f else RAIL_Y + 30f
-        val b = Zombie(type, x, y, side, hp, 1f + time / 200f, 0.5f)
+        val b = Zombie(type, x, y, side, hp, (1f + time / 200f) * danger.dmgMult, 0.5f)
         b.cruiseY = 200f
         b.targetX = trainLeft + trainLength * 0.5f
         b.facing = if (side > 0) -1 else 1
@@ -694,6 +707,8 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             val z = zombies[i]
             if (z.dead) continue
             z.numberTimer -= dt
+            z.sinceHit += dt
+            if (z.elite != null && z.has(EliteTrait.REGEN) && z.sinceHit > 1.2f && z.hp < z.maxHp) z.hp = min(z.maxHp, z.hp + z.maxHp * 0.08f * dt)
             if (z.pendingDamage >= 1f && z.numberTimer <= 0f) emitDamageNumber(z)
             if (z.flying) updateFlyer(z, dt)
             if (z.isBoss) updateBossSpecial(z, dt)
@@ -723,7 +738,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
                         z.special = 3.5f
                     }
                 }
-                val step = z.type.speed * dt * speedMul
+                val step = z.type.speed * dt * speedMul * z.speedMul
                 val arrived = abs(delta) <= step + 1f
                 if (arrived) z.x = spot else z.x += if (delta > 0f) step else -step
                 z.facing = -side
@@ -778,7 +793,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         }
         if (abs(dx) > 14f) {
             z.facing = if (dx > 0f) 1 else -1
-            z.x += (if (dx > 0f) 1f else -1f) * min(abs(dx), z.type.speed * dt)
+            z.x += (if (dx > 0f) 1f else -1f) * min(abs(dx), z.type.speed * z.speedMul * dt)
         }
         if (isBat) z.x += sin(z.anim * 0.7f) * 40f * dt
         val hoverY = if (isBat) 418f else if (z.isBoss) 350f else 402f
@@ -837,11 +852,19 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
 
     private fun damageZombie(z: Zombie, amount: Float, silent: Boolean = false, crit: Boolean = false) {
         if (z.dead) return
-        val dealt = if (silent) amount else armored(amount, z)
+        var dealt = if (silent) amount else armored(amount, z)
+        if (!silent && z.elite != null && z.has(EliteTrait.BULLETPROOF) && shooter >= 0) dealt *= 0.3f
+        val shown = dealt
+        if (!silent && z.shield > 0f) {
+            val absorbed = min(z.shield, dealt)
+            z.shield -= absorbed
+            dealt -= absorbed
+        }
         z.hp -= dealt
         if (!silent) {
             z.flash = 1f
-            z.pendingDamage += dealt
+            z.sinceHit = 0f
+            z.pendingDamage += shown
             if (crit) z.pendingCrit = true
         }
         if (z.hp <= 0f) killZombie(z)
@@ -851,7 +874,8 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         z.dead = true
         kills++
         if (z.flying) flyerKills++
-        var mult = coinMultiplier * biome.coinMult
+        var mult = coinMultiplier * biome.coinMult * danger.coinMult
+        if (z.elite != null) mult *= 2.5f
         if (hordeTime > 0f) mult *= 1.5f
         if (shooter >= 0 && shooter < slotCount) mult *= coinPerk[shooter]
         val coins = max(1, (z.type.coins * mult).roundToInt())
@@ -874,6 +898,11 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             confetti(z.x, z.y - 40f, 26)
         }
         if (z.type == ZombieType.BALLOON) confetti(z.x, z.y - 90f, 22)
+        if (z.elite != null && z.has(EliteTrait.VOLATILE)) {
+            // Volatile elites blow up: the train takes a hit if it was still close.
+            explosion(z.x, z.y - 20f, 40f)
+            if (!z.flying && abs(z.x - endX(z.side)) < 140f) hurtCar(if (z.side > 0) 0 else rearSlot(), 18f * z.dmgScale)
+        }
         if (z.type == ZombieType.BLOATER) {
             // A shot bloater pops and hurts the zombies around it.
             explosion(z.x, z.y - 20f, 30f)
@@ -957,8 +986,33 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     private fun targetY(z: Zombie) = z.y - z.type.aimHeight * z.type.size
 
     /** Damage left after the target's flat armor (never below a quarter of the hit). */
-    private fun armored(damage: Float, z: Zombie): Float =
-        if (z.type.armor <= 0f) damage else max(damage * 0.25f, damage - z.type.armor)
+    private fun armored(damage: Float, z: Zombie): Float {
+        val armor = z.type.armor + (if (z.elite != null && z.has(EliteTrait.ARMORED)) 8f else 0f)
+        return if (armor <= 0f) damage else max(damage * 0.25f, damage - armor)
+    }
+
+    /** Bulletproof elites shrug off gun damage; train weapons and abilities are unaffected. */
+    private fun gunFactor(z: Zombie): Float = if (z.elite != null && z.has(EliteTrait.BULLETPROOF)) 0.3f else 1f
+
+    private fun rollElite(z: Zombie) {
+        val start = max(10f, 30f - 5f * danger.ordinal)
+        val chance = min(0.7f, ((time - start) / 350f).coerceIn(0f, 0.3f) * danger.eliteMult)
+        if (chance <= 0f || rng.nextFloat() >= chance) return
+        val traits = EliteTrait.entries
+        val first = traits[rng.nextInt(traits.size)]
+        // Inferno elites sometimes carry a second trait.
+        val second = if (danger == DangerLevel.INFERNO && rng.nextFloat() < 0.35f) traits[rng.nextInt(traits.size)].takeIf { it != first } else null
+        applyElite(z, first, second)
+    }
+
+    private fun applyElite(z: Zombie, first: EliteTrait, second: EliteTrait?) {
+        z.elite = first
+        z.elite2 = second
+        z.maxHp *= 1.6f
+        z.hp = z.maxHp
+        if (z.has(EliteTrait.SHIELDED)) z.shield = z.maxHp * 0.6f
+        if (z.has(EliteTrait.SWIFT)) z.speedMul = 1.6f
+    }
 
     /**
      * How far [z] is from [slot]'s gun for range purposes. Ground zombies mass at the two ends of the train, so
@@ -1134,7 +1188,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         }
         if (target == null) return 0f
         val damage = damageFor(slot, weapon)
-        var total = min(armored(damage, target), target.hp)
+        var total = min(armored(damage, target) * gunFactor(target), target.hp + target.shield)
         if (weapon.splashRadius > 0f || weapon.pierce > 1) {
             val dir = if (target.x >= gx) 1 else -1
             var pierced = 0
@@ -1144,9 +1198,9 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
                 if (weapon.groundOnly && o.flying) continue
                 val dx = o.x - target.x
                 if (weapon.splashRadius > 0f && abs(dx) <= weapon.splashRadius) {
-                    total += 0.6f * min(armored(damage, o), o.hp)
+                    total += 0.6f * min(armored(damage, o) * gunFactor(o), o.hp + o.shield)
                 } else if (weapon.pierce > 1 && pierced < weapon.pierce - 1 && dx * dir > 0f && abs(dx) < 260f) {
-                    total += 0.8f * min(armored(damage, o), o.hp)
+                    total += 0.8f * min(armored(damage, o) * gunFactor(o), o.hp + o.shield)
                     pierced++
                 }
             }
@@ -1491,6 +1545,12 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     }
 
     // ---------------------------------------------------------------- debug hooks (used by the developer tools)
+
+    fun debugSpawnElite(trait: EliteTrait) {
+        val side = if (rng.nextBoolean()) 1 else -1
+        val z = addZombie(ZombieType.BRUTE, if (side > 0) worldW + 40f else -40f, RAIL_Y + 30f, side)
+        applyElite(z, trait, null)
+    }
 
     fun debugSpawn(type: ZombieType, count: Int) {
         repeat(count) { if (zombies.size < MAX_ZOMBIES) spawnZombie(type) }

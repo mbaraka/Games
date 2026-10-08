@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import com.baraka.game.trainsurvivor.model.Biome
+import com.baraka.game.trainsurvivor.model.DangerLevel
 import com.baraka.game.trainsurvivor.model.WeaponType
 import com.baraka.game.trainsurvivor.model.ZombieType
 import com.baraka.game.trainsurvivor.systems.CAR_W
@@ -68,6 +69,7 @@ private val killText = TextCache()
 private val biomeText = TextCache()
 private val bossText = TextCache()
 private val speedText = TextCache()
+private val dangerText = TextCache()
 
 private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
     typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
@@ -129,7 +131,10 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
         drawRails(g)
         drawTrain(g, light)
         val order = g.drawOrder
-        for (i in order.indices) drawZombie(order[i])
+        for (i in order.indices) {
+            drawZombie(order[i])
+            if (order[i].elite != null) drawEliteMarks(order[i], g.time)
+        }
         drawCrate(g)
         drawShells(g)
         drawParticles(g, glow = false)
@@ -1028,6 +1033,27 @@ private fun DrawScope.drawZombie(z: Zombie) {
     }
 }
 
+/** Elites get a pulsing ring in their trait colour, a diamond marker, a shield bubble and an always-visible health bar. */
+private fun DrawScope.drawEliteMarks(z: Zombie, time: Float) {
+    val trait = z.elite ?: return
+    val size = z.type.size
+    val cx = z.x
+    val cy = z.y - z.type.aimHeight * size * 1.1f
+    val radius = (24f + z.type.aimHeight * 0.6f) * size
+    val pulse = 0.55f + 0.35f * sin(time * 6f + z.seed * 6f)
+    drawCircle(Color(trait.color).copy(alpha = 0.55f * pulse), radius, Offset(cx, cy), style = Stroke(2.5f))
+    val second = z.elite2
+    if (second != null) drawCircle(Color(second.color).copy(alpha = 0.5f * pulse), radius + 6f, Offset(cx, cy), style = Stroke(2f))
+    if (z.shield > 0f) {
+        val fill = (z.shield / (z.maxHp * 0.6f)).coerceIn(0f, 1f)
+        drawCircle(Color(0xFF40C4FF).copy(alpha = 0.14f + 0.18f * fill), radius, Offset(cx, cy))
+    }
+    val my = z.y - (z.type.aimHeight * 2f + 16f) * size
+    path.rewind(); path.moveTo(cx, my - 6f); path.lineTo(cx + 5f, my); path.lineTo(cx, my + 6f); path.lineTo(cx - 5f, my); path.close()
+    drawPath(path, Color(trait.color))
+    drawHpBar(z)
+}
+
 private fun DrawScope.drawHpBar(z: Zombie) {
     val size = z.type.size
     val w = 26f * size
@@ -1290,6 +1316,9 @@ private fun DrawScope.drawHud(g: TrainGame) {
         size.width - 110f * u, barY + 46f * u, 10f * u, g.biome.accent.toInt()
     )
     outlinedText(speedText.get((g.speedFactor * 100f).toInt()) { "${(60f * g.speedFactor).toInt()} km/h" }, size.width - 110f * u, barY + 59f * u, 10f * u, 0xFFB0BEC5.toInt())
+    if (g.danger != DangerLevel.NORMAL) {
+        outlinedText(dangerText.get(g.danger.ordinal) { "Danger: " + g.danger.displayName }, size.width - 110f * u, barY + 72f * u, 10f * u, g.danger.color.toInt())
+    }
 
     g.boss?.let { boss ->
         val w = 240f * u
