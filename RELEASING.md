@@ -1,5 +1,7 @@
 # Releasing
 
+> Agents: the short step-by-step version is in [`AGENTS.md`](AGENTS.md).
+
 Version scheme: `MAJOR.MINOR.PATCH`, major fixed at `1`.
 - **MINOR** — a new game is added.
 - **PATCH** — small fixes/tweaks to existing games.
