@@ -20,10 +20,10 @@ enum class WeaponType(
 ) {
     PISTOL("Pistol", 10f, 0.55f, 330f, 0f, 1, 0, "Reliable sidearm"),
     SMG("SMG", 7f, 0.16f, 340f, 0f, 1, 150, "Rapid fire"),
-    SHOTGUN("Shotgun", 30f, 0.9f, 230f, 70f, 1, 400, "Hits groups up close"),
+    SHOTGUN("Shotgun", 45f, 0.9f, 230f, 70f, 1, 400, "Hits groups up close"),
     RIFLE("Sniper Rifle", 60f, 0.85f, 560f, 0f, 3, 900, "Long range, pierces 3"),
     MINIGUN("Minigun", 13f, 0.07f, 400f, 0f, 1, 2000, "Bullet hose"),
-    CANNON("Cannon", 130f, 1.6f, 480f, 120f, 1, 4500, "Explosive shells (ground only)", groundOnly = true),
+    CANNON("Cannon", 180f, 1.6f, 480f, 120f, 1, 4500, "Explosive shells (ground only)", groundOnly = true),
     ROCKET("Rocket Launcher", 190f, 1.9f, 540f, 150f, 1, 8000, "Big blasts, hits flyers too"),
     LASER("Laser Rifle", 42f, 0.22f, 620f, 0f, 5, 14000, "Piercing beam, very long range")
 }
@@ -80,9 +80,17 @@ enum class Biome(
     GRAVEYARD("Haunted Graveyard", "Brutes and bloaters hit hard", 1.6f, 1.1f, 1.0f, 1.2f, 0xFFB39DDB)
 }
 
-data class CrewSlot(val weaponTier: Int = 0, val power: Int = 0) {
-    val weapon: WeaponType get() = WeaponType.entries[weaponTier]
-    val damage: Float get() = weapon.damage * (1f + 0.3f * power)
+const val AUTO_WEAPON = -1
+
+/**
+ * One passenger's loadout: every weapon they own (bitmask over [WeaponType.ordinal]), which one they
+ * prefer ([selected], or [AUTO_WEAPON] to let them pick per situation) and their shared [power] level.
+ */
+data class CrewSlot(val owned: Int = 1, val selected: Int = AUTO_WEAPON, val power: Int = 0) {
+    fun owns(weapon: WeaponType): Boolean = owned and (1 shl weapon.ordinal) != 0
+    val ownedWeapons: List<WeaponType> get() = WeaponType.entries.filter { owns(it) }
+    val bestWeapon: WeaponType get() = ownedWeapons.maxByOrNull { it.ordinal } ?: WeaponType.PISTOL
+    val powerMultiplier: Float get() = 1f + 0.3f * power
 }
 
 /** Everything persisted between runs. Immutable; [Shop] returns a new copy on every purchase. */
@@ -122,20 +130,26 @@ object Shop {
         return save.copy(coins = save.coins - cost, unlockedSlots = save.unlockedSlots + 1)
     }
 
-    fun nextWeapon(slot: CrewSlot): WeaponType? = WeaponType.entries.getOrNull(slot.weaponTier + 1)
-
-    fun weaponCost(slot: CrewSlot): Int? = nextWeapon(slot)?.unlockCost
-
-    fun buyWeapon(save: SaveData, index: Int): SaveData? {
+    /** Buys [weapon] for the passenger at [index]; any weapon can be bought in any order. */
+    fun buyWeapon(save: SaveData, index: Int, weapon: WeaponType): SaveData? {
         val slot = save.slots[index]
-        val cost = weaponCost(slot) ?: return null
-        if (save.coins < cost) return null
-        return save.copy(coins = save.coins - cost, slots = save.slots.replaced(index, CrewSlot(slot.weaponTier + 1, slot.power)))
+        if (slot.owns(weapon) || save.coins < weapon.unlockCost) return null
+        return save.copy(
+            coins = save.coins - weapon.unlockCost,
+            slots = save.slots.replaced(index, slot.copy(owned = slot.owned or (1 shl weapon.ordinal)))
+        )
+    }
+
+    /** Sets which weapon the passenger prefers: a weapon ordinal they own, or [AUTO_WEAPON]. Free. */
+    fun selectWeapon(save: SaveData, index: Int, selected: Int): SaveData {
+        val slot = save.slots[index]
+        val valid = selected == AUTO_WEAPON || WeaponType.entries.getOrNull(selected)?.let { slot.owns(it) } == true
+        return if (valid) save.copy(slots = save.slots.replaced(index, slot.copy(selected = selected))) else save
     }
 
     fun powerCost(slot: CrewSlot): Int? {
         if (slot.power >= MAX_POWER) return null
-        return ((40 + slot.weaponTier * 45) * 1.6.pow(slot.power)).roundToInt()
+        return ((40 + slot.bestWeapon.ordinal * 45) * 1.6.pow(slot.power)).roundToInt()
     }
 
     fun buyPower(save: SaveData, index: Int): SaveData? {

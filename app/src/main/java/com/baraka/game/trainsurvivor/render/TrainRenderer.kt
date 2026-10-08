@@ -633,7 +633,7 @@ private fun DrawScope.drawGunner(g: TrainGame, slot: Int) {
     val gx = g.gunX(slot)
     val gy = g.gunY(slot)
     val shirt = Color(SHIRTS[slot % SHIRTS.size])
-    val weapon = g.crew[slot].weapon
+    val weapon = gs.weapon
     val skin = Color(0xFFE0AC69)
     withTransform({ translate(gx, gy); scale(gs.facing.toFloat(), 1f, Offset.Zero) }) {
         if (weapon == WeaponType.CANNON) {
@@ -898,10 +898,10 @@ private fun DrawScope.drawGlow(g: TrainGame, night: Float) {
     for (i in 0 until g.slotCount) {
         val gs = g.gunners[i]
         if (gs.flash <= 0f) continue
-        val len = weaponLength(g.crew[i].weapon)
+        val len = weaponLength(gs.weapon)
         val mx = g.gunX(i) + gs.facing * cos(gs.aim) * len
         val my = g.shoulderY(i) + sin(gs.aim) * len
-        val r = if (g.crew[i].weapon == WeaponType.CANNON) 20f else 11f
+        val r = if (gs.weapon == WeaponType.CANNON) 20f else 11f
         drawCircle(Brush.radialGradient(listOf(Color(0xFFFFF59D), Color(0xFFFFB300).copy(alpha = 0.6f), Color.Transparent), center = Offset(mx, my), radius = r), r, Offset(mx, my))
     }
     if (g.teslaLevel > 0 && g.teslaFlash > 0f) {
@@ -983,6 +983,33 @@ private fun DrawScope.drawHud(g: TrainGame) {
     if (g.bossAlert > 0f) {
         val pulse = 0.65f + 0.35f * sin(g.time * 12f)
         outlinedText("BOSS APPROACHING!", size.width / 2f, size.height * 0.3f, 26f * u, 0xFFFF5252.toInt(), pulse)
+    }
+}
+
+// ------------------------------------------------------------------ field guide portraits
+
+/** Draws one animated zombie of [type] scaled to fill this canvas (used by the Field Guide). */
+fun DrawScope.drawZombiePortrait(type: ZombieType, timeSeconds: Float) {
+    val height = when (type) {
+        ZombieType.BALLOON -> 150f
+        ZombieType.BAT -> 48f
+        ZombieType.TITAN -> 150f
+        else -> 74f * max(1f, type.size)
+    }
+    val k = min(size.height / height, size.width / (height * 0.9f))
+    val z = Zombie(type, 0f, 0f, 1, 1f, 1f, 0.9f)
+    z.facing = 1
+    z.anim = timeSeconds * 3f
+    z.x = size.width / (2f * k)
+    z.y = if (type == ZombieType.BAT) height * 0.62f else height - 4f
+    withTransform({ scale(k, k, Offset.Zero) }) { drawZombie(z) }
+}
+
+/** Draws [weapon] centred in this canvas (used by the Field Guide). */
+fun DrawScope.drawWeaponPortrait(weapon: WeaponType) {
+    val k = size.width / 70f
+    withTransform({ translate(size.width * 0.1f, size.height / 2f); scale(k * 0.85f, k * 0.85f, Offset.Zero) }) {
+        drawWeapon(weapon, 0f)
     }
 }
 

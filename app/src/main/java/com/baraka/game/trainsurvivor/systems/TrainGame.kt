@@ -1,6 +1,7 @@
 package com.baraka.game.trainsurvivor.systems
 
 import com.baraka.game.trainsurvivor.data.TrainSoundCue
+import com.baraka.game.trainsurvivor.model.AUTO_WEAPON
 import com.baraka.game.trainsurvivor.model.Biome
 import com.baraka.game.trainsurvivor.model.SaveData
 import com.baraka.game.trainsurvivor.model.TrainUpgrade
@@ -68,6 +69,11 @@ class FloatingText(var x: Float, var y: Float, val text: String, var life: Float
 
 /** Per-passenger runtime state the renderer needs (aim, recoil, muzzle flash). */
 class GunnerState {
+    /** The weapon in hand right now. */
+    var weapon = WeaponType.PISTOL
+    /** [AUTO_WEAPON] or the ordinal of the weapon the player forced. */
+    var mode = AUTO_WEAPON
+    var autoCheck = 0f
     var cooldown = 0f
     var recoil = 0f
     var flash = 0f
@@ -99,7 +105,13 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     // ---- train ----
     val slotCount = save.unlockedSlots
     val crew = save.slots.take(slotCount)
-    val gunners = List(slotCount) { GunnerState() }
+    val gunners = List(slotCount) { i ->
+        GunnerState().also { g ->
+            val slot = save.slots[i]
+            g.mode = slot.selected
+            g.weapon = if (slot.selected != AUTO_WEAPON) WeaponType.entries[slot.selected] else slot.bestWeapon
+        }
+    }
     val armorLevel = save.level(TrainUpgrade.ARMOR)
     val spikeLevel = save.level(TrainUpgrade.SPIKES)
     val dynamiteLevel = save.level(TrainUpgrade.DYNAMITE)
@@ -460,7 +472,8 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     private fun updateGunners(dt: Float) {
         for (i in 0 until slotCount) {
             val g = gunners[i]
-            val weapon = crew[i].weapon
+            updateLoadout(i, dt)
+            val weapon = g.weapon
             g.cooldown -= dt
             g.recoil = max(0f, g.recoil - dt * 9f)
             g.flash = max(0f, g.flash - dt)
@@ -489,6 +502,86 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     }
 
     private fun targetY(z: Zombie) = z.y - 28f * z.type.size
+
+    // ---------------------------------------------------------------- weapon switching
+
+    /** Tap-to-cycle used by the in-run switcher: AUTO, then each owned weapon, then AUTO again. */
+    fun cycleWeapon(slot: Int) {
+        if (over || slot !in gunners.indices) return
+        val g = gunners[slot]
+        val owned = crew[slot].ownedWeapons
+        val next = if (g.mode == AUTO_WEAPON) owned.first().ordinal else owned.firstOrNull { it.ordinal > g.mode }?.ordinal ?: AUTO_WEAPON
+        g.mode = next
+        g.autoCheck = 0f
+        if (next != AUTO_WEAPON) equip(slot, WeaponType.entries[next])
+    }
+
+    private fun equip(slot: Int, weapon: WeaponType) {
+        val g = gunners[slot]
+        if (g.weapon == weapon) return
+        g.weapon = weapon
+        g.cooldown = max(g.cooldown, 0.35f) // swapping takes a moment, so flip-flopping has a cost
+        if (time > 0.5f) texts.add(FloatingText(gunX(slot), gunY(slot) - 66f, weapon.displayName, 0.9f, 0xFFFFFFFF.toInt()))
+    }
+
+    private fun updateLoadout(slot: Int, dt: Float) {
+        val g = gunners[slot]
+        if (g.mode != AUTO_WEAPON) {
+            equip(slot, WeaponType.entries[g.mode])
+            return
+        }
+        g.autoCheck -= dt
+        if (g.autoCheck > 0f) return
+        g.autoCheck = 0.3f
+        val owned = crew[slot].ownedWeapons
+        if (owned.size < 2) return
+        var best = g.weapon
+        var bestScore = 0f
+        var currentScore = 0f
+        for (w in owned) {
+            val score = weaponScore(slot, w)
+            if (w == g.weapon) currentScore = score
+            if (score > bestScore) { bestScore = score; best = w }
+        }
+        // Stick with the current weapon unless another is clearly better here.
+        if (best != g.weapon && bestScore > currentScore * 1.2f) equip(slot, best)
+    }
+
+    /**
+     * Estimated damage per second [weapon] would deal from [slot] right now: nearest target in range
+     * (shots are capped at the target's remaining health, so big guns are wasted on weak zombies), plus
+     * what its splash or piercing would add on neighbouring zombies.
+     */
+    private fun weaponScore(slot: Int, weapon: WeaponType): Float {
+        val gx = gunX(slot)
+        var target: Zombie? = null
+        var nearest = weapon.range
+        for (z in zombies) {
+            if (z.dead || z.x < -10f || z.x > worldW + 10f) continue
+            if (weapon.groundOnly && z.flying) continue
+            val d = abs(z.x - gx)
+            if (d < nearest) { nearest = d; target = z }
+        }
+        if (target == null) return 0f
+        val damage = weapon.damage * crew[slot].powerMultiplier
+        var total = min(damage, target.hp)
+        if (weapon.splashRadius > 0f || weapon.pierce > 1) {
+            val dir = if (target.x >= gx) 1 else -1
+            var pierced = 0
+            for (o in zombies) {
+                if (o === target || o.dead || o.x < -10f || o.x > worldW + 10f) continue
+                if (weapon.groundOnly && o.flying) continue
+                val dx = o.x - target.x
+                if (weapon.splashRadius > 0f && abs(dx) <= weapon.splashRadius) {
+                    total += 0.6f * min(damage, o.hp)
+                } else if (weapon.pierce > 1 && pierced < weapon.pierce - 1 && dx * dir > 0f && abs(dx) < 260f) {
+                    total += 0.8f * min(damage, o.hp)
+                    pierced++
+                }
+            }
+        }
+        return total / weapon.interval
+    }
 
     // ---------------------------------------------------------------- train-mounted weapons
 
@@ -613,8 +706,8 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
 
     private fun fire(slot: Int, target: Zombie) {
         val g = gunners[slot]
-        val weapon = crew[slot].weapon
-        val damage = crew[slot].damage
+        val weapon = g.weapon
+        val damage = weapon.damage * crew[slot].powerMultiplier
         val gx = gunX(slot)
         val len = weaponLength(weapon)
         val mx = gx + g.facing * cos(g.aim) * len

@@ -39,7 +39,11 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.baraka.game.trainsurvivor.model.AUTO_WEAPON
 import com.baraka.game.trainsurvivor.model.CrewSlot
+import com.baraka.game.trainsurvivor.model.WeaponType
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import com.baraka.game.trainsurvivor.model.MAX_POWER
 import com.baraka.game.trainsurvivor.model.MAX_SLOTS
 import com.baraka.game.trainsurvivor.model.SaveData
@@ -63,6 +67,11 @@ fun GarageScreen(
     onDepart: () -> Unit
 ) {
     var tab by remember { mutableIntStateOf(0) }
+    var showGuide by remember { mutableStateOf(false) }
+    if (showGuide) {
+        FieldGuideScreen(onClose = { showGuide = false })
+        return
+    }
 
     Row(
         modifier = Modifier
@@ -91,6 +100,11 @@ fun GarageScreen(
                     modifier = Modifier.weight(1f).height(48.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AMBER, contentColor = Color.Black)
                 ) { Text("DEPART  ▶", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp) }
+                Button(
+                    onClick = { showGuide = true },
+                    modifier = Modifier.height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = CARD, contentColor = Color.White)
+                ) { Text("Field Guide", fontSize = 12.sp) }
                 Button(
                     onClick = { onSoundToggle(!soundEnabled) },
                     modifier = Modifier.height(48.dp),
@@ -181,37 +195,66 @@ private fun CrewTab(save: SaveData, onPurchase: (SaveData) -> Unit) {
 
 @Composable
 private fun CrewCard(index: Int, slot: CrewSlot, save: SaveData, onPurchase: (SaveData) -> Unit) {
-    val nextWeapon = Shop.nextWeapon(slot)
-    val weaponCost = Shop.weaponCost(slot)
     val powerCost = Shop.powerCost(slot)
+    val autoMode = slot.selected == AUTO_WEAPON
+    val inHand = if (autoMode) slot.bestWeapon else WeaponType.entries[slot.selected]
     Column(
         Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(if (index == 0) "Driver" else "Passenger ${index + 1}", color = MUTED, fontSize = 11.sp)
-                Text(slot.weapon.displayName, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    "${slot.weapon.blurb}  •  ${"%.0f".format(slot.damage)} dmg  •  power ${slot.power}/$MAX_POWER",
-                    color = MUTED, fontSize = 11.sp
-                )
+        Text(if (index == 0) "Driver" else "Passenger ${index + 1}", color = MUTED, fontSize = 11.sp)
+        Text(
+            if (autoMode) "AUTO - picks the best weapon for the situation" else "Always uses the ${inHand.displayName}",
+            color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold
+        )
+        Text(
+            "${slot.ownedWeapons.size}/${WeaponType.entries.size} weapons  •  power ${slot.power}/$MAX_POWER (+${slot.power * 30}% damage)",
+            color = MUTED, fontSize = 11.sp
+        )
+
+        // Which weapon this passenger uses: AUTO or one they own. (In a run you can also tap their chip to change it.)
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            ModeChip("AUTO", autoMode) { onPurchase(Shop.selectWeapon(save, index, AUTO_WEAPON)) }
+            slot.ownedWeapons.forEach { w ->
+                ModeChip(w.displayName, slot.selected == w.ordinal) { onPurchase(Shop.selectWeapon(save, index, w.ordinal)) }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            BuyButton(
-                label = if (nextWeapon != null) "→ ${nextWeapon.displayName}" else "BEST WEAPON",
-                cost = weaponCost,
-                enabled = weaponCost != null && save.coins >= weaponCost,
-                modifier = Modifier.weight(1f)
-            ) { Shop.buyWeapon(save, index)?.let(onPurchase) }
-            BuyButton(
-                label = if (powerCost != null) "+30% power" else "MAX POWER",
-                cost = powerCost,
-                enabled = powerCost != null && save.coins >= powerCost,
-                modifier = Modifier.weight(1f)
-            ) { Shop.buyPower(save, index)?.let(onPurchase) }
+
+        // Weapons still available to buy.
+        val locked = WeaponType.entries.filter { !slot.owns(it) }
+        if (locked.isNotEmpty()) {
+            Text("Buy more weapons", color = MUTED, fontSize = 11.sp)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                locked.forEach { w ->
+                    BuyButton(
+                        label = w.displayName,
+                        cost = w.unlockCost,
+                        enabled = save.coins >= w.unlockCost,
+                        modifier = Modifier.width(112.dp)
+                    ) { Shop.buyWeapon(save, index, w)?.let(onPurchase) }
+                }
+            }
         }
+        BuyButton(
+            label = if (powerCost != null) "+30% power (all weapons)" else "MAX POWER",
+            cost = powerCost,
+            enabled = powerCost != null && save.coins >= powerCost,
+            modifier = Modifier.fillMaxWidth()
+        ) { Shop.buyPower(save, index)?.let(onPurchase) }
+    }
+}
+
+@Composable
+private fun ModeChip(text: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (selected) AMBER else Color(0xFF2A2F3A))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, color = if (selected) Color.Black else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
 
