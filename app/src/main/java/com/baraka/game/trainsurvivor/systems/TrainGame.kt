@@ -31,6 +31,32 @@ private const val MAX_ZOMBIES = 70
 private const val MAX_PARTICLES = 420
 private const val MAX_TEXTS = 40
 private const val SHELL_GRAVITY = 1000f
+
+// How often each common enemy shows up on each route (walker, runner, brute, bloater, bat, balloon, clown).
+// The route's signature enemy is added on top of this in pickType().
+private val MIX_PLAINS = floatArrayOf(1.0f, 1.0f, 1.0f, 0.6f, 0.6f, 1.2f, 1.5f)
+private val MIX_MOUNTAIN = floatArrayOf(0.8f, 0.6f, 1.8f, 0.3f, 0.3f, 1.6f, 0.5f)
+private val MIX_TUNNEL = floatArrayOf(0.8f, 1.0f, 1.0f, 1.0f, 2.5f, 0.0f, 0.5f)
+private val MIX_DESERT = floatArrayOf(0.8f, 2.5f, 1.0f, 0.5f, 0.5f, 0.8f, 0.8f)
+private val MIX_GRAVEYARD = floatArrayOf(0.8f, 1.0f, 2.5f, 3.0f, 2.0f, 0.3f, 0.5f)
+private val MIX_SWAMP = floatArrayOf(0.8f, 0.6f, 1.0f, 2.0f, 1.0f, 0.0f, 0.5f)
+
+private fun rosterMix(biome: Biome): FloatArray = when (biome) {
+    Biome.PLAINS -> MIX_PLAINS
+    Biome.MOUNTAIN -> MIX_MOUNTAIN
+    Biome.TUNNEL -> MIX_TUNNEL
+    Biome.DESERT -> MIX_DESERT
+    Biome.GRAVEYARD -> MIX_GRAVEYARD
+    Biome.SWAMP -> MIX_SWAMP
+}
+
+private fun signatureFrom(type: ZombieType): Float = when (type) {
+    ZombieType.ZOMBIE_DOG, ZombieType.RAT -> 8f
+    ZombieType.SCORPION, ZombieType.SKELETON -> 12f
+    ZombieType.CROCODILE -> 10f
+    ZombieType.YETI -> 35f
+    else -> 0f
+}
 private const val HEAT_COOL_RATE = 0.22f
 private const val HEAT_RECOVER = 0.35f
 
@@ -588,35 +614,33 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     }
 
     private fun pickType(): ZombieType {
-        var runner = if (time > 20f) 4f + time / 30f else 0f
-        var brute = if (time > 70f) 1.5f + (time - 70f) / 60f else 0f
-        var bloater = if (time > 45f) 2.5f else 0f
-        var bat = if (time > 25f) 3f + time / 40f else 0f
-        var balloon = if (time > 40f) 2f + time / 80f else 0f
-        val clown = if (time > 30f) 2f else 0f
-        when (biome) {
-            Biome.DESERT -> runner = max(runner, 4f) * 2.5f
-            Biome.MOUNTAIN -> {
-                brute = (if (time > 40f) max(brute, 1.5f) else brute) * 1.8f
-                balloon *= 1.6f
-            }
-            Biome.GRAVEYARD -> {
-                brute = (if (time > 30f) max(brute, 1.5f) else brute) * 2.5f
-                bloater = (if (time > 20f) max(bloater, 2.5f) else bloater) * 3f
-                bat = (if (time > 10f) max(bat, 3f) else bat) * 2f
-            }
-            Biome.TUNNEL -> bat = (if (time > 10f) max(bat, 3f) else bat) * 2.5f
-            else -> {}
+        val t = time
+        val m = rosterMix(biome)
+        val bruteFrom = when (biome) {
+            Biome.MOUNTAIN -> 40f
+            Biome.GRAVEYARD -> 30f
+            Biome.SWAMP -> 55f
+            else -> 70f
         }
-        val total = 10f + runner + brute + bloater + bat + balloon + clown
+        val w0 = 10f * m[0]
+        val w1 = (if (t > 20f) 4f + t / 30f else 0f) * m[1]
+        val w2 = (if (t > bruteFrom) 1.5f + max(0f, t - 70f) / 60f else 0f) * m[2]
+        val w3 = (if (t > 45f) 2.5f else 0f) * m[3]
+        val w4 = (if (t > 25f) 3f + t / 40f else 0f) * m[4]
+        val w5 = (if (t > 40f) 2f + t / 80f else 0f) * m[5]
+        val w6 = (if (t > 30f) 2f else 0f) * m[6]
+        val signature = biome.signature
+        val w7 = if (t >= signatureFrom(signature)) 5f + t / 50f else 0f
+        val total = w0 + w1 + w2 + w3 + w4 + w5 + w6 + w7
         var roll = rng.nextFloat() * total
-        roll -= 10f; if (roll <= 0f) return ZombieType.WALKER
-        roll -= runner; if (roll <= 0f) return ZombieType.RUNNER
-        roll -= brute; if (roll <= 0f) return ZombieType.BRUTE
-        roll -= bloater; if (roll <= 0f) return ZombieType.BLOATER
-        roll -= bat; if (roll <= 0f) return ZombieType.BAT
-        roll -= balloon; if (roll <= 0f) return ZombieType.BALLOON
-        return ZombieType.CLOWN
+        roll -= w0; if (roll <= 0f) return ZombieType.WALKER
+        roll -= w1; if (roll <= 0f) return ZombieType.RUNNER
+        roll -= w2; if (roll <= 0f) return ZombieType.BRUTE
+        roll -= w3; if (roll <= 0f) return ZombieType.BLOATER
+        roll -= w4; if (roll <= 0f) return ZombieType.BAT
+        roll -= w5; if (roll <= 0f) return ZombieType.BALLOON
+        roll -= w6; if (roll <= 0f) return ZombieType.CLOWN
+        return signature
     }
 
     private fun spawnZombie(type: ZombieType, forcedSide: Int = 0) {
@@ -624,6 +648,9 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         val x = if (side > 0) worldW + 40f + rng.nextFloat() * 80f else -40f - rng.nextFloat() * 80f
         val feetY = if (type.flying) 110f + rng.nextFloat() * 170f else RAIL_Y + 24f + rng.nextFloat() * 36f
         addZombie(type, x, feetY, side)
+        // Rats and hounds come in packs.
+        if (type == ZombieType.RAT) repeat(3) { if (zombies.size < MAX_ZOMBIES) addZombie(type, x + side * (it + 1) * 18f, feetY + (it % 2) * 10f, side) }
+        if (type == ZombieType.ZOMBIE_DOG && zombies.size < MAX_ZOMBIES) addZombie(type, x + side * 24f, feetY + 8f, side)
     }
 
     private fun addZombie(type: ZombieType, x: Float, feetY: Float, side: Int): Zombie {
@@ -684,7 +711,19 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
                 val z = sideBuffer[rank]
                 val spot = end + side * (14f + min(rank, 16) * 22f * z.type.size.coerceAtLeast(1f))
                 val delta = spot - z.x
-                val step = z.type.speed * dt
+                var speedMul = 1f
+                if (z.type == ZombieType.CROCODILE) {
+                    // Crocodiles creep, then LUNGE in short fast bursts.
+                    z.special -= dt
+                    if (z.retarget > 0f) {
+                        z.retarget -= dt
+                        speedMul = 2.6f
+                    } else if (z.special <= 0f && !z.attacking) {
+                        z.retarget = 0.7f
+                        z.special = 3.5f
+                    }
+                }
+                val step = z.type.speed * dt * speedMul
                 val arrived = abs(delta) <= step + 1f
                 if (arrived) z.x = spot else z.x += if (delta > 0f) step else -step
                 z.facing = -side
@@ -915,7 +954,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         }
     }
 
-    private fun targetY(z: Zombie) = z.y - 28f * z.type.size
+    private fun targetY(z: Zombie) = z.y - z.type.aimHeight * z.type.size
 
     /** Damage left after the target's flat armor (never below a quarter of the hit). */
     private fun armored(damage: Float, z: Zombie): Float =

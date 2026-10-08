@@ -63,7 +63,13 @@ private val zombieNotes: Map<ZombieType, ZombieNote> = mapOf(
     ZombieType.BALLOON to ZombieNote("After ~40 s", "Drifts in under party balloons and hovers over the roof. Pops into confetti. Common in the Mountain Pass.", "Great coin value. Flak Turret, Rocket and Tesla Coil all work well."),
     ZombieType.TITAN to ZombieNote("Boss: ~75 s, then every 80 s", "A giant with spikes and a glowing chest. Every few seconds it SMASHES the car it is clawing for extra damage.", "Armor 12: pistols, SMGs and miniguns do almost nothing. Stack Dynamite, Rockets, Sniper shots and Tesla chains."),
     ZombieType.GARGOYLE to ZombieNote("Boss: the 2nd, 5th, 8th...", "A stone-winged flyer that circles above the train and screeches up three bats at a time.", "Cannons can't hit it. Flak Turret, Rocket, Laser and Sniper can."),
-    ZombieType.CLOWN_PRINCE to ZombieNote("Boss: the 3rd, 6th, 9th...", "A giant clown in a crown who summons two clowns every few seconds. Honk honk.", "Focus the Prince first - the clowns are weak. Mortar and splash weapons love the crowd.")
+    ZombieType.CLOWN_PRINCE to ZombieNote("Boss: the 3rd, 6th, 9th...", "A giant clown in a crown who summons two clowns every few seconds. Honk honk.", "Focus the Prince first - the clowns are weak. Mortar and splash weapons love the crowd."),
+    ZombieType.ZOMBIE_DOG to ZombieNote("Open Plains, from ~8 s", "A fast, snarling hound that arrives in pairs. Weak but quick.", "SMGs and Pistols are perfect - don't waste Rockets on them."),
+    ZombieType.YETI to ZombieNote("Mountain Pass, after ~35 s", "A huge shaggy brute. Armor 4 and a lot of health.", "Use heavier hits: Sniper, Rocket or Cannon."),
+    ZombieType.RAT to ZombieNote("Dark Tunnel, from ~8 s", "Tiny and very fast; they swarm in packs of four.", "Splash and chain weapons shine: Shotgun, Tesla Coil, Mortar."),
+    ZombieType.SCORPION to ZombieNote("Scorched Desert, from ~12 s", "A low, armored (3) crawler that skitters in quickly.", "Mid-damage weapons and the Flamethrower handle them."),
+    ZombieType.SKELETON to ZombieNote("Haunted Graveyard, from ~12 s", "Brittle bones that clatter in fast.", "Anything works - save the big shots for Brutes."),
+    ZombieType.CROCODILE to ZombieNote("Murky Swamp, from ~10 s", "Creeps out of the bog, then LUNGES in short bursts. Armor 3 and a brutal bite.", "Kill it before it lunges into range: Sniper and Rocket work best.")
 )
 
 @Composable
@@ -222,6 +228,7 @@ private fun RouteGuide() {
             ) {
                 Text(biome.displayName, color = accent, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                 Text(biome.tagline, color = Color(0xFFD0D6E0), fontSize = 11.sp)
+                Text("Signature enemy: " + biome.signature.displayName, color = Color(0xFF81C784), fontSize = 11.sp)
                 Text(
                     "Coins x${fmt(biome.coinMult)}  -  zombie HP x${fmt(biome.hpMult)}  -  spawns x${fmt(biome.spawnMult)}  -  damage x${fmt(biome.dmgMult)}",
                     color = AMBER, fontSize = 11.sp, fontWeight = FontWeight.Bold

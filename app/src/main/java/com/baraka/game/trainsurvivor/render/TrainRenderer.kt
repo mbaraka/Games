@@ -167,6 +167,7 @@ private fun styleOf(biome: Biome): BiomeStyle = when (biome) {
     Biome.DESERT -> BiomeStyle(Color(0xFF4A9AD6), Color(0xFFFAD9A0), Color(0xFFC48E5E), Color(0xFFD9A86C), 110f, 70f, false, Color(0xFFD9B26F), Color(0xFF9A7B45), Color(0xFFB38A55), Color(0xFF7E9A3A))
     Biome.GRAVEYARD -> BiomeStyle(Color(0xFF5A5470), Color(0xFFB9A7C8), Color(0xFF4A4562), Color(0xFF383450), 170f, 110f, false, Color(0xFF4C5A44), Color(0xFF2B3427), Color(0xFF3A3A44), Color(0xFF3A5A34))
     Biome.TUNNEL -> BiomeStyle(DAY_TOP, DAY_BOTTOM, Color.Black, Color.Black, 0f, 0f, false, Color(0xFF3A3530), Color(0xFF1E1B18), Color(0xFF2A2622), Color(0xFF3A3530))
+    Biome.SWAMP -> BiomeStyle(Color(0xFF5C7F6B), Color(0xFFB8D4B0), Color(0xFF4D6B5A), Color(0xFF3C5648), 90f, 55f, false, Color(0xFF4B5B3A), Color(0xFF2A3322), Color(0xFF2F4A38), Color(0xFF5F8F3F))
 }
 
 /** Draws one region's static world (sky or tunnel wall, mountains, ground, back scenery) in the given biome's look. */
@@ -362,6 +363,24 @@ private fun DrawScope.drawBackScenery(g: TrainGame, biome: Biome, light: Float) 
                     drawRect(trunk, Offset(x - 2f, baseY - 6f), Size(4f, 8f))
                 }
             }
+            Biome.SWAMP -> {
+                if (r < 0.55f) {
+                    // Mangrove: trunk, arching roots, a canopy with hanging moss.
+                    drawLine(trunk, Offset(x, baseY), Offset(x, baseY - h * 0.9f), 5f)
+                    drawLine(trunk, Offset(x, baseY - h * 0.3f), Offset(x - 16f, baseY + 2f), 3f)
+                    drawLine(trunk, Offset(x, baseY - h * 0.3f), Offset(x + 16f, baseY + 2f), 3f)
+                    drawOval(leaf, Offset(x - 26f, baseY - h * 1.15f), Size(52f, 30f))
+                    for (k in -1..1) drawLine(leaf.copy(alpha = 0.8f), Offset(x + k * 16f, baseY - h * 1.0f), Offset(x + k * 16f, baseY - h * 0.6f), 2f)
+                } else {
+                    // Reeds with cattails.
+                    for (k in -2..2) {
+                        val rx = x + k * 6f
+                        val rh = 28f + ((k + 2) % 3) * 9f
+                        drawLine(cactus, Offset(rx, baseY), Offset(rx + k * 1.5f, baseY - rh), 2.5f)
+                        drawOval(Color(0xFF5D4037), Offset(rx + k * 1.5f - 2.5f, baseY - rh - 7f), Size(5f, 12f))
+                    }
+                }
+            }
             Biome.TUNNEL -> {}
         }
     }
@@ -393,7 +412,14 @@ private fun DrawScope.drawForeground(g: TrainGame, biome: Biome, light: Float) {
         val x = i * spacing + r * 200f - g.scroll * parallax
         val y = 650f + hash(i + 900) * 50f
         if (r > 0.5f) {
-            drawOval(rock, Offset(x, y), Size(46f + r * 30f, 22f + r * 10f))
+            if (biome == Biome.SWAMP) {
+                val w = 90f + r * 60f
+                drawOval(lerp(Color(0xFF0C1A18), Color(0xFF2E5E5A), light), Offset(x, y), Size(w, 26f))
+                drawOval(Color.White.copy(alpha = 0.12f * light), Offset(x + w * 0.2f, y + 5f), Size(w * 0.4f, 6f))
+                drawLine(grass, Offset(x + w * 0.8f, y + 14f), Offset(x + w * 0.8f - 6f, y - 8f), 2.5f)
+            } else {
+                drawOval(rock, Offset(x, y), Size(46f + r * 30f, 22f + r * 10f))
+            }
         } else {
             for (k in 0..4) drawLine(grass, Offset(x + k * 5f, y + 14f), Offset(x + k * 7f - 8f, y - 10f - (k % 3) * 5f), 2.5f)
         }
@@ -428,6 +454,23 @@ private fun DrawScope.drawWeather(g: TrainGame, biome: Biome) {
                 val x = ((hash(i) * span - g.time * (320f + hash(i + 2) * 200f)) % span + span) % span - 100f
                 val y = 520f + hash(i + 7) * 190f
                 drawLine(Color(0xFFE8CFA0).copy(alpha = 0.3f), Offset(x, y), Offset(x + 34f + hash(i + 4) * 30f, y), 1.8f)
+            }
+        }
+        Biome.SWAMP -> {
+            drawRect(
+                Brush.verticalGradient(listOf(Color.Transparent, Color(0xFFB7D3C0).copy(alpha = 0.22f), Color.Transparent), startY = 430f, endY = 610f),
+                Offset(-200f, 430f), Size(g.worldW + 400f, 180f)
+            )
+            for (i in 0 until 9) {
+                val span = g.worldW + 400f
+                val x = ((i * 260f - g.time * (10f + i * 3f)) % span + span) % span - 200f
+                drawOval(Color(0xFFCFE3D3).copy(alpha = 0.08f), Offset(x, 480f + (i % 3) * 36f), Size(300f, 46f))
+            }
+            for (i in 0 until 14) { // fireflies
+                val fx = hash(i + 40) * g.worldW + sin(g.time * 0.7f + i) * 30f
+                val fy = 400f + hash(i + 60) * 200f + cos(g.time * 0.9f + i * 2f) * 14f
+                val blink = 0.4f + 0.6f * sin(g.time * 3f + i * 1.7f).coerceAtLeast(0f)
+                drawCircle(Color(0xFFE6FF70).copy(alpha = 0.7f * blink), 2.4f, Offset(fx, fy))
             }
         }
         else -> {}
@@ -790,6 +833,10 @@ private fun DrawScope.drawZombie(z: Zombie) {
         drawBat(z, dir)
         return
     }
+    if (type == ZombieType.ZOMBIE_DOG || type == ZombieType.RAT || type == ZombieType.SCORPION || type == ZombieType.CROCODILE) {
+        drawCreature(z, dir)
+        return
+    }
     val walk = sin(z.anim)
     val flash = z.flash * 0.75f
     fun tint(argb: Int) = lerp(Color(argb), Color.White, flash)
@@ -805,6 +852,12 @@ private fun DrawScope.drawZombie(z: Zombie) {
         ZombieType.CLOWN_PRINCE -> 0xFFE8DCC8.toInt()
         ZombieType.GARGOYLE -> 0xFF7A7F8C.toInt()
         ZombieType.BAT -> 0xFF4A2F5E.toInt()
+        ZombieType.ZOMBIE_DOG -> 0xFF7B6F57.toInt()
+        ZombieType.YETI -> 0xFFEAF2F8.toInt()
+        ZombieType.RAT -> 0xFF6D6258.toInt()
+        ZombieType.SCORPION -> 0xFFB8803F.toInt()
+        ZombieType.SKELETON -> 0xFFEDE7D6.toInt()
+        ZombieType.CROCODILE -> 0xFF5E7B3A.toInt()
     })
     val shirt = tint(when (type) {
         ZombieType.WALKER -> intArrayOf(0xFF5D6D7E.toInt(), 0xFF6C5B3E.toInt(), 0xFF3F6C5B.toInt(), 0xFF7B4B4B.toInt())[(z.seed * 4).toInt().coerceIn(0, 3)]
@@ -817,6 +870,12 @@ private fun DrawScope.drawZombie(z: Zombie) {
         ZombieType.CLOWN_PRINCE -> 0xFF8E24AA.toInt()
         ZombieType.GARGOYLE -> 0xFF4B4F5A.toInt()
         ZombieType.BAT -> 0xFF4A2F5E.toInt()
+        ZombieType.ZOMBIE_DOG -> 0xFF5E5444.toInt()
+        ZombieType.YETI -> 0xFFD6E4EF.toInt()
+        ZombieType.RAT -> 0xFF574E46.toInt()
+        ZombieType.SCORPION -> 0xFF8A5E2B.toInt()
+        ZombieType.SKELETON -> 0xFF2B2B2B.toInt()
+        ZombieType.CROCODILE -> 0xFF46602B.toInt()
     })
     val pants = tint(if (isClown) 0xFF1E88E5.toInt() else 0xFF3A3F47.toInt())
     val hop = if (isClown && !z.attacking) abs(sin(z.anim * 1.2f)) * 7f else 0f
@@ -849,7 +908,7 @@ private fun DrawScope.drawZombie(z: Zombie) {
         }
         // Torso.
         when (type) {
-            ZombieType.BRUTE -> rbox(shirt, -11f, -40f + bob, 22f, 28f, 6f)
+            ZombieType.BRUTE, ZombieType.YETI -> rbox(shirt, -11f, -40f + bob, 22f, 28f, 6f)
             ZombieType.BLOATER -> {
                 drawCircle(shirt, 17f, Offset(0f, -26f + bob))
                 drawCircle(skin, 14f, Offset(0f, -26f + bob))
@@ -910,6 +969,22 @@ private fun DrawScope.drawZombie(z: Zombie) {
             drawCircle(Color.Black, 1.5f, Offset(5f + sin(z.anim * 2f) * 1.3f, headY - 2f + cos(z.anim * 2f)))
             drawCircle(Color.Black, 1.4f, Offset(-1f + sin(z.anim * 2f) * 1.3f, headY - 2f + cos(z.anim * 2f)))
         }
+        if (type == ZombieType.YETI) {
+            for (k in 0..3) { // shaggy fur tufts and icy eyes
+                path.rewind(); path.moveTo(-8f + k * 5f, headY - 6f); path.lineTo(-6f + k * 5f, headY - 15f); path.lineTo(-3f + k * 5f, headY - 6f); path.close()
+                drawPath(path, skin)
+            }
+            for (k in 0..2) drawLine(skin, Offset(-8f, -34f + k * 7f + bob), Offset(-14f, -30f + k * 7f + bob), 3f)
+            drawCircle(Color(0xFF4FC3F7), 2f, Offset(6f, headY - 1.5f))
+        }
+        if (type == ZombieType.SKELETON) {
+            box(Color(0xFF111111), -8f, -35f + bob, 16f, 21f) // dark gap between the ribs
+            for (k in 0..3) drawLine(skin, Offset(-7f, -32f + k * 5f + bob), Offset(7f, -32f + k * 5f + bob), 2.2f)
+            drawLine(skin, Offset(0f, -36f + bob), Offset(0f, -14f + bob), 2.2f)
+            drawCircle(Color(0xFF1B1B1B), 2.6f, Offset(6f, headY - 1.5f)) // eye socket
+            drawCircle(Color(0xFFFF5252), 1f, Offset(6f, headY - 1.5f))
+            box(Color(0xFF1B1B1B), 3f, headY + 3f, 6f, 1.6f)
+        }
         if (type == ZombieType.CLOWN_PRINCE) {
             for (k in 0..3) { // crown
                 path.rewind(); path.moveTo(-6f + k * 4.6f, headY - 12f); path.lineTo(-4f + k * 4.6f, headY - 22f); path.lineTo(-2f + k * 4.6f, headY - 12f); path.close()
@@ -928,7 +1003,7 @@ private fun DrawScope.drawZombie(z: Zombie) {
         }
         // Arms reaching toward the train; raised and swinging while clawing.
         val armAngle = if (type == ZombieType.BALLOON) -82f + sin(z.anim) * 4f else if (z.attacking) -55f + sin(z.anim * 2.2f) * 22f else -12f + walk * 6f
-        val armW = when (type) { ZombieType.BRUTE, ZombieType.TITAN -> 8f; else -> 5f }
+        val armW = when (type) { ZombieType.BRUTE, ZombieType.TITAN, ZombieType.YETI -> 8f; else -> 5f }
         val armLen = when (type) { ZombieType.BRUTE -> 20f; ZombieType.TITAN -> 24f; else -> 16f }
         withTransform({ translate(2f, -32f + bob); rotate(armAngle, Offset.Zero) }) { box(skin, 0f, -armW / 2f, armLen, armW) }
         withTransform({ translate(0f, -30f + bob); rotate(armAngle + 12f, Offset.Zero) }) { box(tint(shirtDark(type)), 0f, -armW / 2f, armLen, armW) }
@@ -947,10 +1022,110 @@ private fun DrawScope.drawZombie(z: Zombie) {
     }
     if (z.hp < z.maxHp && !z.isBoss) {
         val w = 26f * size
-        val y = z.y - 62f * size
+        val y = z.y - (z.type.aimHeight * 2f + 6f) * size
         box(Color.Black.copy(alpha = 0.6f), z.x - w / 2f, y, w, 4f)
         box(Color(0xFFE53935), z.x - w / 2f, y, w * (z.hp / z.maxHp).coerceIn(0f, 1f), 4f)
     }
+}
+
+private fun DrawScope.drawHpBar(z: Zombie) {
+    val size = z.type.size
+    val w = 26f * size
+    val y = z.y - (z.type.aimHeight * 2f + 6f) * size
+    box(Color.Black.copy(alpha = 0.6f), z.x - w / 2f, y, w, 4f)
+    box(Color(0xFFE53935), z.x - w / 2f, y, w * (z.hp / z.maxHp).coerceIn(0f, 1f), 4f)
+}
+
+/** The four-legged and crawling signature mobs: hound, rat, scorpion and crocodile. */
+private fun DrawScope.drawCreature(z: Zombie, dir: Float) {
+    val type = z.type
+    val size = type.size
+    val flash = z.flash * 0.75f
+    fun tint(argb: Int) = lerp(Color(argb), Color.White, flash)
+    val scuttle = sin(z.anim * 1.6f)
+    drawOval(Color.Black.copy(alpha = 0.28f), Offset(z.x - 24f * size, z.y - 3f * size), Size(48f * size, 7f * size))
+    withTransform({ translate(z.x, z.y); scale(size * dir, size, Offset.Zero) }) {
+        when (type) {
+            ZombieType.ZOMBIE_DOG -> {
+                val fur = tint(0xFF7B6F57.toInt())
+                val dark = tint(0xFF4E4538.toInt())
+                for (k in 0..3) box(dark, -14f + k * 9f + sin(z.anim * 1.6f + k * 1.7f) * 4f, -12f, 4f, 12f)
+                drawOval(fur, Offset(-20f, -27f), Size(40f, 18f))
+                for (k in 0..2) drawLine(Color(0xFFE6DFC8).copy(alpha = 0.8f), Offset(-8f + k * 7f, -23f), Offset(-8f + k * 7f, -15f), 1.5f)
+                drawLine(dark, Offset(-20f, -22f), Offset(-30f, -31f + scuttle * 3f), 3f)
+                drawOval(fur, Offset(14f, -35f), Size(18f, 14f))
+                path.rewind(); path.moveTo(18f, -34f); path.lineTo(21f, -43f); path.lineTo(25f, -34f); path.close()
+                drawPath(path, dark)
+                box(dark, 28f, -31f, 9f, 6f)
+                drawCircle(Color(0xFFFF3B30), 1.8f, Offset(25f, -30f))
+                if (z.attacking) drawOval(Color(0xFFFF6E91), Offset(33f, -26f), Size(4f, 7f))
+            }
+            ZombieType.RAT -> {
+                val fur = tint(0xFF6D6258.toInt())
+                val dark = tint(0xFF4A423B.toInt())
+                for (k in 0..2) box(dark, -8f + k * 7f + sin(z.anim * 2f + k) * 2.5f, -6f, 3f, 6f)
+                drawOval(fur, Offset(-13f, -15f), Size(26f, 11f))
+                path.rewind(); path.moveTo(11f, -14f); path.lineTo(23f, -9f); path.lineTo(11f, -5f); path.close()
+                drawPath(path, fur)
+                drawCircle(Color(0xFFE0A0A0), 3f, Offset(8f, -16f))
+                drawLine(Color(0xFFD7A0A0), Offset(-13f, -9f), Offset(-26f, -14f + scuttle * 2f), 1.8f)
+                drawCircle(Color(0xFFFF3B30), 1.3f, Offset(15f, -11f))
+            }
+            ZombieType.SCORPION -> {
+                val shell = tint(0xFFB8803F.toInt())
+                val dark = tint(0xFF7A5226.toInt())
+                for (k in 0..2) {
+                    val lx = -14f + k * 10f
+                    val sw = sin(z.anim * 1.8f + k * 2f) * 4f
+                    drawLine(dark, Offset(lx, -12f), Offset(lx + sw - 5f, 0f), 2f)
+                    drawLine(dark, Offset(lx + 4f, -12f), Offset(lx + 4f + sw + 5f, 0f), 2f)
+                }
+                drawOval(shell, Offset(-20f, -24f), Size(40f, 14f))
+                drawOval(dark, Offset(-8f, -23f), Size(10f, 8f))
+                // claws
+                drawLine(dark, Offset(18f, -19f), Offset(30f, -26f + scuttle * 3f), 3f)
+                drawLine(dark, Offset(18f, -16f), Offset(30f, -12f - scuttle * 3f), 3f)
+                path.rewind(); path.moveTo(29f, -29f); path.lineTo(37f, -25f + scuttle * 3f); path.lineTo(29f, -22f); path.close(); drawPath(path, shell)
+                path.rewind(); path.moveTo(29f, -15f); path.lineTo(37f, -12f - scuttle * 3f); path.lineTo(29f, -8f); path.close(); drawPath(path, shell)
+                // curled tail with stinger
+                val tail = floatArrayOf(-18f, -20f, -27f, -28f, -27f, -40f, -17f, -48f, -4f, -48f)
+                for (k in 0 until 4) drawLine(shell, Offset(tail[k * 2], tail[k * 2 + 1]), Offset(tail[k * 2 + 2], tail[k * 2 + 3]), 5f)
+                path.rewind(); path.moveTo(-4f, -53f); path.lineTo(5f, -44f); path.lineTo(-4f, -43f); path.close(); drawPath(path, Color(0xFFC62828))
+                drawCircle(Color(0xFFFF3B30), 1.6f, Offset(12f, -21f))
+            }
+            ZombieType.CROCODILE -> {
+                val skin = tint(0xFF5E7B3A.toInt())
+                val belly = tint(0xFF9BB36A.toInt())
+                val dark = tint(0xFF3E5326.toInt())
+                for (k in 0..3) box(dark, -30f + k * 17f + sin(z.anim * 1.4f + k * 1.6f) * 3.5f, -10f, 6f, 10f)
+                rbox(skin, -42f, -25f, 84f, 17f, 8f)
+                box(belly, -38f, -13f, 76f, 4f)
+                path.rewind(); path.moveTo(-40f, -23f); path.lineTo(-82f, -12f + scuttle * 2f); path.lineTo(-40f, -10f); path.close(); drawPath(path, skin)
+                for (k in 0..8) {
+                    path.rewind(); path.moveTo(-36f + k * 9f, -25f); path.lineTo(-32f + k * 9f, -32f); path.lineTo(-28f + k * 9f, -25f); path.close()
+                    drawPath(path, dark)
+                }
+                // jaws: they snap open while lunging and clawing
+                val jaw = if (z.attacking) 10f + abs(sin(z.anim * 3f)) * 16f else if (z.retarget > 0f) 28f else 5f
+                rbox(skin, 36f, -27f, 36f, 9f, 4f)
+                withTransform({ translate(38f, -18f); rotate(jaw, Offset.Zero) }) {
+                    rbox(skin, 0f, 0f, 34f, 6f, 3f)
+                    for (k in 0..3) {
+                        path.rewind(); path.moveTo(4f + k * 8f, 0f); path.lineTo(7.5f + k * 8f, -5f); path.lineTo(11f + k * 8f, 0f); path.close()
+                        drawPath(path, Color.White)
+                    }
+                }
+                for (k in 0..4) {
+                    path.rewind(); path.moveTo(40f + k * 7f, -18f); path.lineTo(43.5f + k * 7f, -13f); path.lineTo(47f + k * 7f, -18f); path.close()
+                    drawPath(path, Color.White)
+                }
+                drawCircle(Color(0xFFFFEB3B), 3.6f, Offset(41f, -28f))
+                drawCircle(Color.Black, 1.4f, Offset(42f, -28f))
+            }
+            else -> {}
+        }
+    }
+    if (z.hp < z.maxHp) drawHpBar(z)
 }
 
 private fun DrawScope.drawBat(z: Zombie, dir: Float) {
@@ -1032,7 +1207,7 @@ private fun DrawScope.drawGlow(g: TrainGame, night: Float) {
             val z = g.zombies[zi]
             val dir = z.facing.toFloat()
             val ex = z.x + dir * 6f * z.type.size
-            val ey = z.y - 45f * z.type.size
+            val ey = z.y - (if (z.type.aimHeight < 20f) z.type.aimHeight * 1.5f else 45f) * z.type.size
             val er = if (z.isBoss) 5f else 2.4f
             drawCircle(Color(0xFFFF3B30).copy(alpha = night), er, Offset(ex, ey))
             drawCircle(Color(0xFFFF3B30).copy(alpha = 0.25f * night), er * 3f, Offset(ex, ey))
@@ -1155,6 +1330,10 @@ fun DrawScope.drawZombiePortrait(type: ZombieType, timeSeconds: Float) {
     val height = when (type) {
         ZombieType.BALLOON -> 150f
         ZombieType.BAT -> 48f
+        ZombieType.ZOMBIE_DOG -> 55f
+        ZombieType.RAT -> 40f
+        ZombieType.SCORPION -> 75f
+        ZombieType.CROCODILE -> 100f
         ZombieType.GARGOYLE -> 120f
         ZombieType.TITAN -> 150f
         else -> 74f * max(1f, type.size)

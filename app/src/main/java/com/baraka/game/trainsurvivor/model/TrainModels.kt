@@ -61,7 +61,9 @@ enum class ZombieType(
     val flying: Boolean = false,
     val boss: Boolean = false,
     /** Flat damage removed from every hit (never below 25% of it), so small bullets are weak against armored targets. */
-    val armor: Float = 0f
+    val armor: Float = 0f,
+    /** How high above the feet shots aim; low creatures are hit near the ground. */
+    val aimHeight: Float = 28f
 ) {
     WALKER("Walker", 30f, 38f, 5f, 2, 1.0f),
     RUNNER("Runner", 18f, 88f, 4f, 3, 0.9f),
@@ -72,7 +74,15 @@ enum class ZombieType(
     BALLOON("Balloon Zombie", 45f, 42f, 5f, 6, 1.0f, flying = true),
     CLOWN("Clown", 70f, 62f, 7f, 6, 1.1f),
     GARGOYLE("Gargoyle King", 900f, 55f, 26f, 180, 2.0f, flying = true, boss = true, armor = 9f),
-    CLOWN_PRINCE("Clown Prince", 1200f, 34f, 22f, 200, 2.1f, boss = true, armor = 8f)
+    CLOWN_PRINCE("Clown Prince", 1200f, 34f, 22f, 200, 2.1f, boss = true, armor = 8f),
+
+    // Each route has its own signature enemy.
+    ZOMBIE_DOG("Zombie Hound", 28f, 105f, 5f, 3, 0.95f, aimHeight = 14f),
+    YETI("Yeti", 230f, 26f, 15f, 12, 1.55f, armor = 4f),
+    RAT("Giant Rat", 8f, 120f, 2f, 1, 0.65f, aimHeight = 9f),
+    SCORPION("Sand Scorpion", 70f, 72f, 8f, 5, 1.1f, armor = 3f, aimHeight = 14f),
+    SKELETON("Skeleton", 40f, 62f, 6f, 4, 1.0f),
+    CROCODILE("Crocodile", 130f, 52f, 16f, 10, 1.35f, armor = 3f, aimHeight = 13f)
 }
 
 /** A stretch of track the player can route onto at a junction: new scenery plus a risk/reward trade. */
@@ -87,13 +97,16 @@ enum class Biome(
     /** Multiplies the Repair Crew's healing while on this route. */
     val repairMult: Float = 1f,
     /** Free healing per second on this route, even without a Repair Crew. */
-    val flatRegen: Float = 0f
+    val flatRegen: Float = 0f,
+    /** The enemy that belongs to this route's landscape; it shows up often here and nowhere else. */
+    val signature: ZombieType = ZombieType.WALKER
 ) {
-    PLAINS("Open Plains", "Calm and safe: fewer, weaker zombies and the train repairs itself", 1.0f, 0.85f, 0.7f, 0.9f, 0xFF8BC34A, repairMult = 2f, flatRegen = 2.5f),
-    MOUNTAIN("Mountain Pass", "Frozen, much tougher zombies", 1.4f, 1.5f, 1.0f, 1.0f, 0xFF81D4FA),
-    TUNNEL("Dark Tunnel", "Dense hordes in the dark", 1.35f, 1.0f, 1.5f, 1.1f, 0xFFFFB74D),
-    DESERT("Scorched Desert", "Fast swarming runners", 1.3f, 0.9f, 1.4f, 1.0f, 0xFFFFD54F),
-    GRAVEYARD("Haunted Graveyard", "Brutes and bloaters that hit very hard", 1.7f, 1.25f, 1.0f, 1.35f, 0xFFB39DDB)
+    PLAINS("Open Plains", "Calm and safe: fewer, weaker zombies and the train repairs itself", 1.0f, 0.85f, 0.7f, 0.9f, 0xFF8BC34A, repairMult = 2f, flatRegen = 2.5f, signature = ZombieType.ZOMBIE_DOG),
+    MOUNTAIN("Mountain Pass", "Frozen, much tougher zombies", 1.4f, 1.5f, 1.0f, 1.0f, 0xFF81D4FA, signature = ZombieType.YETI),
+    TUNNEL("Dark Tunnel", "Dense hordes in the dark", 1.35f, 1.0f, 1.5f, 1.1f, 0xFFFFB74D, signature = ZombieType.RAT),
+    DESERT("Scorched Desert", "Fast swarming runners", 1.3f, 0.9f, 1.4f, 1.0f, 0xFFFFD54F, signature = ZombieType.SCORPION),
+    GRAVEYARD("Haunted Graveyard", "Brutes and bloaters that hit very hard", 1.7f, 1.25f, 1.0f, 1.35f, 0xFFB39DDB, signature = ZombieType.SKELETON),
+    SWAMP("Murky Swamp", "Crocodiles lurk in the bog and gas bloaters drift through the mist", 1.45f, 1.1f, 1.1f, 1.1f, 0xFF26A69A, signature = ZombieType.CROCODILE)
 }
 
 enum class Perk { DAMAGE, FIRE_RATE, RANGE, CRIT, SCAVENGER }
