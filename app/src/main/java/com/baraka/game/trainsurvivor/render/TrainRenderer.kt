@@ -534,7 +534,60 @@ private fun DrawScope.drawTrain(g: TrainGame, light: Float) {
             path.moveTo(g.rearEnd + 2f, sy); path.lineTo(g.rearEnd - 16f, sy + 3.5f); path.lineTo(g.rearEnd + 2f, sy + 7f); path.close()
             drawPath(path, Color(0xFFD7DBE2))
         }
+        if (g.repairLevel > 0) drawRepairCrew(g)
+        if (g.flakLevel > 0) drawFlak(g)
+        if (g.teslaLevel > 0) drawTesla(g)
         for (i in 0 until g.slotCount) drawGunner(g, i)
+    }
+}
+
+private fun DrawScope.drawFlak(g: TrainGame) {
+    val kick = if (g.flakFlash > 0f) -3f else 0f
+    box(Color(0xFF37474F), g.flakX - 11f, g.flakY - 8f, 22f, 8f)
+    drawArc(Color(0xFF546E7A), 180f, 180f, true, Offset(g.flakX - 9f, g.flakY - 17f), Size(18f, 18f))
+    withTransform({ translate(g.flakX, g.flakY - 12f); rotate(-58f, Offset.Zero) }) {
+        box(Color(0xFF263238), kick, -4f, 28f, 3.5f)
+        box(Color(0xFF263238), kick, 0.5f, 28f, 3.5f)
+        box(Color(0xFF90A4AE), 24f + kick, -5f, 5f, 10f)
+    }
+}
+
+private fun DrawScope.drawTesla(g: TrainGame) {
+    val x = g.teslaX
+    val y = g.teslaY
+    box(Color(0xFF4E342E), x - 9f, y - 8f, 18f, 8f)
+    val copper = Color(0xFFC77D3A)
+    for (k in 0..3) rbox(copper, x - 7f + k * 0.8f, y - 14f - k * 6f, 14f - k * 1.6f, 4.5f, 2f)
+    box(Color(0xFF8D6E63), x - 1.5f, y - 14f, 3f, 24f)
+    val glow = g.teslaFlash > 0f
+    drawCircle(if (glow) Color(0xFFB3F0FF) else Color(0xFFCFD8DC), 7f, Offset(x, y - 38f))
+    drawCircle(Color(0xFF607D8B), 7f, Offset(x, y - 38f), style = Stroke(1.8f))
+}
+
+private fun DrawScope.drawRepairCrew(g: TrainGame) {
+    val width = g.frontEnd - g.rearEnd - 4f
+    box(Color(0xFF6D4C41), g.rearEnd, g.repairBoardY, width, 4f)
+    box(Color(0xFF3E2723), g.rearEnd, g.repairBoardY + 4f, width, 2f)
+    for (r in g.repairers) {
+        val swing = sin(r.anim)
+        val skin = Color(0xFFD9A066)
+        withTransform({ translate(r.x, g.repairBoardY); scale(0.95f * r.dir, 0.95f, Offset.Zero) }) {
+            val stride = if (r.hammering) 0f else swing * 3f
+            box(Color(0xFF37474F), -4.5f + stride, -12f, 4f, 12f)
+            box(Color(0xFF37474F), 0.5f - stride, -12f, 4f, 12f)
+            box(Color(0xFF263238), -5f + stride, -2f, 6f, 2f); box(Color(0xFF263238), 0f - stride, -2f, 6f, 2f)
+            rbox(Color(0xFFFF9800), -6.5f, -29f, 13f, 18f, 3f)
+            box(Color(0xFFFFF59D), -6.5f, -23f, 13f, 2.5f)
+            drawCircle(skin, 5.5f, Offset(1f, -34f))
+            drawArc(Color(0xFFFFEB3B), 180f, 180f, true, Offset(-5.5f, -43f), Size(13f, 11f))
+            box(Color(0xFFFFEB3B), -6.5f, -37.5f, 16f, 2.5f)
+            val angle = if (r.hammering) -75f + sin(r.anim) * 55f else -8f + swing * 14f
+            withTransform({ translate(3f, -26f); rotate(angle, Offset.Zero) }) {
+                box(skin, 0f, -2f, 9f, 4f)
+                box(Color(0xFF8D6E63), 8f, -1f, 10f, 2f)
+                box(Color(0xFFB0BEC5), 15f, -5f, 6f, 10f)
+            }
+        }
     }
 }
 
@@ -561,6 +614,15 @@ private fun DrawScope.drawWeapon(weapon: WeaponType, recoil: Float) {
             WeaponType.CANNON -> {
                 box(Color(0xFF37474F), 8f, -8f, 40f, 16f); box(dark, 46f, -10f, 7f, 20f); box(Color(0xFF8A6A3A), 22f, -8f, 4f, 16f)
                 drawCircle(Color(0xFF263238), 8f, Offset(14f, 12f))
+            }
+            WeaponType.ROCKET -> {
+                box(Color(0xFF455A64), 4f, -7f, 42f, 14f); box(dark, 0f, -9f, 7f, 18f)
+                box(Color(0xFFB0BEC5), 44f, -8f, 6f, 16f); box(Color(0xFFE53935), 20f, -7f, 4f, 14f)
+                drawCircle(Color(0xFFFF7043), 4f, Offset(52f, 0f))
+            }
+            WeaponType.LASER -> {
+                box(Color(0xFFECEFF1), 6f, -4f, 36f, 8f); box(Color(0xFF40E0FF), 14f, -1.5f, 24f, 3f)
+                box(dark, 40f, -3f, 10f, 6f); drawCircle(Color(0xFF80F0FF), 3.2f, Offset(50f, 0f)); box(dark, 10f, 3f, 5f, 8f)
             }
         }
     }
@@ -602,7 +664,11 @@ private fun DrawScope.drawGunner(g: TrainGame, slot: Int) {
 private fun DrawScope.drawZombie(z: Zombie) {
     val type = z.type
     val size = type.size
-    val dir = (-z.side).toFloat()
+    val dir = z.facing.toFloat()
+    if (type == ZombieType.BAT) {
+        drawBat(z, dir)
+        return
+    }
     val walk = sin(z.anim)
     val flash = z.flash * 0.75f
     fun tint(argb: Int) = lerp(Color(argb), Color.White, flash)
@@ -613,6 +679,9 @@ private fun DrawScope.drawZombie(z: Zombie) {
         ZombieType.BRUTE -> 0xFF6E8F52.toInt()
         ZombieType.BLOATER -> 0xFFB4C45C.toInt()
         ZombieType.TITAN -> 0xFF5C7A4A.toInt()
+        ZombieType.BALLOON -> 0xFF86B864.toInt()
+        ZombieType.CLOWN -> 0xFFE8DCC8.toInt()
+        ZombieType.BAT -> 0xFF4A2F5E.toInt()
     })
     val shirt = tint(when (type) {
         ZombieType.WALKER -> intArrayOf(0xFF5D6D7E.toInt(), 0xFF6C5B3E.toInt(), 0xFF3F6C5B.toInt(), 0xFF7B4B4B.toInt())[(z.seed * 4).toInt().coerceIn(0, 3)]
@@ -620,14 +689,19 @@ private fun DrawScope.drawZombie(z: Zombie) {
         ZombieType.BRUTE -> 0xFF4A3F36.toInt()
         ZombieType.BLOATER -> 0xFF8A9A3A.toInt()
         ZombieType.TITAN -> 0xFF3B2F2F.toInt()
+        ZombieType.BALLOON -> 0xFFFF7043.toInt()
+        ZombieType.CLOWN -> 0xFFE53935.toInt()
+        ZombieType.BAT -> 0xFF4A2F5E.toInt()
     })
-    val pants = tint(0xFF3A3F47.toInt())
+    val pants = tint(if (type == ZombieType.CLOWN) 0xFF1E88E5.toInt() else 0xFF3A3F47.toInt())
+    val hop = if (type == ZombieType.CLOWN && !z.attacking) abs(sin(z.anim * 1.2f)) * 7f else 0f
+    val hat = if (type == ZombieType.WALKER || type == ZombieType.RUNNER) ((z.seed * 997f).toInt() % 7) else 0
 
     // Ground shadow.
-    drawOval(Color.Black.copy(alpha = 0.28f), Offset(z.x - 15f * size, z.y - 3f * size), Size(30f * size, 7f * size))
+    if (!z.flying) drawOval(Color.Black.copy(alpha = 0.28f), Offset(z.x - 15f * size, z.y - 3f * size), Size(30f * size, 7f * size))
 
     withTransform({
-        translate(z.x, z.y)
+        translate(z.x, z.y - hop)
         scale(size * dir, size, Offset.Zero)
         if (type == ZombieType.RUNNER) rotate(-9f, Offset.Zero)
     }) {
@@ -680,19 +754,96 @@ private fun DrawScope.drawZombie(z: Zombie) {
                 drawPath(path, tint(0xFFE0D8BE.toInt()))
             }
         }
+        // Costume props: every walker and runner gets a silly accessory.
+        when (hat) {
+            1 -> { // traffic cone
+                path.rewind(); path.moveTo(-4f, headY - 6f); path.lineTo(3f, headY - 26f); path.lineTo(9f, headY - 6f); path.close()
+                drawPath(path, Color(0xFFFF6D00)); box(Color.White, -1f, headY - 15f, 8f, 3f)
+            }
+            2 -> { // party hat
+                path.rewind(); path.moveTo(-3f, headY - 6f); path.lineTo(3f, headY - 25f); path.lineTo(8f, headY - 6f); path.close()
+                drawPath(path, Color(0xFFFF4081)); drawCircle(Color(0xFFFFEB3B), 3f, Offset(3f, headY - 26f))
+                box(Color(0xFF40C4FF), -1f, headY - 14f, 8f, 2.5f)
+            }
+            3 -> { // bucket helmet
+                rbox(Color(0xFF9E9E9E), -5f, headY - 15f, 15f, 11f, 2f); box(Color(0xFF757575), -7f, headY - 6f, 19f, 3f)
+            }
+            4 -> { // chef hat
+                drawCircle(Color.White, 5f, Offset(-1f, headY - 14f)); drawCircle(Color.White, 5.5f, Offset(4f, headY - 17f)); drawCircle(Color.White, 5f, Offset(8f, headY - 14f))
+                box(Color.White, -3f, headY - 12f, 13f, 6f)
+            }
+            5 -> { // rubber-duck swim ring
+                drawOval(Color(0xFFFFD600), Offset(-12f, -25f), Size(24f, 10f), style = Stroke(4.5f))
+                drawCircle(Color(0xFFFFD600), 4.2f, Offset(11f, -29f)); box(Color(0xFFFF6D00), 14f, -30f, 5f, 2.5f)
+            }
+            6 -> { // cool shades
+                box(Color(0xFF111111), -1f, headY - 4f, 11f, 4f); box(Color(0xFF111111), -3f, headY - 3f, 3f, 1.5f)
+            }
+        }
+        if (type == ZombieType.WALKER && z.seed > 0.82f && hat != 6) { // googly eyes
+            drawCircle(Color.White, 3.6f, Offset(5f, headY - 2f)); drawCircle(Color.White, 3.2f, Offset(-1f, headY - 2f))
+            drawCircle(Color.Black, 1.5f, Offset(5f + sin(z.anim * 2f) * 1.3f, headY - 2f + cos(z.anim * 2f)))
+            drawCircle(Color.Black, 1.4f, Offset(-1f + sin(z.anim * 2f) * 1.3f, headY - 2f + cos(z.anim * 2f)))
+        }
+        if (type == ZombieType.CLOWN) {
+            val afro = intArrayOf(0xFFE53935.toInt(), 0xFFFF9800.toInt(), 0xFFFFEB3B.toInt(), 0xFF43A047.toInt(), 0xFF1E88E5.toInt(), 0xFF8E24AA.toInt())
+            for (k in afro.indices) drawCircle(tint(afro[k]), 5.6f, Offset(-7f + k * 3.3f, headY - 8f - (k % 2) * 3f))
+            drawCircle(Color(0xFFE53935), 3.6f, Offset(8f, headY + 1.5f)) // red nose
+            drawCircle(Color.White, 2.2f, Offset(-3f, -28f + bob)); drawCircle(Color.White, 2.2f, Offset(3f, -22f + bob)); drawCircle(Color.White, 2.2f, Offset(-2f, -17f + bob))
+            drawCircle(Color.White, 4.5f, Offset(1f, -36f + bob)) // ruff collar
+            drawOval(Color(0xFFE53935), Offset(-10f, -4.5f), Size(14f, 5.5f)); drawOval(Color(0xFFE53935), Offset(0f, -4.5f), Size(14f, 5.5f)) // big shoes
+        }
         // Arms reaching toward the train; raised and swinging while clawing.
-        val armAngle = if (z.attacking) -55f + sin(z.anim * 2.2f) * 22f else -12f + walk * 6f
+        val armAngle = if (type == ZombieType.BALLOON) -82f + sin(z.anim) * 4f else if (z.attacking) -55f + sin(z.anim * 2.2f) * 22f else -12f + walk * 6f
         val armW = when (type) { ZombieType.BRUTE, ZombieType.TITAN -> 8f; else -> 5f }
         val armLen = when (type) { ZombieType.BRUTE -> 20f; ZombieType.TITAN -> 24f; else -> 16f }
         withTransform({ translate(2f, -32f + bob); rotate(armAngle, Offset.Zero) }) { box(skin, 0f, -armW / 2f, armLen, armW) }
         withTransform({ translate(0f, -30f + bob); rotate(armAngle + 12f, Offset.Zero) }) { box(tint(shirtDark(type)), 0f, -armW / 2f, armLen, armW) }
     }
 
+    if (type == ZombieType.BALLOON) {
+        val party = intArrayOf(0xFFFF4081.toInt(), 0xFF40C4FF.toInt(), 0xFFFFEB3B.toInt())
+        val handY = z.y - 66f * size
+        for (i in -1..1) {
+            val bx = z.x + i * 17f * size + sin(z.anim + i) * 3f
+            val by = z.y - 118f * size - abs(i) * -9f
+            drawLine(Color(0xFFEEEEEE), Offset(z.x + 2f * size, handY), Offset(bx, by + 14f), 1.2f)
+            drawOval(tint(party[i + 1]), Offset(bx - 12f, by - 16f), Size(24f, 30f))
+            drawOval(Color.White.copy(alpha = 0.45f), Offset(bx - 7f, by - 11f), Size(6f, 9f))
+        }
+    }
     if (z.hp < z.maxHp && !z.isBoss) {
         val w = 26f * size
         val y = z.y - 62f * size
         box(Color.Black.copy(alpha = 0.6f), z.x - w / 2f, y, w, 4f)
         box(Color(0xFFE53935), z.x - w / 2f, y, w * (z.hp / z.maxHp).coerceIn(0f, 1f), 4f)
+    }
+}
+
+private fun DrawScope.drawBat(z: Zombie, dir: Float) {
+    val flap = sin(z.anim)
+    val body = lerp(Color(0xFF4A2F5E), Color.White, z.flash * 0.75f)
+    val wing = lerp(Color(0xFF301E40), Color.White, z.flash * 0.75f)
+    withTransform({ translate(z.x, z.y - 20f); scale(dir, 1f, Offset.Zero) }) {
+        for (sgn in floatArrayOf(-1f, 1f)) {
+            path.rewind()
+            path.moveTo(sgn * 3f, -3f)
+            path.lineTo(sgn * 30f, -16f - flap * 15f)
+            path.lineTo(sgn * 24f, 0f - flap * 8f)
+            path.lineTo(sgn * 17f, 4f - flap * 5f)
+            path.lineTo(sgn * 9f, 7f)
+            path.close()
+            drawPath(path, wing)
+        }
+        drawOval(body, Offset(-8f, -10f), Size(16f, 20f))
+        for (sgn in floatArrayOf(-1f, 1f)) {
+            path.rewind(); path.moveTo(sgn * 7f, -8f); path.lineTo(sgn * 4f, -17f); path.lineTo(sgn * 1f, -9f); path.close()
+            drawPath(path, body)
+        }
+        drawCircle(Color(0xFFFFEB3B), 2.4f, Offset(-3.5f, -3f)); drawCircle(Color(0xFFFFEB3B), 2.4f, Offset(3.5f, -3f))
+        drawCircle(Color(0xFFD50000), 1f, Offset(-3.5f, -3f)); drawCircle(Color(0xFFD50000), 1f, Offset(3.5f, -3f))
+        box(Color.White, -3f, 3.5f, 2f, 4f); box(Color.White, 1f, 3.5f, 2f, 4f) // fangs
+        drawOval(Color(0xFFFF6E91), Offset(-2f, 5f), Size(4f, 6f)) // tongue out
     }
 }
 
@@ -713,6 +864,11 @@ private fun DrawScope.drawParticles(g: TrainGame, glow: Boolean) {
                 drawOval(Color(0xFFFFC107).copy(alpha = t.coerceAtLeast(0.3f)), Offset(p.x - p.size * squash, p.y - p.size), Size(p.size * 2f * squash, p.size * 2f))
             }
             ParticleKind.SPARK -> drawCircle(c(p.color).copy(alpha = t), p.size, Offset(p.x, p.y))
+            ParticleKind.HEAL -> {
+                val a = Color(0xFF66FF8A).copy(alpha = t.coerceIn(0f, 1f))
+                box(a, p.x - p.size, p.y - p.size / 3f, p.size * 2f, p.size * 2f / 3f)
+                box(a, p.x - p.size / 3f, p.y - p.size, p.size * 2f / 3f, p.size * 2f)
+            }
             ParticleKind.FIRE -> {
                 val r = p.size * (1f + (1f - t) * 1.6f)
                 drawCircle(Brush.radialGradient(listOf(Color(0xFFFFF3B0).copy(alpha = t), Color(0xFFFF8F00).copy(alpha = 0.8f * t), Color.Transparent), center = Offset(p.x, p.y), radius = r), r, Offset(p.x, p.y))
@@ -731,7 +887,7 @@ private fun DrawScope.drawGlow(g: TrainGame, night: Float) {
         drawCircle(Color(0xFFFFF8D0).copy(alpha = night), 7f, Offset(lampX, 438f))
         drawWindows(g, Color(0xFFFFC96B).copy(alpha = 0.9f * night))
         for (z in g.zombies) {
-            val dir = -z.side.toFloat()
+            val dir = z.facing.toFloat()
             val ex = z.x + dir * 6f * z.type.size
             val ey = z.y - 45f * z.type.size
             val er = if (z.isBoss) 5f else 2.4f
@@ -748,9 +904,34 @@ private fun DrawScope.drawGlow(g: TrainGame, night: Float) {
         val r = if (g.crew[i].weapon == WeaponType.CANNON) 20f else 11f
         drawCircle(Brush.radialGradient(listOf(Color(0xFFFFF59D), Color(0xFFFFB300).copy(alpha = 0.6f), Color.Transparent), center = Offset(mx, my), radius = r), r, Offset(mx, my))
     }
+    if (g.teslaLevel > 0 && g.teslaFlash > 0f) {
+        val cx = g.teslaX
+        val cy = g.teslaY - 38f
+        drawCircle(Brush.radialGradient(listOf(Color(0xFFB3F0FF), Color(0xFF40C4FF).copy(alpha = 0.5f), Color.Transparent), center = Offset(cx, cy), radius = 34f), 34f, Offset(cx, cy))
+    }
+    if (g.flakLevel > 0 && g.flakFlash > 0f) {
+        drawCircle(Brush.radialGradient(listOf(Color(0xFFFFF59D), Color.Transparent), center = Offset(g.flakX + 12f, g.flakY - 28f), radius = 18f), 18f, Offset(g.flakX + 12f, g.flakY - 28f))
+    }
     for (t in g.tracers) {
         val a = (t.life / 0.1f).coerceIn(0.3f, 1f)
-        drawLine(c(t.color).copy(alpha = a), Offset(t.x1, t.y1), Offset(t.x2, t.y2), t.width)
+        if (t.jagged) {
+            var px = t.x1
+            var py = t.y1
+            val segments = 7
+            val seed = (g.time * 40f).toInt()
+            for (k in 1..segments) {
+                val f = k / segments.toFloat()
+                val last = k == segments
+                val nx = t.x1 + (t.x2 - t.x1) * f + if (last) 0f else (hash(k * 13 + seed) - 0.5f) * 34f
+                val ny = t.y1 + (t.y2 - t.y1) * f + if (last) 0f else (hash(k * 29 + seed) - 0.5f) * 34f
+                drawLine(c(t.color).copy(alpha = a), Offset(px, py), Offset(nx, ny), t.width)
+                drawLine(Color.White.copy(alpha = a), Offset(px, py), Offset(nx, ny), t.width * 0.4f)
+                px = nx
+                py = ny
+            }
+        } else {
+            drawLine(c(t.color).copy(alpha = a), Offset(t.x1, t.y1), Offset(t.x2, t.y2), t.width)
+        }
     }
 }
 

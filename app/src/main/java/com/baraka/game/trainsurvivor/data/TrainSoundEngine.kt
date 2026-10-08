@@ -11,7 +11,8 @@ import kotlin.random.Random
 
 enum class TrainSoundCue(val minGapMs: Long) {
     PISTOL(70), SMG(60), SHOTGUN(120), RIFLE(120), CANNON(150),
-    ZOMBIE_DIE(60), COIN(80), TRAIN_HIT(120), DYNAMITE(200), BOSS(500), UPGRADE(80), GAME_OVER(500)
+    ZOMBIE_DIE(60), COIN(80), TRAIN_HIT(120), DYNAMITE(200), BOSS(500), UPGRADE(80), GAME_OVER(500),
+    FLAK(120), ZAP(150), HONK(200), ROCKET(150), LASER(70)
 }
 
 /** Procedurally synthesized effects, one static [AudioTrack] per cue (no asset files), like the other games' engines. */
@@ -46,6 +47,11 @@ class TrainSoundEngine {
         TrainSoundCue.BOSS -> sweep(110.0, 55.0, 900, 0.4f)
         TrainSoundCue.UPGRADE -> arpeggio(listOf(523.0, 659.0, 784.0, 1047.0), 70, 0.22f)
         TrainSoundCue.GAME_OVER -> sweep(320.0, 50.0, 800, 0.3f)
+        TrainSoundCue.FLAK -> mix(burst(120, 0.3f, 0.3), sweep(420.0, 140.0, 120, 0.2f))
+        TrainSoundCue.ZAP -> mix(burst(180, 0.3f, 0.9), sweep(1800.0, 300.0, 180, 0.15f))
+        TrainSoundCue.HONK -> mix(sweep(380.0, 380.0, 110, 0.25f), sweep(300.0, 300.0, 110, 0.2f))
+        TrainSoundCue.ROCKET -> mix(burst(260, 0.35f, 0.15), sweep(500.0, 90.0, 260, 0.25f))
+        TrainSoundCue.LASER -> sweep(1700.0, 500.0, 90, 0.18f)
     }
 
     private fun n(ms: Int) = (rate * ms / 1000.0).roundToInt().coerceAtLeast(1)

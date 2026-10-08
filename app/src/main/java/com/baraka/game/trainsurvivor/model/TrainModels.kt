@@ -15,14 +15,17 @@ enum class WeaponType(
     val splashRadius: Float,
     val pierce: Int,
     val unlockCost: Int,
-    val blurb: String
+    val blurb: String,
+    val groundOnly: Boolean = false
 ) {
     PISTOL("Pistol", 10f, 0.55f, 330f, 0f, 1, 0, "Reliable sidearm"),
     SMG("SMG", 7f, 0.16f, 340f, 0f, 1, 150, "Rapid fire"),
     SHOTGUN("Shotgun", 30f, 0.9f, 230f, 70f, 1, 400, "Hits groups up close"),
     RIFLE("Sniper Rifle", 60f, 0.85f, 560f, 0f, 3, 900, "Long range, pierces 3"),
     MINIGUN("Minigun", 13f, 0.07f, 400f, 0f, 1, 2000, "Bullet hose"),
-    CANNON("Cannon", 130f, 1.6f, 480f, 120f, 1, 4500, "Explosive shells")
+    CANNON("Cannon", 130f, 1.6f, 480f, 120f, 1, 4500, "Explosive shells (ground only)", groundOnly = true),
+    ROCKET("Rocket Launcher", 190f, 1.9f, 540f, 150f, 1, 8000, "Big blasts, hits flyers too"),
+    LASER("Laser Rifle", 42f, 0.22f, 620f, 0f, 5, 14000, "Piercing beam, very long range")
 }
 
 enum class TrainUpgrade(
@@ -36,7 +39,9 @@ enum class TrainUpgrade(
     REPAIR("Repair Crew", "Heals the train over time", 8, 100, 1.55),
     SPIKES("Spiked Hull", "Zombies clinging to the train take damage", 8, 90, 1.55),
     BOUNTY("Bounty Hunter", "+12% coins from kills per level", 8, 120, 1.6),
-    DYNAMITE("Dynamite", "Bigger blast, faster cooldown", 6, 150, 1.7)
+    DYNAMITE("Dynamite", "Bigger blast, faster cooldown", 6, 150, 1.7),
+    FLAK("Flak Turret", "Roof turret that shoots down flying enemies", 8, 200, 1.6),
+    TESLA("Tesla Coil", "Chain lightning zaps groups of zombies", 8, 250, 1.65)
 }
 
 enum class ZombieType(
@@ -45,13 +50,17 @@ enum class ZombieType(
     val speed: Float,
     val damage: Float,
     val coins: Int,
-    val size: Float
+    val size: Float,
+    val flying: Boolean = false
 ) {
     WALKER("Walker", 30f, 38f, 5f, 2, 1.0f),
     RUNNER("Runner", 18f, 88f, 4f, 3, 0.9f),
     BRUTE("Brute", 170f, 28f, 14f, 9, 1.45f),
     BLOATER("Bloater", 55f, 36f, 0f, 5, 1.2f),
-    TITAN("Titan", 1500f, 22f, 42f, 150, 2.4f)
+    TITAN("Titan", 1500f, 22f, 42f, 150, 2.4f),
+    BAT("Zombie Bat", 14f, 125f, 3f, 2, 0.8f, flying = true),
+    BALLOON("Balloon Zombie", 45f, 42f, 5f, 6, 1.0f, flying = true),
+    CLOWN("Clown", 70f, 62f, 7f, 6, 1.1f)
 }
 
 /** A stretch of track the player can route onto at a junction: new scenery plus a risk/reward trade. */
