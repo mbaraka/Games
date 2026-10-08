@@ -1335,6 +1335,13 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
 
     // ---------------------------------------------------------------- effects
 
+    /** Ends the run immediately (the pause menu's "End run"); healing can't undo it. */
+    fun forceEnd() {
+        if (over) return
+        hp = 0f
+        endRun()
+    }
+
     private fun endRun() {
         over = true
         hp = 0f

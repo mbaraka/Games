@@ -349,7 +349,7 @@ private fun RunScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A3342), contentColor = Color.White)
                 ) { Text("Settings") }
                 Button(
-                    onClick = { game.hp = 0f; paused = false },
+                    onClick = { game.forceEnd(); paused = false },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8E2A2A))
                 ) { Text("End run & bank coins") }
             }
