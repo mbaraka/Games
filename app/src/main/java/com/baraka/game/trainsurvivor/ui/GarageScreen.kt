@@ -62,6 +62,8 @@ import com.baraka.game.trainsurvivor.model.Livery
 import com.baraka.game.trainsurvivor.model.Progression
 import com.baraka.game.trainsurvivor.model.TrainShape
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.verticalScroll
 import com.baraka.game.trainsurvivor.model.SURVIVORS
 import com.baraka.game.ui.debug.DebugSection
 
@@ -117,6 +119,11 @@ fun GarageScreen(
     ) {
         // ---- left: live preview of the train as currently built ----
         Column(modifier = Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          // Everything above the buttons scrolls, so the preview keeps its full shape on short screens.
+          Column(
+            modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("TRAIN SURVIVOR", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
@@ -128,8 +135,9 @@ fun GarageScreen(
                 }
                 CoinChip(save.coins)
             }
-            TrainPreview(save, Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(14.dp)))
+            TrainPreview(save, Modifier.fillMaxWidth().aspectRatio(1.9f).clip(RoundedCornerShape(14.dp)))
             DangerSelector(save, onPurchase)
+          }
             Button(
                 onClick = onDepart,
                 modifier = Modifier.fillMaxWidth().height(48.dp),
