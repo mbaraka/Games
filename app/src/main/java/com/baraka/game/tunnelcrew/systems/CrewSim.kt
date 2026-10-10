@@ -54,7 +54,7 @@ const val RESULT_LOST = 2
  * Drawing lives in `render/CrewRenderer.kt`; this file only decides what happens.
  */
 class CrewSim(val level: Level) {
-    val terrain = Terrain().also { level.build(it); it.flush() }
+    val terrain = Terrain(level.theme).also { level.build(it); it.flush() }
 
     val x = IntArray(MAX_CREW)
     val y = IntArray(MAX_CREW)

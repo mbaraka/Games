@@ -164,6 +164,27 @@ adding it is part of the next change you make to that game.
 - When you add a feature, think about its worst case (hundreds of bullets, full screen of
   enemies) before merging it.
 
+### 4. A theme, decided before the first screen
+
+Colour bugs (dark text on a dark card, white on white) come from relying on Material defaults, so
+every game fixes its look **before** building any UI:
+
+- Create the game's palette first, as one object (example: `tunnelcrew/ui/CrewWidgets.kt`
+  `CrewColors`, plus `tunnelcrew/model/CrewTheme.kt` for in-world colours): background, card, bar,
+  accent, text, muted text, good, bad, danger, and the colour that goes *on* the accent. Nothing else
+  in the game hard-codes a colour.
+- **Never use a Material `Button`, `Text`, `Switch` etc. on a custom background without passing
+  explicit colours.** Material picks the label colour from the theme, which is black on our dark
+  containers. Build one shared game button (example: `CrewButton`) with explicit `containerColor` and
+  `contentColor` and use it for every button, including dialogs and overlays.
+- Check contrast for every state: normal, selected, disabled, pressed, and on overlays/dialogs
+  (win/lose, pause, level start). Text must be readable at a glance: light text on dark, dark text
+  only on light/accent fills.
+- Keep in-world art data-driven: palettes, backdrops and per-activity drawing live in a theme/registry
+  so a new level, route or skin is data, not new drawing code.
+- Before calling a screen done, open every dialog and overlay once (or ask the owner to) and read
+  all the text.
+
 ## Adding a new game (checklist)
 
 1. Create the package `com.baraka.game.<game>` with an `Activity` that wraps a Compose
@@ -173,8 +194,8 @@ adding it is part of the next change you make to that game.
 3. Add a `GameCatalogEntry` to `GAME_CATALOG` in `MainActivity.kt` and a row to the
    table in `README.md`.
 4. Persist progress with `SharedPreferences` (pattern: `*SettingsRepository`).
-5. Add the **settings screen** and the **debug tool** described above, and keep to the
-   performance rules.
+5. Define the game's **theme and shared button first** (requirement 4), then add the
+   **settings screen** and the **debug tool** described above, and keep to the performance rules.
 6. Screen-on: any `Activity` that is not `MainActivity` or `KeyReaderActivity` keeps the
    screen awake automatically via `GameApplication` - nothing to do.
 7. Verify with `./gradlew :app:assembleDebug`, then release it as a new **MINOR**.

@@ -10,7 +10,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -18,8 +22,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +50,7 @@ import com.baraka.game.tunnelcrew.data.CrewRepository
 import com.baraka.game.tunnelcrew.data.CrewSettings
 import com.baraka.game.tunnelcrew.model.LEVELS
 import com.baraka.game.tunnelcrew.model.Skill
+import com.baraka.game.tunnelcrew.render.SkillIcon
 import com.baraka.game.tunnelcrew.render.WorldFit
 import com.baraka.game.tunnelcrew.render.drawCrewScene
 import com.baraka.game.tunnelcrew.render.skyBrush
@@ -105,11 +108,12 @@ fun CrewPlayScreen(
     var result by remember(sim) { mutableIntStateOf(RESULT_RUNNING) }
     var recorded by remember(sim) { mutableStateOf(false) }
 
-    val sky = remember(level) { skyBrush(level.skyTop, level.skyBottom, 1200f) }
+    var canvasW by remember { mutableIntStateOf(0) }
+    var canvasH by remember { mutableIntStateOf(0) }
+    val sky = remember(level, canvasW, canvasH) { fit.update(canvasW.toFloat(), canvasH.toFloat()); skyBrush(level.theme, fit) }
     val stepping by rememberUpdatedState(started && !paused && !showMenu && !showSettings && result == RESULT_RUNNING)
     val speedFactor by rememberUpdatedState(SPEEDS[speedIdx] * (if (slowMo) 0.25f else 1f))
     val showFps by rememberUpdatedState(settings.showFps)
-    val canvasSize = remember { IntArray(2) }
 
     LaunchedEffect(nukeArmed) {
         if (nukeArmed) {
@@ -178,8 +182,8 @@ fun CrewPlayScreen(
     BackHandler(enabled = !showSettings) { showMenu = !showMenu }
 
     Box(Modifier.fillMaxSize().background(Color(0xFF0B0F18))) {
-        Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-            TopBar(
+        Row(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+            ControlPanel(
                 alive = hudAlive,
                 spawnedAll = sim.totalCrew,
                 saved = hudSaved,
@@ -193,11 +197,11 @@ fun CrewPlayScreen(
                 onNuke = { if (nukeArmed) { sim.nuke(); nukeArmed = false } else nukeArmed = true },
                 onMenu = { showMenu = true }
             )
-            Box(Modifier.weight(1f).fillMaxWidth()) {
+            Box(Modifier.weight(1f).fillMaxHeight()) {
                 Canvas(
                     Modifier
                         .fillMaxSize()
-                        .onSizeChanged { canvasSize[0] = it.width; canvasSize[1] = it.height; fit.update(it.width.toFloat(), it.height.toFloat()) }
+                        .onSizeChanged { canvasW = it.width; canvasH = it.height; fit.update(it.width.toFloat(), it.height.toFloat()) }
                         .pointerInput(sim) { detectTapGestures { tap(it.x, it.y) } }
                 ) {
                     frame.intValue
@@ -209,30 +213,30 @@ fun CrewPlayScreen(
                 }
                 if (showFps) FpsOverlay(stats, Modifier.align(Alignment.BottomStart).padding(4.dp))
             }
-            SkillBar(sim, selected, skillRev) { selected = it }
+            SkillPanel(sim, selected, skillRev) { selected = it }
         }
 
         if (!started) {
             Overlay {
-                Text("LEVEL ${levelIndex + 1}", color = CREW_ACCENT, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("LEVEL ${levelIndex + 1}", color = CrewColors.Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Text(level.name, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-                Text(level.hint, color = CREW_MUTED, fontSize = 14.sp, textAlign = TextAlign.Center)
+                Text(level.hint, color = CrewColors.Muted, fontSize = 14.sp, textAlign = TextAlign.Center)
                 Text("Save ${level.needed} of ${level.total}", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                Button(onClick = { started = true }) { Text("Start") }
-                Button(onClick = onExit, colors = ButtonDefaults.buttonColors(containerColor = CREW_CARD)) { Text("Levels") }
+                CrewButton("Start", primary = true) { started = true }
+                CrewButton("Levels", onClick = onExit)
             }
         }
 
         if (result != RESULT_RUNNING) {
             val won = result == RESULT_WON
             Overlay {
-                Text(if (won) "LEVEL COMPLETE" else "LEVEL FAILED", color = if (won) Color(0xFF69F0AE) else Color(0xFFEF5350), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                Text(if (won) "LEVEL COMPLETE" else "LEVEL FAILED", color = if (won) CrewColors.Good else CrewColors.Bad, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
                 Text("Saved ${sim.saved} of ${level.total}  (needed ${level.needed})", color = Color.White, fontSize = 16.sp)
-                if (!won && sim.timeLeft <= 0) Text("Time ran out.", color = CREW_MUTED, fontSize = 13.sp)
+                if (!won && sim.timeLeft <= 0) Text("Time ran out.", color = CrewColors.Muted, fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (won && levelIndex + 1 < LEVELS.size) Button(onClick = { onOpenLevel(levelIndex + 1) }) { Text("Next level") }
-                    Button(onClick = { runId++ }, colors = ButtonDefaults.buttonColors(containerColor = CREW_CARD)) { Text("Retry") }
-                    Button(onClick = onExit, colors = ButtonDefaults.buttonColors(containerColor = CREW_CARD)) { Text("Levels") }
+                    if (won && levelIndex + 1 < LEVELS.size) CrewButton("Next level", primary = true) { onOpenLevel(levelIndex + 1) }
+                    CrewButton("Retry", primary = !won) { runId++ }
+                    CrewButton("Levels", onClick = onExit)
                 }
             }
         }
@@ -240,10 +244,10 @@ fun CrewPlayScreen(
         if (showMenu && !showSettings && result == RESULT_RUNNING) {
             Overlay {
                 Text("PAUSED", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                Button(onClick = { showMenu = false }) { Text("Resume") }
-                Button(onClick = { runId++ }, colors = ButtonDefaults.buttonColors(containerColor = CREW_CARD)) { Text("Restart level") }
-                Button(onClick = { showSettings = true }, colors = ButtonDefaults.buttonColors(containerColor = CREW_CARD)) { Text("Settings") }
-                Button(onClick = onExit, colors = ButtonDefaults.buttonColors(containerColor = CREW_CARD)) { Text("Level select") }
+                CrewButton("Resume", primary = true) { showMenu = false }
+                CrewButton("Restart level") { runId++ }
+                CrewButton("Settings") { showSettings = true }
+                CrewButton("Level select", onClick = onExit)
             }
         }
 
@@ -279,11 +283,11 @@ private fun drainEvents(sim: CrewSim, audio: CrewAudio, haptics: CrewHaptics) {
 @Composable
 private fun Overlay(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     Box(
-        Modifier.fillMaxSize().background(Color(0xCC000000)).clickable(enabled = false) {},
+        Modifier.fillMaxSize().background(Color(0xB3000000)).clickable(enabled = false) {},
         contentAlignment = Alignment.Center
     ) {
         Column(
-            Modifier.widthIn(max = 460.dp).background(CREW_CARD, RoundedCornerShape(16.dp)).padding(18.dp),
+            Modifier.widthIn(max = 460.dp).background(CrewColors.Card, RoundedCornerShape(20.dp)).padding(horizontal = 22.dp, vertical = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
             content = content
@@ -292,21 +296,22 @@ private fun Overlay(content: @Composable androidx.compose.foundation.layout.Colu
 }
 
 @Composable
-private fun Chip(text: String, selected: Boolean = false, color: Color = CREW_CARD, onClick: () -> Unit) {
+private fun Chip(text: String, modifier: Modifier = Modifier, selected: Boolean = false, color: Color = Color(0xFF2E3647), onClick: () -> Unit) {
     Box(
-        Modifier
-            .height(34.dp)
-            .background(if (selected) CREW_ACCENT else color, RoundedCornerShape(8.dp))
+        modifier
+            .height(36.dp)
+            .background(if (selected) CrewColors.Accent else color, RoundedCornerShape(17.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(text, color = if (selected) Color.Black else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text(text, color = if (selected) CrewColors.OnAccent else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
 
+/** Left column: crew counts, timer and the run controls. Lives beside the map so the map can use the full screen height. */
 @Composable
-private fun TopBar(
+private fun ControlPanel(
     alive: Int,
     spawnedAll: Int,
     saved: Int,
@@ -320,47 +325,61 @@ private fun TopBar(
     onNuke: () -> Unit,
     onMenu: () -> Unit
 ) {
-    Row(
-        Modifier.fillMaxWidth().background(Color(0xFF141922)).padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    Column(
+        Modifier.width(92.dp).fillMaxHeight().background(CrewColors.Bar).verticalScroll(rememberScrollState()).padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Chip("Menu", onClick = onMenu)
-        Text("Out $alive/$spawnedAll", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Text("Saved $saved/$needed", color = Color(0xFF69F0AE), fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Text("%d:%02d".format(seconds / 60, seconds % 60), color = if (seconds < 30) Color(0xFFEF5350) else Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Box(Modifier.weight(1f))
-        Chip(if (paused) "Resume" else "Pause", selected = paused, onClick = onPause)
-        Chip(speedLabel, onClick = onSpeed)
-        Chip(if (nukeArmed) "Sure?" else "Nuke", color = Color(0xFF7B1F1F), onClick = onNuke)
+        Chip("Menu", Modifier.fillMaxWidth(), onClick = onMenu)
+        Text("%d:%02d".format(seconds / 60, seconds % 60), color = if (seconds < 30) CrewColors.Bad else Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+        Text("Out $alive/$spawnedAll", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text("Saved", color = CrewColors.Muted, fontSize = 11.sp)
+        Text("$saved / $needed", color = CrewColors.Good, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+        Chip(if (paused) "Resume" else "Pause", Modifier.fillMaxWidth(), selected = paused, onClick = onPause)
+        Chip(speedLabel, Modifier.fillMaxWidth(), onClick = onSpeed)
+        Chip(if (nukeArmed) "Sure?" else "Nuke", Modifier.fillMaxWidth(), color = CrewColors.Danger, onClick = onNuke)
     }
 }
 
+/** Right panel: one icon button per skill the level offers. One column up to 5 skills, two columns beyond that; scrolls only if it still does not fit. */
 @Composable
-private fun SkillBar(sim: CrewSim, selected: Int, rev: Int, onSelect: (Int) -> Unit) {
+private fun SkillPanel(sim: CrewSim, selected: Int, rev: Int, onSelect: (Int) -> Unit) {
     rev
-    Row(
-        Modifier.fillMaxWidth().background(Color(0xFF141922)).padding(horizontal = 8.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)
+    var offered = 0
+    for (skill in Skill.entries) if (isOffered(sim, skill)) offered++
+    val columns = if (offered > 5) 2 else 1
+    Column(
+        Modifier.width((84 * columns + 8).dp).fillMaxHeight().background(CrewColors.Bar).verticalScroll(rememberScrollState()).padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        for (skill in Skill.entries) {
-            val offered = sim.level.skills[skill.ordinal] > 0 || sim.skills[skill.ordinal] > 0 || sim.infiniteSkills
-            if (!offered) continue
-            val count = sim.skills[skill.ordinal]
-            val usable = count > 0 || sim.infiniteSkills
-            val isSel = selected == skill.ordinal
-            Column(
-                Modifier
-                    .widthIn(min = 58.dp)
-                    .background(if (isSel) skill.color else Color(0xFF232A38), RoundedCornerShape(8.dp))
-                    .clickable { onSelect(skill.ordinal) }
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                val textColor = if (isSel) Color.Black else if (usable) Color.White else Color(0xFF626B7A)
-                Text(skill.label, color = textColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Text(if (sim.infiniteSkills) "inf" else "$count", color = textColor, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+        val list = Skill.entries.filter { isOffered(sim, it) }
+        for (row in list.chunked(columns)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                for (skill in row) SkillButton(sim, skill, selected == skill.ordinal, Modifier.weight(1f)) { onSelect(skill.ordinal) }
+                if (row.size < columns) Box(Modifier.weight(1f))
             }
         }
+    }
+}
+
+private fun isOffered(sim: CrewSim, skill: Skill): Boolean =
+    sim.level.skills[skill.ordinal] > 0 || sim.skills[skill.ordinal] > 0 || sim.infiniteSkills
+
+@Composable
+private fun SkillButton(sim: CrewSim, skill: Skill, isSel: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val count = sim.skills[skill.ordinal]
+    val usable = count > 0 || sim.infiniteSkills
+    val fg = if (isSel) Color(0xFF10131A) else if (usable) Color.White else Color(0xFF7C8596)
+    Column(
+        modifier
+            .background(if (isSel) skill.color else Color(0xFF262D3D), RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        SkillIcon(skill, tint = if (isSel || !usable) fg else skill.color, size = 28.dp)
+        Text(skill.label, color = fg, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Text(if (sim.infiniteSkills) "inf" else "$count", color = fg, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
     }
 }

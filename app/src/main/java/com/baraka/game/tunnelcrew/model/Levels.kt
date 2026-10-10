@@ -22,8 +22,7 @@ class Level(
     val exit: IntArray,
     val hazards: Array<IntArray> = emptyArray(),
     val spawnEvery: Int = 40,
-    val skyTop: Long = 0xFF1B2A49,
-    val skyBottom: Long = 0xFF4A6FA5,
+    val theme: CrewTheme = CrewThemes.MEADOW,
     val build: (Terrain) -> Unit
 )
 
@@ -113,7 +112,8 @@ val LEVELS: List<Level> = listOf(
         hint = "The crew zig-zags down three floors. Bash the wall on the middle floor, bridge the pit on the bottom floor.",
         total = 12, needed = 9, timeSec = 300, spawnX = 24, spawnY = 34,
         skills = skills(Skill.BASHER to 2, Skill.BUILDER to 3),
-        exit = intArrayOf(280, 132, 14, 18)
+        exit = intArrayOf(280, 132, 14, 18),
+        theme = CrewThemes.DUSK
     ) { t ->
         t.dirt(0, 50, 296, 12)
         t.dirt(24, 100, 296, 12)
@@ -132,7 +132,7 @@ val LEVELS: List<Level> = listOf(
         skills = skills(Skill.BUILDER to 4),
         exit = intArrayOf(278, 102, 14, 18),
         hazards = arrayOf(intArrayOf(100, 150, 64, 26)),
-        skyTop = 0xFF3A1C1C, skyBottom = 0xFF8A4B2E
+        theme = CrewThemes.VOLCANO
     ) { t ->
         t.dirt(0, 120, 100, 56)
         t.dirt(164, 120, 156, 56)
@@ -161,7 +161,7 @@ val LEVELS: List<Level> = listOf(
             Skill.BLOCKER to 1, Skill.BOMBER to 2, Skill.MINER to 1
         ),
         exit = intArrayOf(280, 150, 14, 18),
-        skyTop = 0xFF2B1B49, skyBottom = 0xFF6A4FA5
+        theme = CrewThemes.DUSK
     ) { t ->
         t.dirt(0, 40, 140, 12)
         t.dirt(160, 40, 136, 12)

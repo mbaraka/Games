@@ -1,6 +1,7 @@
 package com.baraka.game.tunnelcrew.systems
 
 import android.graphics.Bitmap
+import com.baraka.game.tunnelcrew.model.CrewTheme
 
 const val WORLD_W = 320
 const val WORLD_H = 176
@@ -12,20 +13,19 @@ object Mat {
     const val BRICK: Byte = 3
 }
 
-private val DIRT_COLORS = intArrayOf(0xFF8D5B2E.toInt(), 0xFF84552A.toInt(), 0xFF96622F.toInt(), 0xFF7C4F27.toInt())
-private val GRASS_COLORS = intArrayOf(0xFF5CB84C.toInt(), 0xFF4EA33F.toInt(), 0xFF67C455.toInt(), 0xFF4A9A3E.toInt())
-private const val STEEL_BASE = 0xFF9AA4B2.toInt()
-private const val STEEL_DARK = 0xFF5B6573.toInt()
-private const val STEEL_LIGHT = 0xFFC3CBD6.toInt()
-private const val BRICK_BASE = 0xFFD9822B.toInt()
-private const val BRICK_MORTAR = 0xFFB5651D.toInt()
+private const val STEEL_BASE = 0xFF9AA8BA.toInt()
+private const val STEEL_DARK = 0xFF55637A.toInt()
+private const val STEEL_LIGHT = 0xFFD2DAE6.toInt()
+private const val BRICK_BASE = 0xFFE0903A.toInt()
+private const val BRICK_MORTAR = 0xFFB9652A.toInt()
+private const val BRICK_RIM = 0xFF7A3E17.toInt()
 
 /**
  * The destructible level: one material byte per pixel plus a mirrored ARGB bitmap that is only
  * re-coloured and uploaded for the rectangle that changed since the last [flush].
  * Everything here works on preallocated arrays, so digging allocates nothing per tick.
  */
-class Terrain {
+class Terrain(private val theme: CrewTheme) {
     private val cell = ByteArray(WORLD_W * WORLD_H)
     private val pixels = IntArray(WORLD_W * WORLD_H)
     val bitmap: Bitmap = Bitmap.createBitmap(WORLD_W, WORLD_H, Bitmap.Config.ARGB_8888)
@@ -135,29 +135,58 @@ class Terrain {
         }
     }
 
+    private fun airAt(x: Int, y: Int): Boolean =
+        x < 0 || x >= WORLD_W || y < 0 || y >= WORLD_H || cell[y * WORLD_W + x] == Mat.AIR
+
+    /** Paint for one pixel: themed dirt with depth shading and pebbles, grass on top, darker rim against open air. */
     private fun colorAt(x: Int, y: Int): Int {
         val m = cell[y * WORLD_W + x]
         if (m == Mat.AIR) return 0
         val h = x * 374761393 + y * 668265263
         val n = (h xor (h ushr 13)) and 3
+        val edge = airAt(x - 1, y) || airAt(x + 1, y) || airAt(x, y + 1) || (y > 0 && airAt(x, y - 1))
         return when (m) {
-            Mat.DIRT -> if (y == 0 || cell[(y - 1) * WORLD_W + x] == Mat.AIR) GRASS_COLORS[n] else DIRT_COLORS[n]
+            Mat.DIRT -> when {
+                airAt(x, y - 1) || airAt(x, y - 2) -> if (airAt(x, y - 1)) theme.grass[n] else shade(theme.grass[n], 0.88f)
+                edge -> theme.rim
+                else -> {
+                    var depth = 0
+                    while (depth < 6 && !airAt(x, y - 3 - depth)) depth++
+                    val base = blend(theme.dirt[n], theme.dirtDeep, depth / 7f)
+                    if (((h ushr 5) and 31) == 0) shade(base, 0.8f) else base
+                }
+            }
             Mat.STEEL -> when {
+                edge -> STEEL_DARK
                 (x and 7) == 1 && (y and 7) == 1 -> STEEL_DARK
                 (y and 7) == 0 -> STEEL_LIGHT
                 else -> STEEL_BASE
             }
-            else -> if ((y and 1) == 0) BRICK_MORTAR else BRICK_BASE
+            else -> if (edge) BRICK_RIM else if ((y and 1) == 0) BRICK_MORTAR else BRICK_BASE
         }
+    }
+
+    private fun shade(c: Int, f: Float): Int {
+        val r = ((c shr 16 and 0xFF) * f).toInt()
+        val g = ((c shr 8 and 0xFF) * f).toInt()
+        val b = ((c and 0xFF) * f).toInt()
+        return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+    }
+
+    private fun blend(a: Int, b: Int, t: Float): Int {
+        val r = ((a shr 16 and 0xFF) * (1 - t) + (b shr 16 and 0xFF) * t).toInt()
+        val g = ((a shr 8 and 0xFF) * (1 - t) + (b shr 8 and 0xFF) * t).toInt()
+        val bl = ((a and 0xFF) * (1 - t) + (b and 0xFF) * t).toInt()
+        return (0xFF shl 24) or (r shl 16) or (g shl 8) or bl
     }
 
     /** Re-colours and uploads only the region that changed since the last call. */
     fun flush() {
         if (!dirty) return
-        val x0 = maxOf(0, dx0)
-        val x1 = minOf(WORLD_W - 1, dx1)
-        val y0 = maxOf(0, dy0 - 1)
-        val y1 = minOf(WORLD_H - 1, dy1 + 1)
+        val x0 = maxOf(0, dx0 - 1)
+        val x1 = minOf(WORLD_W - 1, dx1 + 1)
+        val y0 = maxOf(0, dy0 - 2)
+        val y1 = minOf(WORLD_H - 1, dy1 + 10)
         for (yy in y0..y1) for (xx in x0..x1) pixels[yy * WORLD_W + xx] = colorAt(xx, yy)
         bitmap.setPixels(pixels, y0 * WORLD_W + x0, WORLD_W, x0, y0, x1 - x0 + 1, y1 - y0 + 1)
         dx0 = WORLD_W

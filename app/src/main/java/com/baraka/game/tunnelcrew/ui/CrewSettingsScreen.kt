@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,10 +37,10 @@ import com.baraka.game.ui.debug.DebugKit
 import com.baraka.game.ui.debug.DebugPanel
 import com.baraka.game.ui.debug.DebugSection
 
-internal val CREW_BG = Color(0xFF10131A)
-internal val CREW_CARD = Color(0xFF1D222D)
-internal val CREW_ACCENT = Color(0xFFFFB300)
-internal val CREW_MUTED = Color(0xFF9AA3B2)
+internal val CREW_BG = CrewColors.Bg
+internal val CREW_CARD = CrewColors.Card
+internal val CREW_ACCENT = CrewColors.Accent
+internal val CREW_MUTED = CrewColors.Muted
 
 /**
  * Tunnel Crew settings, shown from the level select and from the in-level menu. Changes apply
@@ -69,9 +67,7 @@ fun CrewSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onClose, colors = ButtonDefaults.buttonColors(containerColor = CREW_CARD, contentColor = Color.White)) {
-                    Text("< Back", fontSize = 12.sp)
-                }
+                CrewButton("< Back", onClick = onClose)
                 Text("SETTINGS", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
             }
             LazyColumn(
@@ -115,11 +111,7 @@ fun CrewSettingsScreen(
                 if (devUnlocked) {
                     item {
                         SettingsSection("Developer", background = CREW_CARD, titleColor = CREW_ACCENT) {
-                            Button(
-                                onClick = { showDebug = true },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A3342), contentColor = Color.White)
-                            ) { Text("Open debug tools") }
+                            CrewButton("Open debug tools", Modifier.fillMaxWidth()) { showDebug = true }
                         }
                     }
                 }
