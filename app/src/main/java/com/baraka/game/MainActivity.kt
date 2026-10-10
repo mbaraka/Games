@@ -75,6 +75,7 @@ import com.baraka.game.ui.components.Section
 import com.baraka.game.ui.theme.GameColors
 import com.baraka.game.ui.theme.GameTheme
 import com.baraka.game.trainsurvivor.TrainSurvivorActivity
+import com.baraka.game.tunnelcrew.TunnelCrewActivity
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -227,6 +228,13 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         description = "Ride an armored train through zombie hordes - earn coins, upgrade the train and its gunners.",
         color = Color(0xFF8B0000),
         activityClass = TrainSurvivorActivity::class.java
+    ),
+    GameCatalogEntry(
+        id = "tunnel_crew",
+        title = "Tunnel Crew",
+        description = "Lemmings-style puzzler - give your tiny crew skills (dig, build, bash, climb...) to guide them safely to the exit.",
+        color = Color(0xFF8D6E63),
+        activityClass = TunnelCrewActivity::class.java
     ),
     GameCatalogEntry(
         id = "key_reader",

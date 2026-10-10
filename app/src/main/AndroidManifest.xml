@@ -151,6 +151,14 @@
             android:label="Asteroids"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
+
+        <activity
+            android:name=".tunnelcrew.TunnelCrewActivity"
+            android:exported="false"
+            android:label="Tunnel Crew"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@style/Theme.Game" />
     </application>
 
 </manifest>

@@ -22,6 +22,7 @@ No ads, no accounts, no tracking. Just simple, fun games.
 | Battleship | Local 2 players or vs computer — place fleets, then take turns firing. |
 | Rhythm Runner | Run, jump, and collect to the beat. |
 | Train Survivor | Side-view train defense — fight ground and flying zombies and bosses, pick routes, earn coins, upgrade the train and its named survivors. |
+| Tunnel Crew | Lemmings-style puzzler — hand skills (dig, build, bash, mine, climb, float, block, bomb) to a walking crew and guide them to the exit across 10 levels. |
 | Key Reader | Scan NFC keys and manage saved entries. |
 
 The full list lives in [`GAME_CATALOG`](app/src/main/java/com/baraka/game/MainActivity.kt) —
