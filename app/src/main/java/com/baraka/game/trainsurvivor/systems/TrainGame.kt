@@ -165,6 +165,8 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     // ---- train ----
     /** The body chosen in the Garage: all car sizes and positions below come from it. */
     val shape: TrainShape = save.selectedShape
+    /** The paint chosen in the Garage; each livery carries a small bonus (see Livery). */
+    private val paint = save.selectedLivery
     val slotCount = save.unlockedSlots
     val crew = save.slots.take(slotCount)
     val gunners = List(slotCount) { i ->
@@ -189,13 +191,13 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         if (repairLevel > 0) List(((repairLevel + 1) / 2).coerceIn(1, 4)) { i -> Repairer(0f, if (i % 2 == 0) 1 else -1).also { it.timer = 0.4f + i * 0.7f } } else emptyList()
 
     /** The locomotive's health is "the train": the run ends when it reaches 0. Wagons have their own health below. */
-    val maxHp = (100f + 40f * armorLevel) * (1f + 0.4f * crew[0].armor) * shape.hpMult
+    val maxHp = (100f + 40f * armorLevel) * (1f + 0.4f * crew[0].armor) * shape.hpMult * paint.hpMult
     var hp = maxHp
-    val carMaxHp = FloatArray(slotCount) { i -> (70f + 25f * armorLevel) * (1f + 0.4f * crew[i].armor) }
+    val carMaxHp = FloatArray(slotCount) { i -> (70f + 25f * armorLevel) * (1f + 0.4f * crew[i].armor) * paint.hpMult }
     val carHp = carMaxHp.copyOf()
-    private val regenPerSecond = 1.5f * repairLevel
+    private val regenPerSecond = 1.5f * repairLevel * paint.repairMult
     private val thornsPerSecond = 7f * spikeLevel
-    internal val coinMultiplier = (1f + 0.12f * save.level(TrainUpgrade.BOUNTY)) * save.prestigeMultiplier
+    internal val coinMultiplier = (1f + 0.12f * save.level(TrainUpgrade.BOUNTY)) * save.prestigeMultiplier * paint.coinMult
 
     /** The difficulty chosen in the Garage for this run. */
     val danger: DangerLevel = save.selectedDanger
@@ -232,16 +234,16 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
 
     // ---- active abilities ----
     var dynamiteCooldown = 0f
-    val dynamiteCooldownMax = 16f - 1.5f * dynamiteLevel
+    val dynamiteCooldownMax = (16f - 1.5f * dynamiteLevel) * paint.cooldownMult
     val dynamiteDamage = 90f + 70f * dynamiteLevel
     val dynamiteReady get() = dynamiteCooldown <= 0f
     var overdriveTime = 0f
     var overdriveCooldown = 0f
-    val overdriveCooldownMax = 28f - 2f * overdriveLevel
+    val overdriveCooldownMax = (28f - 2f * overdriveLevel) * paint.cooldownMult
     val overdriveDuration = 5f + 0.6f * overdriveLevel
     val overdriveReady get() = overdriveLevel > 0 && overdriveCooldown <= 0f && overdriveTime <= 0f
     var fieldRepairCooldown = 0f
-    val fieldRepairCooldownMax = 32f - 2.5f * fieldRepairLevel
+    val fieldRepairCooldownMax = (32f - 2.5f * fieldRepairLevel) * paint.cooldownMult
     val fieldRepairReady get() = fieldRepairLevel > 0 && fieldRepairCooldown <= 0f
 
     // ---- train-mounted weapons ----
@@ -309,7 +311,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
      * How fast the train is running: 1.0 at the start, rising to 2.6 by 2,900 m, then multiplied by the train's body and
      * Engine Tuning (capped at 4x). Faster means more distance and coins per second, more zombies and faster-closing zombies.
      */
-    val speedFactor get() = ((1f + min(1.6f, distance / 1800f)) * shape.speedMult * (1f + 0.08f * engineLevel)).coerceAtMost(4f)
+    val speedFactor get() = ((1f + min(1.6f, distance / 1800f)) * shape.speedMult * paint.speedMult * (1f + 0.08f * engineLevel)).coerceAtMost(4f)
 
     /** Zombies close in a little faster as the train speeds up. */
     private val zombiePace get() = 1f + 0.25f * (speedFactor - 1f)
@@ -1206,7 +1208,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     }
 
     private fun damageFor(slot: Int, weapon: WeaponType): Float =
-        weapon.damage * crew[slot].powerMultiplier * damagePerk[slot] * (if (buffTime > 0f) 1.3f else 1f)
+        weapon.damage * crew[slot].powerMultiplier * damagePerk[slot] * paint.damageMult * (if (buffTime > 0f) 1.3f else 1f)
 
     /** Damage of one shot from [slot]'s current weapon, with power upgrades, perk and any damage boost applied. */
     fun shotDamage(slot: Int): Float = damageFor(slot, gunners[slot].weapon)

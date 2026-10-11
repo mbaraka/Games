@@ -255,7 +255,8 @@ A new `Perk` needs one line in `TrainGame` where perks are resolved. A new `HatS
 `palette` (the current livery) and register it in `registerTrainShapes()`. All car positions in the engine and
 renderer come from the shape (`carLeft`, `gunX`, `locoLeft`...), so nothing else changes.
 
-**New livery** - add a `Livery` entry (colours, price, `glow`). It appears in the Garage's Look tab.
+**New livery** - add a `Livery` entry (colours, price, `glow`, and a small `perk` with its multiplier: damage, speed, health,
+repair, coins or ability cooldowns). Paint is never cosmetic-only. It appears in the Garage's Look tab.
 
 **New weapon / upgrade / elite trait / danger level** - add the enum entry. Weapons and upgrades appear in the
 shop and Field Guide automatically; an upgrade also needs its effect wired where `TrainGame` reads its level;

@@ -188,7 +188,7 @@ private fun LookTab(save: SaveData, onChange: (SaveData) -> Unit) {
         items(Livery.entries.toList()) { livery ->
             LookCard(
                 title = livery.displayName,
-                subtitle = if (livery.glow) "Glowing trim" else "Paint scheme",
+                subtitle = livery.perk + if (livery.glow) "  -  glowing trim" else "",
                 owned = save.ownsLivery(livery.ordinal),
                 selected = save.selectedLivery == livery,
                 cost = livery.cost,
