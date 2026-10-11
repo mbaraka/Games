@@ -55,11 +55,12 @@ fun ClashDecksScreen(
     onCloseSettings: () -> Unit,
     onSetSoundEnabled: (Boolean) -> Unit,
     onRematch: () -> Unit,
-    onBackToMenu: () -> Unit
+    onBackToMenu: () -> Unit,
+    onPlayVsFriend: () -> Unit = {}
 ) {
     Box(modifier = Modifier.fillMaxSize().background(ScreenBg)) {
         when (model.screen) {
-            ClashScreen.MENU -> MenuScreen(model, onBack, onSetDifficulty, onStartDuel, onOpenCodex, onOpenSettings)
+            ClashScreen.MENU -> MenuScreen(model, onBack, onSetDifficulty, onStartDuel, onOpenCodex, onOpenSettings, onPlayVsFriend)
             ClashScreen.CODEX -> CodexScreen(onClose = onCloseCodex)
             ClashScreen.SETTINGS -> ClashSettingsScreen(
                 soundEnabled = model.soundEnabled,
@@ -67,7 +68,7 @@ fun ClashDecksScreen(
                 onClose = onCloseSettings
             )
             ClashScreen.DUEL -> model.duel?.let {
-                DuelScreen(it, model.cpuThinking, model.effects, onPlayCard, onEndTurn, onOpenCodex, onOpenSettings)
+                DuelScreen(it, model.cpuThinking, model.effects, onPlayCard, onEndTurn, onOpenCodex, onOpenSettings, "Opponent")
             }
             ClashScreen.RESULT -> model.duel?.let {
                 ResultScreen(it, onRematch, onBackToMenu, onOpenCodex)
@@ -83,7 +84,8 @@ private fun MenuScreen(
     onSetDifficulty: (Difficulty) -> Unit,
     onStartDuel: () -> Unit,
     onOpenCodex: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onPlayVsFriend: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -111,6 +113,7 @@ private fun MenuScreen(
         }
         Spacer(Modifier.height(8.dp))
         PillButton("Start Duel", onStartDuel)
+        PillButton("Play vs Friend (Bluetooth)", onPlayVsFriend, primary = false)
         PillButton("Codex", onOpenCodex, primary = false)
         PillButton("Settings", onOpenSettings, primary = false)
         PillButton("Back", onBack, primary = false)
@@ -118,14 +121,15 @@ private fun MenuScreen(
 }
 
 @Composable
-private fun DuelScreen(
+internal fun DuelScreen(
     duel: DuelState,
     cpuThinking: Boolean,
     effects: List<com.baraka.game.clashdecks.VfxEmission>,
     onPlayCard: (String) -> Unit,
     onEndTurn: () -> Unit,
     onOpenCodex: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    opponentLabel: String = "Opponent"
 ) {
     val playerTurn = duel.phase == DuelPhase.PLAYER_TURN && duel.winner == null && !cpuThinking
     Box(modifier = Modifier.fillMaxSize()) {
@@ -154,7 +158,7 @@ private fun DuelScreen(
                     .padding(horizontal = 12.dp, vertical = 6.dp))
         }
 
-        DuelistPanel(duel.cpu, "Opponent", VfxSide.CPU, effects)
+        DuelistPanel(duel.cpu, opponentLabel, VfxSide.CPU, effects)
 
         Box(
             modifier = Modifier
@@ -219,7 +223,7 @@ private fun LogLine(entry: DuelLogEntry) {
 }
 
 @Composable
-private fun ResultScreen(
+internal fun ResultScreen(
     duel: DuelState,
     onRematch: () -> Unit,
     onBackToMenu: () -> Unit,

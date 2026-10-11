@@ -49,10 +49,18 @@ object DuelEngine {
     /** "Your" / "Opponent's". */
     private fun Duelist.possessive(): String = if (isCpu) "$name's" else "Your"
 
-    fun startDuel(rng: Random): DuelState {
-        val player = Duelist.fresh("You", isCpu = false, startHp = START_HP, deck = CardLibrary.buildDeck(rng))
+    /**
+     * [playerName]/[cpuName] default to the single-player "You"/"Opponent" labels, which also
+     * drive the log's second-/third-person grammar (see the `does`/`beVerb`/`possessive`
+     * helpers above, keyed off `isCpu`, not the name). Two-phone co-op
+     * (clashdecks/coop/ClashCoopSession.kt) passes neutral names instead since "You" would be
+     * wrong on the other phone — the grammar reads slightly stiffer there ("Player 2 play
+     * Strike") but needs no further engine change.
+     */
+    fun startDuel(rng: Random, playerName: String = "You", cpuName: String = "Opponent"): DuelState {
+        val player = Duelist.fresh(playerName, isCpu = false, startHp = START_HP, deck = CardLibrary.buildDeck(rng))
             .drawCards(3, rng)
-        val cpu = Duelist.fresh("Opponent", isCpu = true, startHp = START_HP, deck = CardLibrary.buildDeck(rng))
+        val cpu = Duelist.fresh(cpuName, isCpu = true, startHp = START_HP, deck = CardLibrary.buildDeck(rng))
             .drawCards(3, rng)
 
         val firstEnergy = energyForRound(1)
@@ -64,7 +72,7 @@ object DuelEngine {
             turnNumber = 1,
             activeStunned = false,
             activeRooted = false,
-            log = listOf(DuelLogEntry("Duel start — you go first.", LogKind.SYSTEM)),
+            log = listOf(DuelLogEntry("Duel start — $playerName goes first.", LogKind.SYSTEM)),
             pendingSounds = listOf(DuelSound.TURN_START),
             pendingVfx = emptyList(),
             winner = null
