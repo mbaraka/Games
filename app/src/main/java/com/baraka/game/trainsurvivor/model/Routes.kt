@@ -146,9 +146,10 @@ enum class Biome(
             signature(ZombieType.JUGGLER, 15f) + signature(ZombieType.STRONGMAN, 45f, weight = 3f, perSecond = 1f / 80f)
     ),
     SEA_BRIDGE(
-        "Sea Bridge", "Tentacles grab your wagons from below",
+        "Sea Bridge", "Tentacles grab your wagons from below and sharks breach onto your roofs",
         1.6f, 1.15f, 0.9f, 1.15f, 0xFF29B6F6,
-        commonSpawns(walker = 0.9f, runner = 0.8f, bat = 1.5f, balloon = 0f, clown = 0.2f) + signature(ZombieType.DROWNED, 8f),
+        commonSpawns(walker = 0.9f, runner = 0.8f, bat = 1.5f, balloon = 0f, clown = 0.2f) + signature(ZombieType.DROWNED, 8f) +
+            signature(ZombieType.LEAPING_SHARK, 30f, weight = 3f, perSecond = 1f / 80f),
         hazards = listOf(HazardKind.TENTACLES)
     ),
     CITY_RUINS(
@@ -162,7 +163,7 @@ enum class Biome(
         1.7f, 1.2f, 1.2f, 1.15f, 0xFF00ACC1,
         commonSpawns(walker = 0.5f, runner = 0.6f, brute = 0.8f, bloater = 1f, bat = 0f, balloon = 0f, clown = 0f) +
             signature(ZombieType.PIRANHA, 8f, weight = 6f) + signature(ZombieType.JELLYFISH, 25f, weight = 3f, perSecond = 1f / 80f) +
-            signature(ZombieType.DEEP_CRAB, 20f, weight = 4f),
+            signature(ZombieType.DEEP_CRAB, 20f, weight = 4f) + signature(ZombieType.SHARK, 18f, weight = 3f, perSecond = 1f / 60f),
         gravityMult = 0.6f, speedMult = 0.9f, hazards = listOf(HazardKind.HULL_BREACH, HazardKind.TENTACLES)
     ),
     SOLAR(

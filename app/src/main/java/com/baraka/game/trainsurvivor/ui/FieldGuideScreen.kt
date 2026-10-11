@@ -86,6 +86,8 @@ private val zombieNotes: Map<ZombieType, ZombieNote> = mapOf(
     ZombieType.PIRANHA to ZombieNote("Deep Sea Tube, from ~8 s", "A tiny, very fast swimmer that arrives in packs of three and nips at the wagons from above.", "Rapid-fire guns, Shotgun and Tesla Coil shred a pack."),
     ZombieType.JELLYFISH to ZombieNote("Deep Sea Tube, after ~25 s", "A slow, translucent drifter that hovers over a wagon and stings it.", "Flak Turret and anything except the Cannon."),
     ZombieType.DEEP_CRAB to ZombieNote("Deep Sea Tube, from ~20 s", "A low, armored (4) crab that scuttles in with a heavy claw.", "Sniper, Rocket and Cannon punch through its shell."),
+    ZombieType.SHARK to ZombieNote("Deep Sea Tube, after ~18 s", "A big armored (3) swimmer with bandages and a red eye. It circles the train and bites a wagon from above.", "Sniper, Rocket and Laser; the Cannon can't reach a swimmer."),
+    ZombieType.LEAPING_SHARK to ZombieNote("Sea Bridge, after ~30 s", "Slides along the deck, then BREACHES: it leaps onto a wagon roof and bites from there.", "Shoot it before it jumps, or focus it once it lands on a roof."),
     ZombieType.EMBER to ZombieNote("Solar Rail, from ~8 s", "A burning zombie with a flaming head. Fire cannot hurt it, so the Flamethrower does nothing.", "Any gun works; Tesla and Mortar are good too."),
     ZombieType.SOLAR_SPRITE to ZombieNote("Solar Rail, after ~22 s", "A flickering ball of plasma that darts around erratically. Fire-proof, and solar flares can't burn it.", "Rapid-fire guns and Flak Turret."),
     ZombieType.SUN_PRIEST to ZombieNote("Solar Rail, after ~35 s", "A robed priest that stays back and hurls fire at the train from a distance. Fire-proof.", "Outrange it: Sniper, Laser and Rocket."),

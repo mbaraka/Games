@@ -81,6 +81,8 @@ enum class ZombieType(
     PIRANHA("Zombie Piranha", 12f, 130f, 3f, 2, 0.7f, flying = true, erratic = true, packSize = 3),
     JELLYFISH("Jellyfish Zombie", 70f, 36f, 6f, 7, 1.1f, flying = true),
     DEEP_CRAB("Deep Crab", 80f, 44f, 9f, 6, 1.1f, armor = 4f, aimHeight = 16f),
+    SHARK("Zombie Shark", 150f, 85f, 12f, 12, 1.5f, flying = true, armor = 3f),
+    LEAPING_SHARK("Breaching Shark", 120f, 70f, 14f, 11, 1.5f, armor = 2f, aimHeight = 20f, leaper = true),
 
     // Solar Rail.
     EMBER("Ember Zombie", 60f, 44f, 7f, 6, 1.0f, fireImmune = true),

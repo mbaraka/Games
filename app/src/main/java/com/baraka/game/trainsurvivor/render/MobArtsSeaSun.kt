@@ -25,6 +25,9 @@ internal fun registerSeaAndSunMobs() {
     l.set(ZombieType.SOLAR_SPRITE, 0xFFFFCA28, 0xFFFF6F00)
     l.set(ZombieType.SUN_PRIEST, 0xFFE0A070, 0xFFFFC107)
 
+    l.set(ZombieType.SHARK, 0xFF607D8B, 0xFF455A64)
+    l.set(ZombieType.LEAPING_SHARK, 0xFF607D8B, 0xFF455A64)
+    MobArtRegistry.register(listOf(ZombieType.SHARK, ZombieType.LEAPING_SHARK)) { s, z, d -> with(s) { drawShark(z, d) } }
     MobArtRegistry.register(ZombieType.PIRANHA) { s, z, d -> with(s) { drawPiranha(z, d) } }
     MobArtRegistry.register(ZombieType.JELLYFISH) { s, z, _ -> with(s) { drawJellyfish(z) } }
     MobArtRegistry.register(ZombieType.DEEP_CRAB) { s, z, d -> with(s) { drawDeepCrab(z, d) } }
@@ -74,6 +77,8 @@ internal fun registerPortraitSizes() {
     p.set(ZombieType.TENTACLE, 110f)
     p.set(ZombieType.PIRANHA, 44f, floating = 0.62f)
     p.set(ZombieType.JELLYFISH, 90f)
+    p.set(ZombieType.SHARK, 70f, floating = 0.6f)
+    p.set(ZombieType.LEAPING_SHARK, 70f, floating = 0.6f)
     p.set(ZombieType.DEEP_CRAB, 70f)
     p.set(ZombieType.SOLAR_SPRITE, 48f, floating = 0.62f)
 }
@@ -172,6 +177,40 @@ private fun DrawScope.drawSolarSprite(z: Zombie) {
         }
         drawCircle(Color(0xFFB71C1C), 1.8f, Offset(-3f, -2f))
         drawCircle(Color(0xFFB71C1C), 1.8f, Offset(3f, -2f))
+    }
+    if (z.hp < z.maxHp) drawHpBar(z)
+}
+
+/** A zombie shark: bandaged and red-eyed. The Zombie Shark swims; the Breaching Shark leaps out of the water onto a roof. */
+private fun DrawScope.drawShark(z: Zombie, dir: Float) {
+    val size = z.type.size
+    val flash = z.flash * 0.75f
+    val skin = lerp(Color(0xFF607D8B), Color.White, flash)
+    val belly = lerp(Color(0xFFCFD8DC), Color.White, flash)
+    val dark = lerp(Color(0xFF455A64), Color.White, flash)
+    val swim = sin(z.anim * 1.6f)
+    val tilt = if (z.jumpState == 1) (z.vy / 6f).coerceIn(-50f, 50f) * dir else swim * 4f
+    if (!z.flying && z.jumpState == 0) drawOval(Color.Black.copy(alpha = 0.28f), Offset(z.x - 36f * size, z.y - 3f * size), Size(72f * size, 7f * size))
+    withTransform({ translate(z.x, z.y - z.type.aimHeight * size); scale(size * dir, size, Offset.Zero); rotate(tilt, Offset.Zero) }) {
+        path.rewind(); path.moveTo(-26f, 0f); path.lineTo(-44f, -12f + swim * 5f); path.lineTo(-38f, 0f); path.lineTo(-44f, 12f + swim * 5f); path.close()
+        drawPath(path, dark)
+        drawOval(skin, Offset(-30f, -12f), Size(62f, 24f))
+        drawOval(belly, Offset(-22f, 2f), Size(48f, 9f))
+        path.rewind(); path.moveTo(28f, -9f); path.lineTo(42f, 2f); path.lineTo(28f, 10f); path.close()
+        drawPath(path, skin)
+        path.rewind(); path.moveTo(-4f, -12f); path.lineTo(6f, -26f); path.lineTo(14f, -12f); path.close()
+        drawPath(path, dark)
+        path.rewind(); path.moveTo(4f, 8f); path.lineTo(-6f, 20f); path.lineTo(12f, 10f); path.close()
+        drawPath(path, dark)
+        drawLine(Color(0xFF263238), Offset(18f, 4f), Offset(40f, 3f), 2f)
+        for (k in 0..3) {
+            path.rewind(); path.moveTo(22f + k * 5f, 4f); path.lineTo(24.5f + k * 5f, 8f); path.lineTo(27f + k * 5f, 4f); path.close()
+            drawPath(path, Color.White)
+        }
+        for (k in 0..2) drawLine(Color(0xFFE8DCC8).copy(alpha = 0.85f), Offset(-12f + k * 9f, -11f), Offset(-8f + k * 9f, 9f), 3f)
+        for (k in 0..2) drawLine(Color(0xFF263238), Offset(10f + k * 3f, -2f), Offset(10f + k * 3f, 6f), 1.2f)
+        drawCircle(Color.White, 3.4f, Offset(24f, -4f))
+        drawCircle(Color(0xFFD50000), 1.8f, Offset(25f, -4f))
     }
     if (z.hp < z.maxHp) drawHpBar(z)
 }
