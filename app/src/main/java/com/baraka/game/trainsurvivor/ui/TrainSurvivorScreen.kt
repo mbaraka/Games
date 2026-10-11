@@ -64,7 +64,14 @@ import com.baraka.game.trainsurvivor.data.MusicTrack
 import com.baraka.game.trainsurvivor.data.TrainAudio
 import com.baraka.game.trainsurvivor.data.TrainSaveRepository
 import com.baraka.game.trainsurvivor.data.TrainSoundCue
+import com.baraka.game.coop.CoopLaunch
+import com.baraka.game.coop.CoopLobbyScreen
+import com.baraka.game.coop.CoopSide
+import com.baraka.game.trainsurvivor.coop.CoopMsg
 import com.baraka.game.trainsurvivor.coop.CoopSession
+import com.baraka.game.trainsurvivor.coop.SimulatedLink
+import com.baraka.game.trainsurvivor.coop.TRAIN_COOP
+import com.baraka.game.trainsurvivor.systems.CoopRole
 import com.baraka.game.trainsurvivor.model.AUTO_WEAPON
 import com.baraka.game.trainsurvivor.model.Biome
 import com.baraka.game.trainsurvivor.model.DangerLevel
@@ -107,7 +114,7 @@ fun TrainSurvivorScreen() {
     var settings by remember { mutableStateOf(repository.loadSettings()) }
     var inRun by remember { mutableStateOf(false) }
     var lobby by remember { mutableStateOf(false) }
-    var coop by remember { mutableStateOf<CoopLaunch?>(null) }
+    var coop by remember { mutableStateOf<CoopLaunch<CoopMsg>?>(null) }
 
     val audio = remember { TrainAudio() }
     DisposableEffect(Unit) { onDispose { audio.release() } }
@@ -147,6 +154,12 @@ fun TrainSurvivorScreen() {
 
     if (lobby && !inRun) {
         CoopLobbyScreen(
+            spec = TRAIN_COOP,
+            heading = "CO-OP  -  TWO TRAINS",
+            intro = "Each player drives their own train through double the zombies. Bosses and routes are shared. " +
+                "Build the Gangway upgrade to lend a passenger to your partner's train when they are in trouble.",
+            practiceNote = "A simulated partner lends you a passenger now and then, so you can try the co-op rules alone.",
+            simulate = { SimulatedLink() },
             onReady = { coop = it; lobby = false; inRun = true },
             onClose = { lobby = false }
         )
@@ -186,7 +199,7 @@ fun TrainSurvivorScreen() {
 
 @Composable
 private fun RunScreen(
-    coop: CoopLaunch?,
+    coop: CoopLaunch<CoopMsg>?,
     repository: TrainSaveRepository,
     settings: GameSettings,
     onSettingsChange: (GameSettings) -> Unit,
@@ -205,7 +218,7 @@ private fun RunScreen(
     val tick = remember { mutableLongStateOf(0L) }
     val stats = remember { FrameStats() }
     val game = remember(runId) { TrainGame(repository.load()).also { it.onSound = playCue; it.godMode = godMode } }
-    val session = remember(game) { coop?.let { CoopSession(game, it.link, it.role) } }
+    val session = remember(game) { coop?.let { CoopSession(game, it.link, if (it.side == CoopSide.HOST) CoopRole.HOST else CoopRole.GUEST) } }
     // Two trains keep running when this player pauses: the partner cannot be frozen.
     val frozen = paused && session == null
     var banked by remember(runId) { mutableStateOf(false) }

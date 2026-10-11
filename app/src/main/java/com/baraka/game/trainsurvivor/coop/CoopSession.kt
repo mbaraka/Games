@@ -1,5 +1,6 @@
 package com.baraka.game.trainsurvivor.coop
 
+import com.baraka.game.coop.CoopLink
 import com.baraka.game.trainsurvivor.model.Biome
 import com.baraka.game.trainsurvivor.model.ZombieType
 import com.baraka.game.trainsurvivor.systems.CoopRole
@@ -21,7 +22,7 @@ class PartnerState {
 }
 
 /** Which phone does what: the host runs shared timers; the engine emits signals and this class carries them over a [CoopLink]. */
-class CoopSession(val game: TrainGame, val link: CoopLink, val role: CoopRole) {
+class CoopSession(val game: TrainGame, val link: CoopLink<CoopMsg>, val role: CoopRole) {
     val partner = PartnerState()
     private var sendTimer = 0f
 

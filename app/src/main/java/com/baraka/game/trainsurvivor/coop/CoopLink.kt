@@ -1,18 +1,12 @@
 package com.baraka.game.trainsurvivor.coop
 
-import android.annotation.SuppressLint
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothServerSocket
-import android.bluetooth.BluetoothSocket
+import com.baraka.game.coop.CoopCodec
+import com.baraka.game.coop.CoopSpec
+import com.baraka.game.coop.SimulatedPartner
 import com.baraka.game.trainsurvivor.model.CrewSlot
-import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
-import java.io.IOException
 import java.util.UUID
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.Executors
 
 const val COOP_PROTOCOL = 1
 
@@ -72,131 +66,8 @@ sealed class CoopMsg {
     }
 }
 
-/** A two-way channel to the partner's phone. Everything is non-blocking so the game loop never waits on it. */
-interface CoopLink {
-    val connected: Boolean
-    fun send(msg: CoopMsg)
-    /** The next message from the partner, or null when there is none right now. */
-    fun poll(): CoopMsg?
-    /** Called every frame; lets a simulated partner act. */
-    fun tick(dt: Float) {}
-    fun close()
-}
-
-private val SERVICE_UUID: UUID = UUID.fromString("7c3e5b1a-4f0d-4a8e-9a55-0b7a6a2d9c11")
-
-/** A classic Bluetooth (RFCOMM) connection between two paired phones. */
-class BluetoothLink internal constructor(private val socket: BluetoothSocket) : CoopLink {
-    private val incoming = ConcurrentLinkedQueue<CoopMsg>()
-    private val writer = Executors.newSingleThreadExecutor()
-    private val input = DataInputStream(socket.inputStream.buffered())
-    private val output = DataOutputStream(socket.outputStream.buffered())
-    @Volatile override var connected = true
-        private set
-
-    init {
-        Thread({
-            try {
-                while (connected) {
-                    val length = input.readInt()
-                    if (length !in 1..4096) throw IOException("bad frame")
-                    val bytes = ByteArray(length)
-                    input.readFully(bytes)
-                    val msg = CoopMsg.read(DataInputStream(bytes.inputStream()))
-                    if (msg != null) incoming.add(msg)
-                }
-            } catch (_: Exception) {
-                connected = false
-            }
-        }, "coop-read").apply { isDaemon = true }.start()
-    }
-
-    override fun send(msg: CoopMsg) {
-        if (!connected) return
-        val buffer = ByteArrayOutputStream(32)
-        msg.write(DataOutputStream(buffer))
-        val bytes = buffer.toByteArray()
-        writer.execute {
-            try {
-                output.writeInt(bytes.size)
-                output.write(bytes)
-                output.flush()
-            } catch (_: Exception) {
-                connected = false
-            }
-        }
-    }
-
-    override fun poll(): CoopMsg? = incoming.poll()
-
-    override fun close() {
-        if (connected) send(CoopMsg.Bye)
-        writer.execute { runCatching { socket.close() } ; connected = false }
-        writer.shutdown()
-    }
-
-    companion object {
-        /** Phones the player already paired in the system Bluetooth settings. Empty without permission. */
-        @SuppressLint("MissingPermission")
-        fun pairedDevices(): List<BluetoothDevice> = try {
-            BluetoothAdapter.getDefaultAdapter()?.bondedDevices?.toList().orEmpty()
-        } catch (_: SecurityException) {
-            emptyList()
-        }
-
-        fun isAvailable(): Boolean = BluetoothAdapter.getDefaultAdapter()?.isEnabled == true
-
-        /** Connects to a host phone. Calls [done] from a background thread with the link, or null on failure. */
-        @SuppressLint("MissingPermission")
-        fun connectTo(device: BluetoothDevice, done: (BluetoothLink?) -> Unit) {
-            Thread({
-                val link = try {
-                    BluetoothAdapter.getDefaultAdapter()?.cancelDiscovery()
-                    val socket = device.createRfcommSocketToServiceRecord(SERVICE_UUID)
-                    socket.connect()
-                    BluetoothLink(socket)
-                } catch (_: Exception) {
-                    null
-                }
-                done(link)
-            }, "coop-connect").apply { isDaemon = true }.start()
-        }
-    }
-}
-
-/** Waits for a partner to connect. Call [cancel] to stop waiting. */
-class BluetoothHost {
-    @Volatile private var server: BluetoothServerSocket? = null
-    @Volatile private var cancelled = false
-
-    /** Calls [done] from a background thread with the link, or null if cancelled or it failed. */
-    @SuppressLint("MissingPermission")
-    fun start(done: (BluetoothLink?) -> Unit) {
-        Thread({
-            val link = try {
-                val s = BluetoothAdapter.getDefaultAdapter()?.listenUsingRfcommWithServiceRecord("TrainSurvivorCoop", SERVICE_UUID)
-                server = s
-                val socket = s?.accept()
-                runCatching { s?.close() }
-                if (socket != null && !cancelled) BluetoothLink(socket) else null
-            } catch (_: Exception) {
-                null
-            }
-            done(link)
-        }, "coop-host").apply { isDaemon = true }.start()
-    }
-
-    fun cancel() {
-        cancelled = true
-        runCatching { server?.close() }
-    }
-}
-
 /** A pretend partner for trying co-op on one phone (and for the debug tools): it drifts along, lends a passenger now and then. */
-class SimulatedLink : CoopLink {
-    private val incoming = ConcurrentLinkedQueue<CoopMsg>()
-    override var connected = true
-        private set
+class SimulatedLink : SimulatedPartner<CoopMsg>() {
     private var clock = 0f
     private var stateTimer = 0f
     private var lendTimer = 12f
@@ -211,29 +82,35 @@ class SimulatedLink : CoopLink {
         }
     }
 
-    override fun poll(): CoopMsg? = incoming.poll()
-
     override fun tick(dt: Float) {
         if (!connected) return
         clock += dt
         if (junctionPending > 0f) {
             junctionPending -= dt
-            if (junctionPending <= 0f) incoming.add(CoopMsg.RouteReq(junctionA))
+            if (junctionPending <= 0f) deliver(CoopMsg.RouteReq(junctionA))
         }
         lendTimer -= dt
         if (lendTimer <= 0f) {
             lendTimer = 50f
-            incoming.add(CoopMsg.Passenger(1, CrewSlot(owned = 0b111, selected = -1, power = 3, armor = 0), 18f))
+            deliver(CoopMsg.Passenger(1, CrewSlot(owned = 0b111, selected = -1, power = 3, armor = 0), 18f))
         }
         stateTimer += dt
         if (stateTimer >= 0.25f) {
             stateTimer = 0f
             hp = (0.6f + 0.4f * kotlin.math.sin(clock * 0.2f)).coerceIn(0.05f, 1f)
-            incoming.add(CoopMsg.State(hp, (clock * 14f).toInt(), 0, (clock * 0.7f).toInt(), 0f, 0f))
+            deliver(CoopMsg.State(hp, (clock * 14f).toInt(), 0, (clock * 0.7f).toInt(), 0f, 0f))
         }
     }
 
-    override fun close() {
-        connected = false
-    }
 }
+
+/** Train Survivor's co-op channel on the shared layer (its own service id, so other games cannot connect to it). */
+val TRAIN_COOP: CoopSpec<CoopMsg> = CoopSpec(
+    serviceId = UUID.fromString("7c3e5b1a-4f0d-4a8e-9a55-0b7a6a2d9c11"),
+    serviceName = "TrainSurvivorCoop",
+    codec = object : CoopCodec<CoopMsg> {
+        override fun write(msg: CoopMsg, out: DataOutputStream) = msg.write(out)
+        override fun read(input: DataInputStream): CoopMsg? = CoopMsg.read(input)
+    },
+    bye = CoopMsg.Bye
+)

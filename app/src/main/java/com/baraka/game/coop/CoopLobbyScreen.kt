@@ -1,4 +1,4 @@
-package com.baraka.game.trainsurvivor.ui
+package com.baraka.game.coop
 
 import android.Manifest
 import android.bluetooth.BluetoothDevice
@@ -40,14 +40,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.baraka.game.trainsurvivor.coop.BluetoothHost
-import com.baraka.game.trainsurvivor.coop.BluetoothLink
-import com.baraka.game.trainsurvivor.coop.CoopLink
-import com.baraka.game.trainsurvivor.coop.SimulatedLink
-import com.baraka.game.trainsurvivor.systems.CoopRole
-
-/** A connected partner, ready to depart together. */
-class CoopLaunch(val link: CoopLink, val role: CoopRole)
 
 private val BG = Color(0xFF12151C)
 private val CARD = Color(0xFF1B1F29)
@@ -58,13 +50,25 @@ private val GOOD = Color(0xFF66BB6A)
 private val BAD = Color(0xFFFF5252)
 private val BUTTON = Color(0xFF2A3342)
 
-/** Lobby for two-phone co-op over Bluetooth: host, join a paired phone, or practise against a simulated partner. */
+/**
+ * The lobby every game uses for two-phone co-op over Bluetooth: pair, host, join a paired phone, or practise against
+ * a simulated partner. [heading] and [intro] describe the game's co-op; [practiceNote] says what the simulated partner does;
+ * [simulate] builds it (a [SimulatedPartner]).
+ */
 @Composable
-fun CoopLobbyScreen(onReady: (CoopLaunch) -> Unit, onClose: () -> Unit) {
+fun <M> CoopLobbyScreen(
+    spec: CoopSpec<M>,
+    heading: String,
+    intro: String,
+    practiceNote: String,
+    simulate: () -> CoopLink<M>,
+    onReady: (CoopLaunch<M>) -> Unit,
+    onClose: () -> Unit
+) {
     val context = LocalContext.current
     val main = remember { Handler(Looper.getMainLooper()) }
     var status by remember { mutableStateOf("Pair the two phones once in the system Bluetooth settings, then one phone hosts and the other joins.") }
-    var hosting by remember { mutableStateOf<BluetoothHost?>(null) }
+    var hosting by remember { mutableStateOf<BluetoothHost<M>?>(null) }
     var joining by remember { mutableStateOf(false) }
     var devices by remember { mutableStateOf<List<BluetoothDevice>>(emptyList()) }
     var permitted by remember { mutableStateOf(hasBluetoothPermission(context)) }
@@ -77,12 +81,12 @@ fun CoopLobbyScreen(onReady: (CoopLaunch) -> Unit, onClose: () -> Unit) {
     BackHandler { hosting?.cancel(); onClose() }
 
     fun needBluetooth(): Boolean {
-        if (BluetoothAdapter.getDefaultAdapter() == null) { status = "This phone has no Bluetooth."; return false }
+        if (!CoopBluetooth.hasAdapter()) { status = "This phone has no Bluetooth."; return false }
         if (!permitted) {
             if (Build.VERSION.SDK_INT >= 31) permissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
             return false
         }
-        if (!BluetoothLink.isAvailable()) { status = "Turn Bluetooth on first."; return false }
+        if (!CoopBluetooth.isEnabled()) { status = "Turn Bluetooth on first."; return false }
         return true
     }
 
@@ -91,14 +95,10 @@ fun CoopLobbyScreen(onReady: (CoopLaunch) -> Unit, onClose: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-            Text("CO-OP  -  TWO TRAINS", color = TEXT, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+            Text(heading, color = TEXT, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
             LobbyButton("Back", BUTTON, TEXT) { hosting?.cancel(); onClose() }
         }
-        Text(
-            "Each player drives their own train through double the zombies. Bosses and routes are shared. " +
-                "Build the Gangway upgrade to lend a passenger to your partner's train when they are in trouble.",
-            color = MUTED, fontSize = 12.sp
-        )
+        Text(intro, color = MUTED, fontSize = 12.sp)
         Text(status, color = AMBER, fontSize = 13.sp, fontWeight = FontWeight.Bold)
 
         Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -117,14 +117,14 @@ fun CoopLobbyScreen(onReady: (CoopLaunch) -> Unit, onClose: () -> Unit) {
                     if (hosting == null) {
                         LobbyButton("Host", AMBER, Color.Black) {
                             if (needBluetooth()) {
-                                val host = BluetoothHost()
+                                val host = BluetoothHost(spec)
                                 hosting = host
                                 joining = false
                                 status = "Waiting for your partner to join..."
                                 host.start { link ->
                                     main.post {
                                         hosting = null
-                                        if (link != null) onReady(CoopLaunch(link, CoopRole.HOST)) else status = "Hosting stopped."
+                                        if (link != null) onReady(CoopLaunch(link, CoopSide.HOST)) else status = "Hosting stopped."
                                     }
                                 }
                             }
@@ -135,7 +135,7 @@ fun CoopLobbyScreen(onReady: (CoopLaunch) -> Unit, onClose: () -> Unit) {
                     LobbyButton("Join", AMBER, Color.Black) {
                         if (needBluetooth()) {
                             hosting?.cancel(); hosting = null
-                            devices = BluetoothLink.pairedDevices()
+                            devices = CoopBluetooth.pairedDevices()
                             joining = true
                             status = if (devices.isEmpty()) "No paired phones yet: pair in Bluetooth settings first." else "Pick the phone that is hosting."
                         }
@@ -146,9 +146,9 @@ fun CoopLobbyScreen(onReady: (CoopLaunch) -> Unit, onClose: () -> Unit) {
                         val name = try { device.name ?: device.address } catch (_: SecurityException) { device.address }
                         LobbyButton(name, BUTTON, TEXT, Modifier.fillMaxWidth()) {
                             status = "Connecting to $name..."
-                            BluetoothLink.connectTo(device) { link ->
+                            CoopBluetooth.connectTo(spec, device) { link ->
                                 main.post {
-                                    if (link != null) onReady(CoopLaunch(link, CoopRole.GUEST))
+                                    if (link != null) onReady(CoopLaunch(link, CoopSide.GUEST))
                                     else status = "Could not connect. Is $name hosting?"
                                 }
                             }
@@ -158,8 +158,8 @@ fun CoopLobbyScreen(onReady: (CoopLaunch) -> Unit, onClose: () -> Unit) {
             }
             Column(modifier = Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Practice on one phone", color = TEXT, fontWeight = FontWeight.Bold)
-                Text("A simulated partner lends you a passenger now and then, so you can try the co-op rules alone.", color = MUTED, fontSize = 11.sp)
-                LobbyButton("Practice with a simulated partner", GOOD, Color.Black) { onReady(CoopLaunch(SimulatedLink(), CoopRole.HOST)) }
+                Text(practiceNote, color = MUTED, fontSize = 11.sp)
+                LobbyButton("Practice with a simulated partner", GOOD, Color.Black) { onReady(CoopLaunch(simulate(), CoopSide.HOST)) }
             }
         }
     }
