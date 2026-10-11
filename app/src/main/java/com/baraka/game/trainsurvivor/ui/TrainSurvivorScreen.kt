@@ -600,6 +600,14 @@ private fun CoopHud(game: TrainGame, session: CoopSession, tick: MutableLongStat
             if (p.ourPassengerAway > 0f) Text("guest ${p.ourPassengerAway.toInt()}s", color = Color(0xFFFFD54F), fontSize = 10.sp)
         }
         if (game.gangwayLevel > 0 && p.connected && !p.down) {
+            Text(
+                if (game.repairSendReady) "SEND REPAIR" else "Repair ${game.repairSendCooldown.toInt() + 1}s",
+                color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.clip(RoundedCornerShape(8.dp))
+                    .background(if (game.repairSendReady) Color(0xFF66BB6A) else Color(0xFF90A4AE))
+                    .clickable(enabled = game.repairSendReady) { game.sendRepair() }
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                 val cooldown = game.outgoingLoanCooldown.toInt() + 1
                 Text(if (game.outgoingLoanCooldown > 0f) "Gangway ${cooldown}s" else "Send:", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)

@@ -29,8 +29,11 @@ class AvatarLook(
     val accent: Long = 0xFFFFFFFF
 )
 
-/** A named survivor: one per seat, with a passive perk and a look. */
-class Survivor(val name: String, val role: String, val perk: Perk, val perkText: String, val look: AvatarLook)
+/**
+ * A named survivor: one per seat, with a passive perk and a look. [coopHeal] is the share of the host train's health
+ * (per second) this survivor repairs while lent to a partner's train.
+ */
+class Survivor(val name: String, val role: String, val perk: Perk, val perkText: String, val look: AvatarLook, val coopHeal: Float = 0.006f)
 
 /**
  * The crew, in seat order. To add a survivor, add an entry: the train gets one more seat (seat prices,
@@ -40,7 +43,7 @@ val SURVIVORS = listOf(
     Survivor("Cole", "Driver", Perk.DAMAGE, "Steady Hands: +15% damage", AvatarLook(shirt = 0xFFD84315, hair = 0xFF3E2723, hat = HatStyle.CAP, hatColor = 0xFF263238)),
     Survivor("Mara", "Gunner", Perk.FIRE_RATE, "Quick Draw: +20% fire rate", AvatarLook(shirt = 0xFF1E88E5, pants = 0xFF4E342E, skin = 0xFFC68642, hair = 0xFF212121, hat = HatStyle.BANDANA, hatColor = 0xFFE53935, width = 0.9f, height = 0.94f, extra = AvatarExtra.GOGGLES)),
     Survivor("Hawk", "Scout", Perk.RANGE, "Eagle Eye: +25% weapon range", AvatarLook(shirt = 0xFF43A047, pants = 0xFF5D4037, skin = 0xFF8D5524, hair = 0xFF6D4C41, hat = HatStyle.COWBOY, hatColor = 0xFF5D4037, width = 0.95f, height = 1.08f, extra = AvatarExtra.PONCHO, accent = 0xFF8D6E63)),
-    Survivor("Doc", "Medic", Perk.CRIT, "Lucky Shots: 12% chance for x2.5 damage", AvatarLook(shirt = 0xFFECEFF1, pants = 0xFF455A64, skin = 0xFFCFD8DC, width = 1.1f, body = AvatarBody.ROBOT, accent = 0xFFE53935)),
+    Survivor("Doc", "Medic", Perk.CRIT, "Lucky Shots: 12% chance for x2.5 damage", AvatarLook(shirt = 0xFFECEFF1, pants = 0xFF455A64, skin = 0xFFCFD8DC, width = 1.1f, body = AvatarBody.ROBOT, accent = 0xFFE53935), coopHeal = 0.025f),
     Survivor("Rocco", "Scrapper", Perk.SCAVENGER, "Scavenger: +25% coins from his kills", AvatarLook(shirt = 0xFFFDD835, pants = 0xFF33691E, hair = 0xFF212121, hat = HatStyle.HELMET, hatColor = 0xFFFF8F00, width = 1.3f, extra = AvatarExtra.WELDER))
 )
 

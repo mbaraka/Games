@@ -27,5 +27,7 @@ sealed class CoopSignal {
     class PassengerSent(val survivor: Int, val slot: CrewSlot, val seconds: Float) : CoopSignal()
     /** This train used Blast; the partner's train gets one too. */
     object Blast : CoopSignal()
+    /** This train sent a repair to the partner (a fraction of their train's health). */
+    class RepairSent(val fraction: Float) : CoopSignal()
     object TrainDestroyed : CoopSignal()
 }

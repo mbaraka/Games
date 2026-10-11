@@ -431,6 +431,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
 
     private fun tickLoans(dt: Float) {
         outgoingLoanCooldown = max(0f, outgoingLoanCooldown - dt)
+        repairSendCooldown = max(0f, repairSendCooldown - dt)
         for (i in seatAwayTime.indices) {
             if (seatAwayTime[i] > 0f) {
                 seatAwayTime[i] -= dt
@@ -487,6 +488,27 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         }
         guestTime = seconds
         floatText(gunX(seat), gunY(seat) - 60f, SURVIVORS[guestSurvivor].name + " joins!", 1.6f, 0xFF40E0FF.toInt(), 20f)
+    }
+
+    var repairSendCooldown = 0f
+    val repairSendCooldownMax get() = 36f - 3f * gangwayLevel
+    val repairSendReady get() = coopRole != CoopRole.SOLO && gangwayLevel > 0 && !over && repairSendCooldown <= 0f
+
+    /** Sends a repair to the partner's train: a fraction of its health, growing with the Gangway level. */
+    fun sendRepair(): Boolean {
+        if (!repairSendReady) return false
+        repairSendCooldown = repairSendCooldownMax
+        floatText(trainLeft + trainLength / 2f, 340f, "Repair sent", 1.2f, 0xFF66FF8A.toInt(), 18f)
+        onCoop?.invoke(CoopSignal.RepairSent(0.2f + 0.04f * gangwayLevel))
+        return true
+    }
+
+    /** The partner sent a repair: heals the locomotive and every wagon. */
+    fun receiveRepair(fraction: Float) {
+        if (over) return
+        healFraction(fraction)
+        sound(TrainSoundCue.REPAIR)
+        floatText(trainLeft + trainLength / 2f, 340f, "Partner repair!", 1.4f, 0xFF66FF8A.toInt(), 22f)
     }
 
     /** Takes the damage the co-op session collected (boss hits dealt here, to forward to the partner). */
@@ -594,6 +616,11 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     // ---------------------------------------------------------------- health
 
     private fun regenerate(dt: Float) {
+        if (guestPresent) { // the lent passenger patches up this train (medics far better than gunners)
+            val rate = SURVIVORS[guestSurvivor].coopHeal * dt
+            hp = min(maxHp, hp + maxHp * rate)
+            for (i in 1 until slotCount) if (carHp[i] > 0f) carHp[i] = min(carMaxHp[i], carHp[i] + carMaxHp[i] * rate)
+        }
         val regen = regenPerSecond * biome.repairMult + biome.flatRegen
         if (regen <= 0f) return
         hp = min(maxHp, hp + regen * dt)
