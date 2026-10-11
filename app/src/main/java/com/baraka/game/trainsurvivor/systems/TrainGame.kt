@@ -187,7 +187,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     /** Spawn-rate multiplier: two trains mean double the zombies. */
     var coopSpawnMult = 1f
     var onCoop: ((CoopSignal) -> Unit)? = null
-    /** Boss damage dealt here since the session last collected it; forwarded so both trains hurt the same boss. */
+    /** Boss damage (as a fraction of boss health) dealt here since the session last collected it; forwarded so both trains hurt the same boss. */
     var bossDamageOut = 0f
     private var applyingRemote = false
     val gangwayLevel = save.level(TrainUpgrade.GANGWAY)
@@ -497,10 +497,10 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     }
 
     /** The partner's boss hits land on our boss too, so both trains fight one boss. */
-    fun applyBossDamage(amount: Float) {
+    fun applyBossDamage(fraction: Float) {
         val b = boss ?: return
         applyingRemote = true
-        damageZombie(b, amount, silent = true)
+        damageZombie(b, fraction * b.maxHp, silent = true)
         applyingRemote = false
     }
 
@@ -1169,7 +1169,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             z.shield -= absorbed
             dealt -= absorbed
         }
-        if (z.isBoss && !applyingRemote) bossDamageOut += dealt
+        if (z.isBoss && !applyingRemote) bossDamageOut += dealt / z.maxHp
         z.hp -= dealt
         if (!silent) {
             z.flash = 1f

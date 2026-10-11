@@ -70,6 +70,14 @@ fun runDebugSections(
     onTimeScale: (Float) -> Unit
 ): List<DebugSection> = listOf(
     DebugSection(
+        "Co-op",
+        listOf(
+            DebugItem.Action("Receive a guest passenger (20 s)") { game.receivePassenger(1, CrewSlot(owned = 0b1111, selected = AUTO_WEAPON, power = 4), 20f) },
+            DebugItem.Toggle("Double zombies (x2 spawns)", game.coopSpawnMult > 1f) { game.coopSpawnMult = if (it) 2f else 1f },
+            DebugItem.Info("Gangway level: ${game.gangwayLevel}, passengers away: ${game.seatAwayTime.count { it > 0f }}")
+        )
+    ),
+    DebugSection(
         "Player",
         listOf(
             DebugItem.Toggle("God mode (train can't be hurt)", godMode, onGodMode),

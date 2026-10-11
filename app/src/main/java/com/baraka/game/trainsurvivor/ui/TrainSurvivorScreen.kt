@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -62,6 +64,7 @@ import com.baraka.game.trainsurvivor.data.MusicTrack
 import com.baraka.game.trainsurvivor.data.TrainAudio
 import com.baraka.game.trainsurvivor.data.TrainSaveRepository
 import com.baraka.game.trainsurvivor.data.TrainSoundCue
+import com.baraka.game.trainsurvivor.coop.CoopSession
 import com.baraka.game.trainsurvivor.model.AUTO_WEAPON
 import com.baraka.game.trainsurvivor.model.Biome
 import com.baraka.game.trainsurvivor.model.DangerLevel
@@ -103,6 +106,8 @@ fun TrainSurvivorScreen() {
     var save by remember { mutableStateOf(Progression.sync(repository.load())) }
     var settings by remember { mutableStateOf(repository.loadSettings()) }
     var inRun by remember { mutableStateOf(false) }
+    var lobby by remember { mutableStateOf(false) }
+    var coop by remember { mutableStateOf<CoopLaunch?>(null) }
 
     val audio = remember { TrainAudio() }
     DisposableEffect(Unit) { onDispose { audio.release() } }
@@ -140,8 +145,14 @@ fun TrainSurvivorScreen() {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?"
     }
 
-    if (inRun) {
+    if (lobby && !inRun) {
+        CoopLobbyScreen(
+            onReady = { coop = it; lobby = false; inRun = true },
+            onClose = { lobby = false }
+        )
+    } else if (inRun) {
         RunScreen(
+            coop = coop,
             repository = repository,
             settings = settings,
             onSettingsChange = onSettingsChange,
@@ -149,7 +160,7 @@ fun TrainSurvivorScreen() {
             audio = audio,
             playCue = playCue,
             onSaved = { save = it },
-            onExit = { inRun = false }
+            onExit = { coop?.link?.close(); coop = null; inRun = false }
         )
     } else {
         GarageScreen(
@@ -162,7 +173,8 @@ fun TrainSurvivorScreen() {
                 repository.save(it)
                 playCue(TrainSoundCue.UPGRADE)
             },
-            onDepart = { inRun = true },
+            onDepart = { coop = null; inRun = true },
+            onCoop = { lobby = true },
             debugSections = garageDebugSections(
                 save = save,
                 onSave = { save = it; repository.save(it) },
@@ -174,6 +186,7 @@ fun TrainSurvivorScreen() {
 
 @Composable
 private fun RunScreen(
+    coop: CoopLaunch?,
     repository: TrainSaveRepository,
     settings: GameSettings,
     onSettingsChange: (GameSettings) -> Unit,
@@ -192,6 +205,9 @@ private fun RunScreen(
     val tick = remember { mutableLongStateOf(0L) }
     val stats = remember { FrameStats() }
     val game = remember(runId) { TrainGame(repository.load()).also { it.onSound = playCue; it.godMode = godMode } }
+    val session = remember(game) { coop?.let { CoopSession(game, it.link, it.role) } }
+    // Two trains keep running when this player pauses: the partner cannot be frozen.
+    val frozen = paused && session == null
     var banked by remember(runId) { mutableStateOf(false) }
     val bestAtStart = remember(runId) { repository.load().bestDistance }
     // What this run has already written to disk, so every checkpoint only adds the difference:
@@ -273,8 +289,8 @@ private fun RunScreen(
     }
     LaunchedEffect(paused) { if (paused) audio.setAmbience(false) else if (!game.over) audio.setAmbience(true, game.speedFactor) }
 
-    LaunchedEffect(game, paused) {
-        if (paused) return@LaunchedEffect
+    LaunchedEffect(game, frozen) {
+        if (frozen) return@LaunchedEffect
         var last = 0L
         var bossMusic = false
         var lastSpeed = 1f
@@ -286,7 +302,9 @@ private fun RunScreen(
                     stats.record(real * 1000f)
                     game.damageNumbers = currentSettings.damageNumbers
                     game.shakeEnabled = currentSettings.screenShake
-                    game.update(real.coerceAtMost(0.05f) * currentTimeScale)
+                    val step = real.coerceAtMost(0.05f) * currentTimeScale
+                    session?.update(step)
+                    game.update(step)
                 }
                 last = now
                 tick.longValue++
@@ -346,6 +364,7 @@ private fun RunScreen(
                     AbilityButton(tick, "BLAST", Color(0xFFB71C1C), { game.dynamiteReady }, { 1f - game.dynamiteCooldown / game.dynamiteCooldownMax }, { game.dynamiteCooldown }) { game.useDynamite() }
                 }
                 JunctionPanel(game, tick, Modifier.align(Alignment.BottomCenter))
+                if (session != null) CoopHud(game, session, tick, Modifier.align(Alignment.TopCenter))
                 WeaponSwitcher(game, tick, Modifier.align(Alignment.CenterStart).padding(top = 44.dp))
                 if (settings.showFps) FpsOverlay(stats, Modifier.align(Alignment.BottomStart))
             }
@@ -353,7 +372,7 @@ private fun RunScreen(
 
         if (paused && !game.over && !showSettings) {
             Overlay {
-                Text("PAUSED", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                Text(if (session != null) "MENU (the game keeps running)" else "PAUSED", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
                 Button(onClick = { paused = false }) { Text("Resume") }
                 Button(
                     onClick = { showSettings = true },
@@ -370,6 +389,7 @@ private fun RunScreen(
         if (game.over && finished != null) {
             Overlay {
                 Text("TRAIN DESTROYED", color = Color(0xFFFF5252), fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                if (session != null) Text(if (session.partner.connected && !session.partner.down) "Your partner is still fighting!" else "Both trains are down.", color = Color(0xFF80DEEA), fontSize = 13.sp)
                 if (finished.isBest) Text("New best distance!", color = AMBER, fontWeight = FontWeight.Bold)
                 Text("${finished.distance} m   •   ${finished.kills} zombies   •   ${finished.bossKills} bosses", color = Color.White, fontSize = 15.sp)
                 Text("+${finished.coins} coins banked (${finished.killCoins} from kills)", color = AMBER, fontSize = 17.sp, fontWeight = FontWeight.Bold)
@@ -382,7 +402,7 @@ private fun RunScreen(
                         onClick = onExit,
                         colors = ButtonDefaults.buttonColors(containerColor = AMBER, contentColor = Color.Black)
                     ) { Text("Upgrade train", fontWeight = FontWeight.Bold) }
-                    Button(onClick = { runId++; result = null; paused = false }) { Text("Retry") }
+                    if (session == null) Button(onClick = { runId++; result = null; paused = false }) { Text("Retry") }
                 }
             }
         }
@@ -552,5 +572,46 @@ private fun AbilityButton(
             )
         }
         Text(if (isReady) label else "${secondsLeft().toInt() + 1}s", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+    }
+}
+
+/** Co-op HUD: the partner's train status, and chips to lend a passenger across the Gangway. */
+@Composable
+private fun CoopHud(game: TrainGame, session: CoopSession, tick: MutableLongState, modifier: Modifier) {
+    tick.longValue
+    val p = session.partner
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically
+        ) {
+            val status = when {
+                !p.connected -> "PARTNER LEFT"
+                p.down -> "PARTNER DOWN"
+                p.away -> "PARTNER AWAY..."
+                else -> "PARTNER  ${p.distance} m  ${p.biome.displayName}"
+            }
+            Text(status, color = if (p.connected && !p.down && !p.away) Color(0xFF80DEEA) else Color(0xFFFF8A80), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            if (p.connected && !p.down) {
+                Box(Modifier.width(70.dp).height(7.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFF37474F))) {
+                    Box(Modifier.fillMaxHeight().fillMaxWidth(p.hpFrac.coerceIn(0f, 1f)).background(if (p.hpFrac > 0.4f) Color(0xFF66BB6A) else Color(0xFFEF5350)))
+                }
+            }
+            if (p.ourPassengerAway > 0f) Text("guest ${p.ourPassengerAway.toInt()}s", color = Color(0xFFFFD54F), fontSize = 10.sp)
+        }
+        if (game.gangwayLevel > 0 && p.connected && !p.down) {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                val cooldown = game.outgoingLoanCooldown.toInt() + 1
+                Text(if (game.outgoingLoanCooldown > 0f) "Gangway ${cooldown}s" else "Send:", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                for (i in 0 until game.slotCount) {
+                    if (!game.canSendPassenger(i)) continue
+                    Text(
+                        SURVIVORS[i].name,
+                        color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFF40E0FF)).clickable { game.sendPassenger(i) }.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+        }
     }
 }

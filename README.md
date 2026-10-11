@@ -21,7 +21,7 @@ No ads, no accounts, no tracking. Just simple, fun games.
 | Pixel Collector | Collect green pixels while avoiding red obstacles. |
 | Battleship | Local 2 players or vs computer — place fleets, then take turns firing. |
 | Rhythm Runner | Run, jump, and collect to the beat. |
-| Train Survivor | Side-view train defense — fight ground and flying zombies and bosses, pick routes, earn coins, upgrade the train and its named survivors. |
+| Train Survivor | Side-view train defense — fight ground and flying zombies and bosses, pick routes, earn coins, upgrade the train and its named survivors. Two-phone Bluetooth co-op: two trains, double zombies, lend passengers across a Gangway. |
 | Tunnel Crew | Lemmings-style puzzler — hand skills (dig, build, bash, mine, climb, float, block, bomb) to a walking crew and guide them to the exit across 18 levels. |
 | Key Reader | Scan NFC keys and manage saved entries. |
 

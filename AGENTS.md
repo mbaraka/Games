@@ -263,6 +263,16 @@ repair, coins or ability cooldowns). Paint is never cosmetic-only. It appears in
 shop and Field Guide automatically; an upgrade also needs its effect wired where `TrainGame` reads its level;
 a weapon with new behaviour needs a branch in `TrainGame.fire` plus art in `drawWeapon`.
 
+### Co-op (two trains over Bluetooth)
+
+Code is in `trainsurvivor/coop/` (`CoopLink.kt`: messages, `BluetoothLink`/`BluetoothHost` over classic RFCOMM between
+paired phones, `SimulatedLink` for one-phone practice; `CoopSession.kt`: carries engine signals over a link) plus
+`systems/Coop.kt` (`CoopRole`, `CoopSignal`) and `ui/CoopLobbyScreen.kt`. Each phone simulates its own train with double
+spawns (`coopSpawnMult`); the host owns junctions and boss arrivals, boss damage is forwarded as a fraction of boss health,
+and the **Gangway** upgrade lends one passenger to the partner's guest seat (`TrainGame.sendPassenger/receivePassenger`).
+The engine never touches the network: add new shared behaviour as a `CoopSignal` plus a `CoopMsg`, and handle it in
+`CoopSession`. Test on one phone with "Practice with a simulated partner"; real Bluetooth needs two devices.
+
 ### Data and saving
 
 Progress and settings are stored in `SharedPreferences` file `train_survivor` by `TrainSaveRepository`. New

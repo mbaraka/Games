@@ -83,6 +83,7 @@ fun GarageScreen(
     versionName: String,
     onPurchase: (SaveData) -> Unit,
     onDepart: () -> Unit,
+    onCoop: () -> Unit,
     debugSections: List<DebugSection>
 ) {
     var tab by remember { mutableIntStateOf(0) }
@@ -145,6 +146,7 @@ fun GarageScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = AMBER, contentColor = Color.Black)
             ) { Text("DEPART  ▶", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, maxLines = 1, softWrap = false) }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                SmallButton("Co-op") { onCoop() }
                 SmallButton("Field Guide") { page = GaragePage.GUIDE }
                 SmallButton(if (goalsReady) "Goals ●" else "Goals", highlight = goalsReady) { page = GaragePage.GOALS }
                 SmallButton("Settings") { page = GaragePage.SETTINGS }
