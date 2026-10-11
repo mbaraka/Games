@@ -12,8 +12,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import com.baraka.game.clashdecks.ui.ClashCoopLaunch
-import com.baraka.game.clashdecks.ui.ClashCoopLobbyScreen
+import com.baraka.game.clashdecks.coop.CLASH_COOP
+import com.baraka.game.clashdecks.coop.ClashCoopMsg
+import com.baraka.game.clashdecks.coop.SimulatedClashLink
+import com.baraka.game.coop.CoopLaunch
+import com.baraka.game.coop.CoopLobbyScreen
 import com.baraka.game.clashdecks.ui.ClashCoopScreen
 import com.baraka.game.clashdecks.ui.ClashDecksScreen
 import com.baraka.game.ui.theme.GameTheme
@@ -46,11 +49,11 @@ private fun ClashDecksRoot(
     onBack: () -> Unit
 ) {
     var showCoopLobby by remember { mutableStateOf(false) }
-    var coopLaunch by remember { mutableStateOf<ClashCoopLaunch?>(null) }
+    var coopLaunch by remember { mutableStateOf<CoopLaunch<ClashCoopMsg>?>(null) }
 
     val launch = coopLaunch
     if (launch != null) {
-        LaunchedEffect(launch) { coopViewModel.begin(launch.link, launch.role) }
+        LaunchedEffect(launch) { coopViewModel.begin(launch.link, launch.side) }
         val coopModel by coopViewModel.ui.collectAsState()
         ClashCoopScreen(
             model = coopModel,
@@ -72,7 +75,12 @@ private fun ClashDecksRoot(
     }
 
     if (showCoopLobby) {
-        ClashCoopLobbyScreen(
+        CoopLobbyScreen(
+            spec = CLASH_COOP,
+            heading = "PLAY VS FRIEND",
+            intro = "Whoever hosts deals the cards and runs the rules; the other phone just plays its hand over the connection. Difficulty doesn't apply - you're dueling a real person.",
+            practiceNote = "A simulated partner plays its hand using the normal CPU logic, so you can try hosting alone.",
+            simulate = { SimulatedClashLink() },
             onReady = { ready ->
                 coopLaunch = ready
                 showCoopLobby = false

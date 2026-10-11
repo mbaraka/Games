@@ -263,15 +263,25 @@ repair, coins or ability cooldowns). Paint is never cosmetic-only. It appears in
 shop and Field Guide automatically; an upgrade also needs its effect wired where `TrainGame` reads its level;
 a weapon with new behaviour needs a branch in `TrainGame.fire` plus art in `drawWeapon`.
 
-### Co-op (two trains over Bluetooth)
+### Co-op for any game (shared layer)
 
-Code is in `trainsurvivor/coop/` (`CoopLink.kt`: messages, `BluetoothLink`/`BluetoothHost` over classic RFCOMM between
-paired phones, `SimulatedLink` for one-phone practice; `CoopSession.kt`: carries engine signals over a link) plus
-`systems/Coop.kt` (`CoopRole`, `CoopSignal`) and `ui/CoopLobbyScreen.kt`. Each phone simulates its own train with double
-spawns (`coopSpawnMult`); the host owns junctions and boss arrivals, boss damage is forwarded as a fraction of boss health,
-and the **Gangway** upgrade lends one passenger to the partner's guest seat (`TrainGame.sendPassenger/receivePassenger`).
-The engine never touches the network: add new shared behaviour as a `CoopSignal` plus a `CoopMsg`, and handle it in
-`CoopSession`. Test on one phone with "Practice with a simulated partner"; real Bluetooth needs two devices.
+Two-phone Bluetooth co-op lives in `com.baraka.game.coop` and is shared by every game: **do not copy it into a game.**
+It has `CoopLink<M>` (non-blocking send/poll), `BluetoothLink`/`BluetoothHost`/`CoopBluetooth` (classic RFCOMM between
+paired phones), `SimulatedPartner<M>` (base for a pretend partner so a game can be tried on one phone), `CoopLaunch`
+(connected link + `CoopSide` HOST/GUEST) and the generic `CoopLobbyScreen` (pair, host, join, practice, permissions).
+
+To add co-op to a game: (1) define your message class `M` with `write`/`read`; (2) create a `CoopSpec<M>` with a **new
+random service UUID** (that is what stops two games connecting to each other), a service name, a `CoopCodec` and an
+optional `bye` message; (3) write a session class that sends messages from game events and applies received ones
+(host-authoritative streaming, as in `clashdecks/coop`, or two simulations sharing events, as in `trainsurvivor/coop`);
+(4) call `CoopLobbyScreen(spec, heading, intro, practiceNote, simulate = { YourSimulatedPartner() }, onReady, onClose)`.
+The manifest already holds the Bluetooth permissions. Only the real Bluetooth link needs two phones to test.
+
+Train Survivor specifics: `systems/Coop.kt` (`CoopRole`, `CoopSignal`), `coop/CoopSession.kt`. Each phone simulates its own
+train with double spawns (`coopSpawnMult`); the host owns junctions and boss arrivals, boss damage is forwarded as a
+fraction of boss health, Blast also goes off on the partner's train, and the **Gangway** upgrade lends a passenger to the
+partner's guest seat and unlocks Send Repair. The engine never touches the network: add shared behaviour as a
+`CoopSignal` plus a `CoopMsg`, and handle it in `CoopSession`.
 
 ### Data and saving
 

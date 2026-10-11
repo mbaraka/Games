@@ -1,8 +1,7 @@
 package com.baraka.game.clashdecks.coop
 
 import com.baraka.game.clashdecks.model.DuelState
-
-enum class CoopRole { HOST, GUEST }
+import com.baraka.game.coop.CoopSide as CoopRole
 
 /**
  * Carries a duel over a [ClashCoopLink]. The host is authoritative — it's the only side that

@@ -5,7 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.baraka.game.clashdecks.coop.ClashCoopLink
 import com.baraka.game.clashdecks.coop.ClashCoopSession
-import com.baraka.game.clashdecks.coop.CoopRole
+import com.baraka.game.coop.CoopSide as CoopRole
 import com.baraka.game.clashdecks.coop.mirroredForGuest
 import com.baraka.game.clashdecks.data.ClashDecksSettingsRepository
 import com.baraka.game.clashdecks.data.DuelSoundEngine

@@ -1,22 +1,17 @@
 package com.baraka.game.clashdecks.coop
 
-import android.annotation.SuppressLint
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothServerSocket
-import android.bluetooth.BluetoothSocket
+import com.baraka.game.coop.CoopCodec
+import com.baraka.game.coop.CoopLink
+import com.baraka.game.coop.CoopSpec
+import com.baraka.game.coop.SimulatedPartner
 import com.baraka.game.clashdecks.ai.CpuStrategy
 import com.baraka.game.clashdecks.ai.Difficulty
 import com.baraka.game.clashdecks.model.DuelPhase
 import com.baraka.game.clashdecks.model.DuelState
 import com.baraka.game.clashdecks.systems.DuelEngine
-import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
-import java.io.IOException
 import java.util.UUID
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.Executors
 import kotlin.random.Random
 
 const val CLASH_COOP_PROTOCOL = 1
@@ -57,137 +52,14 @@ sealed class ClashCoopMsg {
     }
 }
 
-/** A two-way channel to the partner's phone. Everything is non-blocking so the duel loop never waits on it. */
-interface ClashCoopLink {
-    val connected: Boolean
-    fun send(msg: ClashCoopMsg)
-    /** The next message from the partner, or null when there is none right now. */
-    fun poll(): ClashCoopMsg?
-    /** Called periodically; lets a simulated partner act. */
-    fun tick(dt: Float) {}
-    fun close()
-}
-
-private val SERVICE_UUID: UUID = UUID.fromString("5e2a7c34-1f9b-4d6e-8a3c-9b4f2e7d6a10")
-
-/** A classic Bluetooth (RFCOMM) connection between two paired phones — same shape as trainsurvivor's BluetoothLink. */
-class ClashBluetoothLink internal constructor(private val socket: BluetoothSocket) : ClashCoopLink {
-    private val incoming = ConcurrentLinkedQueue<ClashCoopMsg>()
-    private val writer = Executors.newSingleThreadExecutor()
-    private val input = DataInputStream(socket.inputStream.buffered())
-    private val output = DataOutputStream(socket.outputStream.buffered())
-    @Volatile override var connected = true
-        private set
-
-    init {
-        Thread({
-            try {
-                while (connected) {
-                    val length = input.readInt()
-                    if (length !in 1..65536) throw IOException("bad frame")
-                    val bytes = ByteArray(length)
-                    input.readFully(bytes)
-                    val msg = ClashCoopMsg.read(DataInputStream(bytes.inputStream()))
-                    if (msg != null) incoming.add(msg)
-                }
-            } catch (_: Exception) {
-                connected = false
-            }
-        }, "clash-coop-read").apply { isDaemon = true }.start()
-    }
-
-    override fun send(msg: ClashCoopMsg) {
-        if (!connected) return
-        val buffer = ByteArrayOutputStream(64)
-        msg.write(DataOutputStream(buffer))
-        val bytes = buffer.toByteArray()
-        writer.execute {
-            try {
-                output.writeInt(bytes.size)
-                output.write(bytes)
-                output.flush()
-            } catch (_: Exception) {
-                connected = false
-            }
-        }
-    }
-
-    override fun poll(): ClashCoopMsg? = incoming.poll()
-
-    override fun close() {
-        if (connected) send(ClashCoopMsg.Bye)
-        writer.execute { runCatching { socket.close() }; connected = false }
-        writer.shutdown()
-    }
-
-    companion object {
-        /** Phones the player already paired in the system Bluetooth settings. Empty without permission. */
-        @SuppressLint("MissingPermission")
-        fun pairedDevices(): List<BluetoothDevice> = try {
-            BluetoothAdapter.getDefaultAdapter()?.bondedDevices?.toList().orEmpty()
-        } catch (_: SecurityException) {
-            emptyList()
-        }
-
-        fun isAvailable(): Boolean = BluetoothAdapter.getDefaultAdapter()?.isEnabled == true
-
-        /** Connects to a host phone. Calls [done] from a background thread with the link, or null on failure. */
-        @SuppressLint("MissingPermission")
-        fun connectTo(device: BluetoothDevice, done: (ClashBluetoothLink?) -> Unit) {
-            Thread({
-                val link = try {
-                    BluetoothAdapter.getDefaultAdapter()?.cancelDiscovery()
-                    val socket = device.createRfcommSocketToServiceRecord(SERVICE_UUID)
-                    socket.connect()
-                    ClashBluetoothLink(socket)
-                } catch (_: Exception) {
-                    null
-                }
-                done(link)
-            }, "clash-coop-connect").apply { isDaemon = true }.start()
-        }
-    }
-}
-
-/** Waits for a partner to connect. Call [cancel] to stop waiting. */
-class ClashBluetoothHost {
-    @Volatile private var server: BluetoothServerSocket? = null
-    @Volatile private var cancelled = false
-
-    /** Calls [done] from a background thread with the link, or null if cancelled or it failed. */
-    @SuppressLint("MissingPermission")
-    fun start(done: (ClashBluetoothLink?) -> Unit) {
-        Thread({
-            val link = try {
-                val s = BluetoothAdapter.getDefaultAdapter()?.listenUsingRfcommWithServiceRecord("ClashDecksCoop", SERVICE_UUID)
-                server = s
-                val socket = s?.accept()
-                runCatching { s?.close() }
-                if (socket != null && !cancelled) ClashBluetoothLink(socket) else null
-            } catch (_: Exception) {
-                null
-            }
-            done(link)
-        }, "clash-coop-host").apply { isDaemon = true }.start()
-    }
-
-    fun cancel() {
-        cancelled = true
-        runCatching { server?.close() }
-    }
-}
-
 /**
  * A pretend partner for trying two-phone duels on one phone: it plays its "guest" turns
  * using the same [CpuStrategy] the single-player CPU uses, reacting to whatever [DuelSync]
  * the host sends it, so hosting against this link feels like hosting against a real (if not
  * especially cunning) remote player.
  */
-class SimulatedClashLink(private val difficulty: Difficulty = Difficulty.NORMAL) : ClashCoopLink {
-    private val incoming = ConcurrentLinkedQueue<ClashCoopMsg>()
+class SimulatedClashLink(private val difficulty: Difficulty = Difficulty.NORMAL) : SimulatedPartner<ClashCoopMsg>() {
     private val rng = Random(System.nanoTime())
-    override var connected = true
-        private set
 
     private var latestState: DuelState? = null
     private var actedOnTurn = -1
@@ -202,8 +74,6 @@ class SimulatedClashLink(private val difficulty: Difficulty = Difficulty.NORMAL)
         }
     }
 
-    override fun poll(): ClashCoopMsg? = incoming.poll()
-
     override fun tick(dt: Float) {
         if (!connected) return
         val state = latestState ?: return
@@ -216,11 +86,22 @@ class SimulatedClashLink(private val difficulty: Difficulty = Difficulty.NORMAL)
         actedOnTurn = state.turnNumber
 
         val plan = CpuStrategy.chooseTurn(state, difficulty, rng)
-        for (cardId in plan) incoming.add(ClashCoopMsg.PlayCard(cardId))
-        incoming.add(ClashCoopMsg.EndTurn)
+        for (cardId in plan) deliver(ClashCoopMsg.PlayCard(cardId))
+        deliver(ClashCoopMsg.EndTurn)
     }
 
-    override fun close() {
-        connected = false
-    }
 }
+
+/** A link to the partner's phone carrying duel messages. */
+typealias ClashCoopLink = CoopLink<ClashCoopMsg>
+
+/** Clash Decks' co-op channel on the shared layer (its own service id, so other games cannot connect to it). */
+val CLASH_COOP: CoopSpec<ClashCoopMsg> = CoopSpec(
+    serviceId = UUID.fromString("5e2a7c34-1f9b-4d6e-8a3c-9b4f2e7d6a10"),
+    serviceName = "ClashDecksCoop",
+    codec = object : CoopCodec<ClashCoopMsg> {
+        override fun write(msg: ClashCoopMsg, out: DataOutputStream) = msg.write(out)
+        override fun read(input: DataInputStream): ClashCoopMsg? = ClashCoopMsg.read(input)
+    },
+    bye = ClashCoopMsg.Bye
+)
