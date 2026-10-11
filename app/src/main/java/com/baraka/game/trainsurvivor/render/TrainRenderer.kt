@@ -650,7 +650,9 @@ private fun DrawScope.drawTrain(g: TrainGame, light: Float) {
         if (g.teslaLevel > 0) drawTesla(g)
         if (g.mortarLevel > 0) drawMortar(g)
         if (g.flameLevel > 0) drawFlamer(g)
-        for (i in 0 until g.slotCount) drawGunner(g, i)
+        if (g.guestPresent) drawGuestMount(g)
+        for (i in 0..g.slotCount) drawGunner(g, i)
+        drawAwayMarkers(g)
     }
 }
 
@@ -715,7 +717,7 @@ private fun DrawScope.drawFlame(g: TrainGame) {
 private fun DrawScope.drawOverdrive(g: TrainGame) {
     if (g.overdriveTime <= 0f) return
     val pulse = 0.55f + 0.45f * sin(g.time * 14f)
-    for (i in 0 until g.slotCount) {
+    for (i in 0..g.slotCount) {
         if (!g.gunners[i].alive) continue
         drawCircle(Color(0xFFFFAB00).copy(alpha = 0.55f * pulse), 30f, Offset(g.gunX(i), g.gunY(i) - 26f), style = Stroke(3f))
     }
@@ -813,7 +815,7 @@ private fun DrawScope.drawGunner(g: TrainGame, slot: Int) {
     if (!gs.alive) return
     val gx = g.gunX(slot)
     val gy = g.gunY(slot)
-    val look = SURVIVORS[slot % SURVIVORS.size].look
+    val look = SURVIVORS[g.survivorOf(slot) % SURVIVORS.size].look
     val shirt = Color(look.shirt)
     val weapon = gs.weapon
     val skin = Color(look.skin)
@@ -1217,7 +1219,7 @@ private fun DrawScope.drawGlow(g: TrainGame, night: Float) {
             drawCircle(Color(0xFFFF3B30).copy(alpha = 0.25f * night), er * 3f, Offset(ex, ey))
         }
     }
-    for (i in 0 until g.slotCount) {
+    for (i in 0..g.slotCount) {
         val gs = g.gunners[i]
         if (gs.flash <= 0f) continue
         val len = weaponLength(gs.weapon)
@@ -1506,5 +1508,27 @@ private fun DrawScope.drawSpeedLines(g: TrainGame) {
         val x = wrap(hash(i) * span - g.scroll * (1.5f + hash(i + 7)), span) - 200f
         val len = 40f + speed * 26f
         drawLine(Color.White.copy(alpha = 0.16f + 0.1f * hash(i + 9)), Offset(x, y), Offset(x + len, y), 2f)
+    }
+}
+
+/** A small railed platform for the partner's lent passenger, with a cyan glow so it reads as a visitor. */
+private fun DrawScope.drawGuestMount(g: TrainGame) {
+    val x = g.gunX(g.slotCount)
+    val y = g.gunY(g.slotCount)
+    box(Color(0xFF455A64), x - 16f, y, 32f, 5f)
+    box(Color(0xFF90A4AE), x - 16f, y - 12f, 2f, 12f)
+    box(Color(0xFF90A4AE), x + 14f, y - 12f, 2f, 12f)
+    drawCircle(Color(0xFF40E0FF).copy(alpha = 0.18f + 0.1f * sin(g.time * 5f)), 22f, Offset(x, y - 22f))
+}
+
+/** Shows how long a lent passenger is still away from their own seat. */
+private fun DrawScope.drawAwayMarkers(g: TrainGame) {
+    for (i in g.seatAwayTime.indices) {
+        val left = g.seatAwayTime[i]
+        if (left <= 0f || !g.carAlive(i)) continue
+        val x = g.gunX(i)
+        val y = g.gunY(i)
+        box(Color(0xFF263238).copy(alpha = 0.7f), x - 14f, y - 4f, 28f, 4f)
+        outlinedText("away " + left.toInt() + "s", x, y - 14f, 12f, 0xFF80DEEA.toInt())
     }
 }

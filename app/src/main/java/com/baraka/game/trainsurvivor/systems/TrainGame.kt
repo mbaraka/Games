@@ -3,6 +3,7 @@ package com.baraka.game.trainsurvivor.systems
 import com.baraka.game.trainsurvivor.data.TrainSoundCue
 import com.baraka.game.trainsurvivor.model.AUTO_WEAPON
 import com.baraka.game.trainsurvivor.model.Biome
+import com.baraka.game.trainsurvivor.model.CrewSlot
 import com.baraka.game.trainsurvivor.model.DangerLevel
 import com.baraka.game.trainsurvivor.model.EliteTrait
 import com.baraka.game.trainsurvivor.model.Perk
@@ -168,14 +169,39 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     /** The paint chosen in the Garage; each livery carries a small bonus (see Livery). */
     private val paint = save.selectedLivery
     val slotCount = save.unlockedSlots
-    val crew = save.slots.take(slotCount)
-    val gunners = List(slotCount) { i ->
+    val crew: MutableList<CrewSlot> = save.slots.take(slotCount).toMutableList().also { it.add(CrewSlot()) }
+    val gunners = List(slotCount + 1) { i ->
         GunnerState().also { g ->
-            val slot = save.slots[i]
-            g.mode = slot.selected
-            g.weapon = if (slot.selected != AUTO_WEAPON) WeaponType.entries[slot.selected] else slot.bestWeapon
+            if (i < slotCount) {
+                val slot = save.slots[i]
+                g.mode = slot.selected
+                g.weapon = if (slot.selected != AUTO_WEAPON) WeaponType.entries[slot.selected] else slot.bestWeapon
+            } else {
+                g.alive = false // the guest seat stays empty until a partner lends a passenger
+            }
         }
     }
+
+    // ---- co-op (see the coop package) ----
+    var coopRole = CoopRole.SOLO
+    /** Spawn-rate multiplier: two trains mean double the zombies. */
+    var coopSpawnMult = 1f
+    var onCoop: ((CoopSignal) -> Unit)? = null
+    /** Boss damage dealt here since the session last collected it; forwarded so both trains hurt the same boss. */
+    var bossDamageOut = 0f
+    private var applyingRemote = false
+    val gangwayLevel = save.level(TrainUpgrade.GANGWAY)
+    /** Seconds each of this train's passengers is still away on the partner's train (0 = at home). */
+    val seatAwayTime = FloatArray(slotCount)
+    private var loanSeat = -1
+    var outgoingLoanCooldown = 0f
+    /** The partner's passenger riding this train: seconds left, and which survivor it is. */
+    var guestTime = 0f
+    var guestSurvivor = 0
+    val guestPresent get() = guestTime > 0f
+    val loanDuration get() = 15f + 5f * gangwayLevel
+    /** Which survivor stands in [seat]: its own, or the lent guest for the extra seat. */
+    fun survivorOf(seat: Int): Int = if (seat >= slotCount) guestSurvivor else seat
     val armorLevel = save.level(TrainUpgrade.ARMOR)
     val spikeLevel = save.level(TrainUpgrade.SPIKES)
     val dynamiteLevel = save.level(TrainUpgrade.DYNAMITE)
@@ -203,11 +229,14 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     val danger: DangerLevel = save.selectedDanger
 
     // Passive perks of the named survivors, resolved once per run.
-    private val damagePerk = FloatArray(slotCount) { if (SURVIVORS[it].perk == Perk.DAMAGE) 1.15f else 1f }
-    private val ratePerk = FloatArray(slotCount) { if (SURVIVORS[it].perk == Perk.FIRE_RATE) 1.2f else 1f }
-    private val rangePerk = FloatArray(slotCount) { if (SURVIVORS[it].perk == Perk.RANGE) 1.25f else 1f }
-    private val critChance = FloatArray(slotCount) { if (SURVIVORS[it].perk == Perk.CRIT) 0.12f else 0f }
-    private val coinPerk = FloatArray(slotCount) { if (SURVIVORS[it].perk == Perk.SCAVENGER) 1.25f else 1f }
+    // Index slotCount is the guest seat (the partner's lent passenger), so these are one longer than the crew.
+    private val damagePerk = FloatArray(slotCount + 1) { if (perkOf(it) == Perk.DAMAGE) 1.15f else 1f }
+    private val ratePerk = FloatArray(slotCount + 1) { if (perkOf(it) == Perk.FIRE_RATE) 1.2f else 1f }
+    private val rangePerk = FloatArray(slotCount + 1) { if (perkOf(it) == Perk.RANGE) 1.25f else 1f }
+    private val critChance = FloatArray(slotCount + 1) { if (perkOf(it) == Perk.CRIT) 0.12f else 0f }
+    private val coinPerk = FloatArray(slotCount + 1) { if (perkOf(it) == Perk.SCAVENGER) 1.25f else 1f }
+
+    private fun perkOf(seat: Int): Perk? = SURVIVORS.getOrNull(seat)?.perk
 
     val trainLength = shape.locoW + (slotCount - 1) * (shape.carW + shape.carGap)
     val trainLeft get() = worldW / 2f - trainLength / 2f
@@ -323,13 +352,21 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     /** Left edge of the wagon in [slot] (slot 0 is the locomotive; use [locoLeft] for it). */
     fun carLeft(slot: Int): Float = locoLeft - slot * (shape.carW + shape.carGap)
 
-    fun gunX(slot: Int): Float = if (slot == 0) locoLeft + shape.locoGunX else carLeft(slot) + shape.carW / 2f
+    fun gunX(slot: Int): Float = when {
+        slot >= slotCount -> locoLeft + shape.locoW - 24f // the guest mount, on the front of the locomotive
+        slot == 0 -> locoLeft + shape.locoGunX
+        else -> carLeft(slot) + shape.carW / 2f
+    }
 
-    fun gunY(slot: Int): Float = if (slot == 0) shape.locoRoofY else 420f
+    fun gunY(slot: Int): Float = when {
+        slot >= slotCount -> 422f
+        slot == 0 -> shape.locoRoofY
+        else -> 420f
+    }
     fun shoulderY(slot: Int): Float = gunY(slot) - 30f
     fun endX(side: Int): Float = if (side > 0) frontEnd else rearEnd
     fun carCenterX(slot: Int): Float = if (slot == 0) locoLeft + shape.locoW / 2f else gunX(slot)
-    fun carAlive(slot: Int): Boolean = slot == 0 || carHp[slot] > 0f
+    fun carAlive(slot: Int): Boolean = slot == 0 || slot >= slotCount || carHp[slot] > 0f
     val repairBoardY = 477f
 
     /** Flak turret sits on the rear car's roof; Tesla coil on the cab roof; mortar between the cars; flame nozzle on the cowcatcher. */
@@ -366,6 +403,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             overdriveCooldown = max(0f, overdriveCooldown - dt)
             fieldRepairCooldown = max(0f, fieldRepairCooldown - dt)
             overdriveTime = max(0f, overdriveTime - dt)
+            tickLoans(dt)
             buffTime = max(0f, buffTime - dt)
             regenerate(dt)
             if (spawnEnabled) {
@@ -387,6 +425,83 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         updateEffects(dt)
         compactZombies()
         rebuildDrawOrder()
+    }
+
+    // ---------------------------------------------------------------- co-op: lending passengers and shared boss
+
+    private fun tickLoans(dt: Float) {
+        outgoingLoanCooldown = max(0f, outgoingLoanCooldown - dt)
+        for (i in seatAwayTime.indices) {
+            if (seatAwayTime[i] > 0f) {
+                seatAwayTime[i] -= dt
+                if (seatAwayTime[i] <= 0f) {
+                    seatAwayTime[i] = 0f
+                    if (i == loanSeat) loanSeat = -1
+                    floatText(gunX(i), gunY(i) - 40f, SURVIVORS[i].name + " is back", 1.2f, 0xFF66FF8A.toInt(), 18f)
+                }
+            }
+        }
+        if (guestTime > 0f) {
+            guestTime -= dt
+            if (guestTime <= 0f) {
+                guestTime = 0f
+                gunners[slotCount].alive = false
+            }
+        }
+    }
+
+    /** True when the Gangway is built, nobody of ours is already away, the wait is over and [seat] is alive and at home. */
+    fun canSendPassenger(seat: Int): Boolean =
+        coopRole != CoopRole.SOLO && gangwayLevel > 0 && !over && loanSeat < 0 && outgoingLoanCooldown <= 0f &&
+            seat in 0 until slotCount && carAlive(seat) && seatAwayTime[seat] <= 0f
+
+    /** Sends the passenger in [seat] across to the partner's train for [loanDuration] seconds. */
+    fun sendPassenger(seat: Int): Boolean {
+        if (!canSendPassenger(seat)) return false
+        seatAwayTime[seat] = loanDuration
+        loanSeat = seat
+        outgoingLoanCooldown = loanDuration + (24f - 4f * gangwayLevel)
+        floatText(gunX(seat), gunY(seat) - 40f, SURVIVORS[seat].name + " crosses over", 1.4f, 0xFF40E0FF.toInt(), 18f)
+        onCoop?.invoke(CoopSignal.PassengerSent(seat, crew[seat], loanDuration))
+        return true
+    }
+
+    /** The partner lent us a passenger: they take the guest mount for [seconds]. */
+    fun receivePassenger(survivor: Int, slot: CrewSlot, seconds: Float) {
+        val seat = slotCount
+        guestSurvivor = survivor.coerceIn(0, SURVIVORS.size - 1)
+        crew[seat] = slot.copy(selected = AUTO_WEAPON, armor = 0)
+        damagePerk[seat] = if (perkOf(guestSurvivor) == Perk.DAMAGE) 1.15f else 1f
+        ratePerk[seat] = if (perkOf(guestSurvivor) == Perk.FIRE_RATE) 1.2f else 1f
+        rangePerk[seat] = if (perkOf(guestSurvivor) == Perk.RANGE) 1.25f else 1f
+        critChance[seat] = if (perkOf(guestSurvivor) == Perk.CRIT) 0.12f else 0f
+        coinPerk[seat] = if (perkOf(guestSurvivor) == Perk.SCAVENGER) 1.25f else 1f
+        val g = gunners[seat]
+        g.mode = AUTO_WEAPON
+        g.weapon = crew[seat].bestWeapon
+        g.cooldown = 0.5f
+        g.alive = true
+        for (k in g.heat.indices) {
+            g.heat[k] = 0f
+            g.overheated[k] = false
+        }
+        guestTime = seconds
+        floatText(gunX(seat), gunY(seat) - 60f, SURVIVORS[guestSurvivor].name + " joins!", 1.6f, 0xFF40E0FF.toInt(), 20f)
+    }
+
+    /** Takes the damage the co-op session collected (boss hits dealt here, to forward to the partner). */
+    fun takeBossDamage(): Float {
+        val amount = bossDamageOut
+        bossDamageOut = 0f
+        return amount
+    }
+
+    /** The partner's boss hits land on our boss too, so both trains fight one boss. */
+    fun applyBossDamage(amount: Float) {
+        val b = boss ?: return
+        applyingRemote = true
+        damageZombie(b, amount, silent = true)
+        applyingRemote = false
     }
 
     // ---------------------------------------------------------------- active abilities
@@ -528,11 +643,12 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
 
     private fun updateRoute(dt: Float) {
         val j = junction
-        if (j == null && !transitioning && time >= nextJunctionAt) {
+        if (j == null && !transitioning && time >= nextJunctionAt && coopRole != CoopRole.GUEST) {
             openJunction()
         } else if (j != null && j.chosen == null) {
             j.timeLeft -= dt
-            if (j.timeLeft <= 0f) chooseRoute(j.optionA)
+            // The guest waits for the host's decision (and only falls back to the first route if the message is lost).
+            if (j.timeLeft <= (if (coopRole == CoopRole.GUEST) -3f else 0f)) applyRemoteRoute(j.optionA)
         }
         if (transitioning) {
             boundaryX -= WORLD_SPEED * speedFactor * dt
@@ -565,12 +681,31 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         // A hurt train is always offered the calm Plains route as one of its two choices.
         if (biome != Biome.PLAINS && isHurt() && options[0] != Biome.PLAINS && options[1] != Biome.PLAINS) second = Biome.PLAINS
         junction = Junction(options[0], second, 8f)
+        if (coopRole == CoopRole.HOST) onCoop?.invoke(CoopSignal.JunctionOpened(options[0], second))
+    }
+
+    /** Guest side: show the junction the host opened. */
+    fun openJunctionWith(a: Biome, b: Biome) {
+        if (junction != null || transitioning) return
+        junction = Junction(a, b, 8f)
+    }
+
+    /** Applies a route decision that came from the partner (or the host's timeout fallback). */
+    fun applyRemoteRoute(choice: Biome) {
+        if (junction == null) junction = Junction(choice, choice, 0f)
+        applyingRemote = true
+        chooseRoute(choice)
+        applyingRemote = false
     }
 
     /** Throws the switch: the chosen route's scenery sweeps in from the right and the gameplay modifiers apply once it reaches the train. */
     fun chooseRoute(choice: Biome) {
         val j = junction ?: return
         if (j.chosen != null || transitioning) return
+        if (coopRole == CoopRole.GUEST && !applyingRemote) {
+            onCoop?.invoke(CoopSignal.RouteRequested(choice)) // the host decides
+            return
+        }
         j.chosen = choice
         fromBiome = biome
         nextBiome = choice
@@ -579,6 +714,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         transitioning = true
         routesTaken++
         sound(TrainSoundCue.UPGRADE)
+        if (coopRole == CoopRole.HOST) onCoop?.invoke(CoopSignal.RouteChosen(choice))
     }
 
     // ---------------------------------------------------------------- events
@@ -626,11 +762,11 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     // ---------------------------------------------------------------- spawning
 
     private fun spawn(dt: Float) {
-        if (time >= nextBossAt) {
+        if (time >= nextBossAt && coopRole != CoopRole.GUEST) {
             spawnBoss()
             nextBossAt += 80f
         }
-        var rate = (0.45f + time * 0.011f).coerceAtMost(2.8f) * biome.spawnMult * danger.spawnMult * Math.pow(speedFactor.toDouble(), 0.85).toFloat()
+        var rate = (0.45f + time * 0.011f).coerceAtMost(2.8f) * biome.spawnMult * danger.spawnMult * Math.pow(speedFactor.toDouble(), 0.85).toFloat() * coopSpawnMult
         if (hordeTime > 0f) rate *= 3f
         if (boss != null) rate *= 0.55f
         spawnAccumulator += dt * rate
@@ -694,6 +830,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         bossNumber++
         bossAlert = 3.5f
         sound(TrainSoundCue.BOSS)
+        if (coopRole == CoopRole.HOST) onCoop?.invoke(CoopSignal.BossSpawned(type))
     }
 
     // ---------------------------------------------------------------- zombies
@@ -1032,6 +1169,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             z.shield -= absorbed
             dealt -= absorbed
         }
+        if (z.isBoss && !applyingRemote) bossDamageOut += dealt
         z.hp -= dealt
         if (!silent) {
             z.flash = 1f
@@ -1049,7 +1187,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         var mult = coinMultiplier * biome.coinMult * danger.coinMult
         if (z.elite != null) mult *= 2.5f
         if (hordeTime > 0f) mult *= 1.5f
-        if (shooter >= 0 && shooter < slotCount) mult *= coinPerk[shooter]
+        if (shooter >= 0 && shooter <= slotCount) mult *= coinPerk[shooter]
         val coins = max(1, (z.type.coins * mult).roundToInt())
         runCoins += coins
         if (texts.size < MAX_TEXTS) texts.add(FloatingText(z.x, z.y - 60f * z.type.size, "+$coins", 1.0f, 0xFFFFD54F.toInt(), 22f))
@@ -1117,13 +1255,18 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
 
     private fun updateGunners(dt: Float) {
         val boost = if (overdriveTime > 0f) 1.6f else 1f
-        for (i in 0 until slotCount) {
+        for (i in 0..slotCount) {
             val g = gunners[i]
-            if (!carAlive(i)) {
-                g.alive = false
-                continue
+            if (i == slotCount) {
+                g.alive = guestPresent
+                if (!g.alive) continue
+            } else {
+                if (!carAlive(i) || seatAwayTime[i] > 0f) {
+                    g.alive = false
+                    continue
+                }
+                g.alive = true
             }
-            g.alive = true
             for (k in g.heat.indices) {
                 if (g.heat[k] > 0f) g.heat[k] = max(0f, g.heat[k] - dt * HEAT_COOL_RATE)
                 if (g.overheated[k] && g.heat[k] <= HEAT_RECOVER) g.overheated[k] = false
@@ -1625,6 +1768,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
 
     private fun endRun() {
         over = true
+        onCoop?.invoke(CoopSignal.TrainDestroyed)
         hp = 0f
         shake = 1f
         sound(TrainSoundCue.GAME_OVER)
