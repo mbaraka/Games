@@ -25,5 +25,7 @@ sealed class CoopSignal {
     class BossSpawned(val type: ZombieType) : CoopSignal()
     /** This train lent a passenger to the partner's train. */
     class PassengerSent(val survivor: Int, val slot: CrewSlot, val seconds: Float) : CoopSignal()
+    /** This train used Blast; the partner's train gets one too. */
+    object Blast : CoopSignal()
     object TrainDestroyed : CoopSignal()
 }

@@ -30,6 +30,7 @@ sealed class CoopMsg {
     class Passenger(val survivor: Int, val slot: CrewSlot, val seconds: Float) : CoopMsg()
     object Down : CoopMsg()
     object Bye : CoopMsg()
+    object Blast : CoopMsg()
 
     fun write(o: DataOutputStream) {
         when (this) {
@@ -46,6 +47,7 @@ sealed class CoopMsg {
             }
             Down -> o.writeByte(9)
             Bye -> o.writeByte(10)
+            Blast -> o.writeByte(11)
         }
     }
 
@@ -61,6 +63,7 @@ sealed class CoopMsg {
             8 -> Passenger(i.readUnsignedByte(), CrewSlot(i.readInt(), i.readInt(), i.readUnsignedByte(), i.readUnsignedByte()), i.readFloat())
             9 -> Down
             10 -> Bye
+            11 -> Blast
             else -> null
         }
     }

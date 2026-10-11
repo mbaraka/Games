@@ -74,6 +74,7 @@ class CoopSession(val game: TrainGame, val link: CoopLink, val role: CoopRole) {
             is CoopSignal.RouteChosen -> link.send(CoopMsg.RouteChosen(s.choice.ordinal))
             is CoopSignal.BossSpawned -> link.send(CoopMsg.Boss(s.type.ordinal))
             is CoopSignal.PassengerSent -> link.send(CoopMsg.Passenger(s.survivor, s.slot, s.seconds))
+            CoopSignal.Blast -> link.send(CoopMsg.Blast)
             CoopSignal.TrainDestroyed -> link.send(CoopMsg.Down)
         }
     }
@@ -106,6 +107,7 @@ class CoopSession(val game: TrainGame, val link: CoopLink, val role: CoopRole) {
             }
             is CoopMsg.BossDamage -> game.applyBossDamage(m.fraction)
             is CoopMsg.Passenger -> game.receivePassenger(m.survivor, m.slot, m.seconds)
+            CoopMsg.Blast -> game.remoteBlast()
             CoopMsg.Down -> partner.down = true
             CoopMsg.Bye -> partner.connected = false
             is CoopMsg.Hello -> {}

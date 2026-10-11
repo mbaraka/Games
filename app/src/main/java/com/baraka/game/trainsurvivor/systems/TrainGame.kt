@@ -509,6 +509,17 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     fun useDynamite() {
         if (over || dynamiteCooldown > 0f) return
         dynamiteCooldown = dynamiteCooldownMax
+        onCoop?.invoke(CoopSignal.Blast)
+        detonate(dynamiteDamage, hitBoss = true)
+    }
+
+    /** The partner used Blast: it also goes off on our train (the boss already shares their damage, so it is spared here). */
+    fun remoteBlast() {
+        if (over) return
+        detonate(dynamiteDamage * 0.7f, hitBoss = false)
+    }
+
+    private fun detonate(damage: Float, hitBoss: Boolean) {
         shake = max(shake, 0.8f)
         sound(TrainSoundCue.DYNAMITE)
         var cx = trainLeft - 20f
@@ -519,9 +530,9 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         shooter = -1
         for (i in zombies.indices) {
             val z = zombies[i]
-            if (z.dead || z.x < -20f || z.x > worldW + 20f) continue
+            if (z.dead || z.x < -20f || z.x > worldW + 20f || (!hitBoss && z.isBoss)) continue
             explosion(z.x, z.y - 20f, 22f)
-            damageZombie(z, dynamiteDamage)
+            damageZombie(z, damage)
         }
     }
 
