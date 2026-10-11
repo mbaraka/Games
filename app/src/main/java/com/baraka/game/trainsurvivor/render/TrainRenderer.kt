@@ -16,6 +16,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
+import com.baraka.game.trainsurvivor.model.AvatarBody
+import com.baraka.game.trainsurvivor.model.AvatarExtra
 import com.baraka.game.trainsurvivor.model.AvatarLook
 import com.baraka.game.trainsurvivor.model.Biome
 import com.baraka.game.trainsurvivor.model.HatStyle
@@ -820,26 +822,20 @@ private fun DrawScope.drawGunner(g: TrainGame, slot: Int) {
         box(Color.Black.copy(alpha = 0.6f), gx - 16f, gy - 58f, 32f, 5f)
         box(if (gs.isHot) Color(0xFFFF1744) else lerp(Color(0xFFFFEB3B), Color(0xFFFF6D00), heat), gx - 16f, gy - 58f, 32f * heat.coerceIn(0f, 1f), 5f)
     }
-    withTransform({ translate(gx, gy); scale(gs.facing.toFloat(), 1f, Offset.Zero) }) {
+    withTransform({ translate(gx, gy); scale(gs.facing * look.width, look.height, Offset.Zero) }) {
         if (weapon == WeaponType.CANNON) {
             // Cannon sits on a wheeled carriage in front of the gunner.
             box(Color(0xFF4E342E), 6f, -12f, 26f, 12f)
             drawCircle(Color(0xFF222226), 8f, Offset(18f, -6f))
         }
-        box(Color(look.pants), -6f, -14f, 5f, 14f)
-        box(Color(look.pants), 1f, -14f, 5f, 14f)
-        rbox(shirt, -8f, -34f, 16f, 22f, 4f)
-        box(Color(0xFF4E342E), -9f, -32f, 5f, 14f) // pack
-        drawCircle(skin, 7f, Offset(1f, -42f))
-        drawAvatarHat(look)
-        drawCircle(Color(0xFF111111), 1.2f, Offset(4f, -43f))
+        drawAvatarBody(look)
     }
     withTransform({
-        translate(gx, gy - 30f)
+        translate(gx, gy - 30f * look.height)
         scale(gs.facing.toFloat(), 1f, Offset.Zero)
         rotate(gs.aim * 180f / PI.toFloat(), Offset.Zero)
     }) {
-        box(skin, 0f, -2.5f, 14f, 5f)
+        box(if (look.body == AvatarBody.ROBOT) Color(0xFF90A4AE) else skin, 0f, -2.5f, 14f, 5f)
         drawWeapon(weapon, gs.recoil)
     }
 }
@@ -1389,6 +1385,67 @@ private fun DrawScope.drawGlowTrim(g: TrainGame) {
     val trim = Color(palette.trim)
     drawLine(trim.copy(alpha = pulse), Offset(g.rearEnd, 446f), Offset(g.frontEnd - g.shape.nose, 446f), 2.5f)
     drawLine(trim.copy(alpha = pulse * 0.4f), Offset(g.rearEnd, 446f), Offset(g.frontEnd - g.shape.nose, 446f), 7f)
+}
+
+/** One survivor's body in local coordinates (feet at the origin, facing +x); shared by the train and the Garage portrait. */
+internal fun DrawScope.drawAvatarBody(look: AvatarLook) {
+    val shirt = Color(look.shirt)
+    val skin = Color(look.skin)
+    val pants = Color(look.pants)
+    val accent = Color(look.accent)
+    when (look.body) {
+        AvatarBody.HUMAN -> {
+            box(pants, -6f, -14f, 5f, 14f)
+            box(pants, 1f, -14f, 5f, 14f)
+            rbox(shirt, -8f, -34f, 16f, 22f, 4f)
+            box(Color(0xFF4E342E), -9f, -32f, 5f, 14f) // pack
+            if (look.extra == AvatarExtra.PONCHO) {
+                path.rewind(); path.moveTo(-9f, -35f); path.lineTo(9f, -35f); path.lineTo(14f, -12f); path.lineTo(-14f, -12f); path.close()
+                drawPath(path, accent)
+                box(Color(0xFFFFCC80), -13f, -20f, 26f, 3f)
+                box(Color(0xFFE53935), -7f, -38f, 14f, 3f) // scarf
+            }
+            if (look.extra == AvatarExtra.WELDER) { // tool belt
+                box(Color(0xFF5D4037), -8f, -20f, 16f, 4f)
+                box(Color(0xFF8D6E63), -7f, -18f, 5f, 5f)
+                box(Color(0xFF8D6E63), 3f, -18f, 5f, 5f)
+            }
+            drawCircle(skin, 7f, Offset(1f, -42f))
+            drawAvatarHat(look)
+            if (look.extra == AvatarExtra.GOGGLES) {
+                box(Color(look.hair), -10f, -46f, 6f, 12f) // ponytail
+                box(Color(0xFF263238), -6f, -48f, 14f, 1.6f) // goggle strap
+                drawCircle(Color(0xFF80DEEA), 2.8f, Offset(4f, -47f))
+            }
+            if (look.extra == AvatarExtra.WELDER) { // welding mask pushed up
+                box(Color(0xFF37474F), -7f, -57f, 16f, 6f)
+                box(Color(0xFF80DEEA), -5f, -55.5f, 12f, 3f)
+            }
+            drawCircle(Color(0xFF111111), 1.2f, Offset(4f, -43f))
+        }
+        AvatarBody.ROBOT -> {
+            box(pants, -8f, -12f, 7f, 12f)
+            box(pants, 1f, -12f, 7f, 12f)
+            box(Color(0xFF90A4AE), -12f, -32f, 4f, 14f) // power pack
+            rbox(shirt, -9f, -36f, 18f, 25f, 3f)
+            box(accent, -1.5f, -32f, 3f, 10f) // red cross on the chest
+            box(accent, -5f, -28.5f, 10f, 3f)
+            rbox(skin, -7f, -52f, 16f, 14f, 3f)
+            box(Color(0xFF00E5FF), -2f, -48f, 10f, 4f) // visor
+            drawLine(Color(0xFF90A4AE), Offset(1f, -52f), Offset(1f, -58f), 2f)
+            drawCircle(accent, 2f, Offset(1f, -59f))
+        }
+    }
+}
+
+/** A survivor standing at attention, filling this canvas (used by the Garage crew cards). */
+fun DrawScope.drawSurvivorPortrait(slot: Int) {
+    val look = SURVIVORS[slot % SURVIVORS.size].look
+    val k = size.height / 72f
+    withTransform({ translate(size.width / 2f, size.height - 3f); scale(k * look.width, k * look.height, Offset.Zero) }) {
+        drawAvatarBody(look)
+        box(Color(0xFF263238), 8f, -33f, 14f, 5f)
+    }
 }
 
 /** Hair and headwear in the head's local coordinates (head centre at (1, -42)). */

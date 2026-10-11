@@ -248,7 +248,8 @@ a route's `hazards`.
 **New survivor / avatar** - add a `Survivor` to `SURVIVORS` (name, role, perk, `AvatarLook`). The train gets
 another seat; saving, seat prices, garage cards, the in-run switcher and debug tools follow `SURVIVORS.size`.
 A new `Perk` needs one line in `TrainGame` where perks are resolved. A new `HatStyle` needs a branch in
-`drawAvatarHat`.
+`drawAvatarHat`; a new `AvatarBody` or `AvatarExtra` needs a branch in `drawAvatarBody`. Give each survivor a
+different silhouette (`width`/`height`), gear and colours so the crew is easy to tell apart.
 
 **New train shape** - add a `TrainShape` entry (sizes, nose, driver position, price, optional `hpMult` /
 `speedMult`), write a `TrainShapeArt` (`paintLoco`, `paintCar`, `paintWindows`) in `TrainShapes.kt` using

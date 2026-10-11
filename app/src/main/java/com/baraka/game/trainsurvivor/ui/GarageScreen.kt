@@ -50,6 +50,7 @@ import com.baraka.game.trainsurvivor.model.MAX_SLOTS
 import com.baraka.game.trainsurvivor.model.SaveData
 import com.baraka.game.trainsurvivor.model.Shop
 import com.baraka.game.trainsurvivor.model.TrainUpgrade
+import com.baraka.game.trainsurvivor.render.drawSurvivorPortrait
 import com.baraka.game.trainsurvivor.render.drawTrainScene
 import com.baraka.game.trainsurvivor.systems.TrainGame
 import kotlin.math.max
@@ -376,8 +377,13 @@ private fun CrewCard(index: Int, slot: CrewSlot, save: SaveData, onPurchase: (Sa
         Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Text("${survivor.name}  -  ${survivor.role}", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
-        Text(survivor.perkText, color = Color(0xFF81C784), fontSize = 11.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Canvas(Modifier.size(width = 52.dp, height = 68.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF2A3342))) { drawSurvivorPortrait(index) }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("${survivor.name}  -  ${survivor.role}", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                Text(survivor.perkText, color = Color(0xFF81C784), fontSize = 11.sp)
+            }
+        }
         Text(
             if (autoMode) "AUTO - picks the best weapon for the situation" else "Always uses the ${inHand.displayName}",
             color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
