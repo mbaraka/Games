@@ -180,6 +180,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     val flakLevel = save.level(TrainUpgrade.FLAK)
     val teslaLevel = save.level(TrainUpgrade.TESLA)
     val flameLevel = save.level(TrainUpgrade.FLAME)
+    val engineLevel = save.level(TrainUpgrade.ENGINE)
     val mortarLevel = save.level(TrainUpgrade.MORTAR)
     val overdriveLevel = save.level(TrainUpgrade.OVERDRIVE)
     val fieldRepairLevel = save.level(TrainUpgrade.FIELD_REPAIR)
@@ -304,8 +305,14 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     val finalCoins get() = runCoins + (distance / 25f * save.prestigeMultiplier * danger.coinMult).toInt()
     val distanceMeters get() = distance.roundToInt()
 
-    /** 1.0 at the start, rising to 1.8 over the first 3,200 m: the train speeds up and so does the danger. */
-    val speedFactor get() = (1f + min(0.8f, distance / 4000f)) * shape.speedMult
+    /**
+     * How fast the train is running: 1.0 at the start, rising to 2.6 by 2,900 m, then multiplied by the train's body and
+     * Engine Tuning (capped at 4x). Faster means more distance and coins per second, more zombies and faster-closing zombies.
+     */
+    val speedFactor get() = ((1f + min(1.6f, distance / 1800f)) * shape.speedMult * (1f + 0.08f * engineLevel)).coerceAtMost(4f)
+
+    /** Zombies close in a little faster as the train speeds up. */
+    private val zombiePace get() = 1f + 0.25f * (speedFactor - 1f)
 
     /** 0 = deep night, 1 = bright noon; also exposes the cycle position for sun/moon placement. */
     val dayCycle get() = ((time + 17f) % 170f) / 170f
@@ -621,7 +628,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             spawnBoss()
             nextBossAt += 80f
         }
-        var rate = (0.45f + time * 0.011f).coerceAtMost(2.8f) * biome.spawnMult * danger.spawnMult * kotlin.math.sqrt(speedFactor)
+        var rate = (0.45f + time * 0.011f).coerceAtMost(2.8f) * biome.spawnMult * danger.spawnMult * Math.pow(speedFactor.toDouble(), 0.85).toFloat()
         if (hordeTime > 0f) rate *= 3f
         if (boss != null) rate *= 0.55f
         spawnAccumulator += dt * rate
@@ -728,7 +735,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
                         z.lungeTimer = 3.5f
                     }
                 }
-                val step = z.type.speed * dt * speedMul * z.speedMul * biome.speedMult
+                val step = z.type.speed * dt * speedMul * z.speedMul * biome.speedMult * zombiePace
                 val arrived = abs(delta) <= step + 1f
                 if (arrived) z.x = spot else z.x += if (delta > 0f) step else -step
                 z.facing = -side
@@ -844,7 +851,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         z.anim += dt * (z.type.speed / 14f + 2f)
         if (abs(dx) > 8f) {
             z.attacking = false
-            z.x += (if (dx > 0f) 1f else -1f) * min(abs(dx), z.type.speed * z.speedMul * biome.speedMult * dt)
+            z.x += (if (dx > 0f) 1f else -1f) * min(abs(dx), z.type.speed * z.speedMul * biome.speedMult * zombiePace * dt)
         } else {
             z.attacking = true
             z.shootTimer -= dt
@@ -927,6 +934,10 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         nextBiome = route
         biome = route
         biomeBanner = 4f
+    }
+
+    fun debugSkipDistance(meters: Float) {
+        distance += meters
     }
 
     fun debugHazard() {

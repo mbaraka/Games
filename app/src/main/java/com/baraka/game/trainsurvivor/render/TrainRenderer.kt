@@ -135,6 +135,7 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
         forRegions(g) { biome -> RouteArtRegistry.artFor(biome).backdrop(this, g, light, sunset) }
         drawTransitionArt(g)
         drawRails(g)
+        drawSpeedLines(g)
         drawTrain(g, light)
         val order = g.drawOrder
         for (i in order.indices) {
@@ -1436,3 +1437,17 @@ private fun installRenderRegistries() {
 }
 
 private val renderRegistered = installRenderRegistries()
+
+/** Streaks along the track once the train is really moving, so speed is felt as well as shown. */
+private fun DrawScope.drawSpeedLines(g: TrainGame) {
+    val speed = g.speedFactor
+    if (speed < 1.5f) return
+    val count = min(14, ((speed - 1.3f) * 5f).toInt())
+    val span = g.worldW + 400f
+    for (i in 0 until count) {
+        val y = 524f + hash(i + 31) * 190f
+        val x = wrap(hash(i) * span - g.scroll * (1.5f + hash(i + 7)), span) - 200f
+        val len = 40f + speed * 26f
+        drawLine(Color.White.copy(alpha = 0.16f + 0.1f * hash(i + 9)), Offset(x, y), Offset(x + len, y), 2f)
+    }
+}

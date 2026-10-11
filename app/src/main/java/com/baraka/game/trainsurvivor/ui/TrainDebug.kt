@@ -81,6 +81,7 @@ fun runDebugSections(
     DebugSection(
         "Time",
         listOf(
+            DebugItem.Action("Skip +500 m (faster train)") { game.debugSkipDistance(500f) },
             DebugItem.Action("Skip +30 s (harder zombies)") { game.debugSkipTime(30f) },
             DebugItem.Action("Skip +60 s") { game.debugSkipTime(60f) },
             DebugItem.Action("Skip +120 s") { game.debugSkipTime(120f) },
