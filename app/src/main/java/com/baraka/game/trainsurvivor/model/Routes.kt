@@ -65,6 +65,8 @@ enum class Biome(
     val spawnMult: Float,
     val dmgMult: Float,
     val accent: Long,
+    /** The boss that rules this route: it appears whenever a boss is due while the train is here. */
+    val boss: ZombieType,
     val spawns: List<Spawn>,
     /** Multiplies the Repair Crew's healing while on this route. */
     val repairMult: Float = 1f,
@@ -80,87 +82,87 @@ enum class Biome(
 ) {
     PLAINS(
         "Open Plains", "Calm and safe: fewer, weaker zombies and the train repairs itself",
-        1.0f, 0.85f, 0.7f, 0.9f, 0xFF8BC34A,
+        1.0f, 0.85f, 0.7f, 0.9f, 0xFF8BC34A, ZombieType.TITAN,
         commonSpawns(bloater = 0.6f, bat = 0.6f, balloon = 1.2f, clown = 1.5f) + signature(ZombieType.ZOMBIE_DOG, 8f),
         repairMult = 2f, flatRegen = 2.5f
     ),
     MOUNTAIN(
         "Mountain Pass", "Frozen, much tougher zombies",
-        1.4f, 1.5f, 1.0f, 1.0f, 0xFF81D4FA,
+        1.4f, 1.5f, 1.0f, 1.0f, 0xFF81D4FA, ZombieType.YETI_KING,
         commonSpawns(walker = 0.8f, runner = 0.6f, brute = 1.8f, bloater = 0.3f, bat = 0.3f, balloon = 1.6f, clown = 0.5f, bruteFrom = 40f) + signature(ZombieType.YETI, 35f)
     ),
     TUNNEL(
         "Dark Tunnel", "Dense hordes in the dark",
-        1.35f, 1.0f, 1.5f, 1.1f, 0xFFFFB74D,
+        1.35f, 1.0f, 1.5f, 1.1f, 0xFFFFB74D, ZombieType.RAT_KING,
         commonSpawns(walker = 0.8f, bat = 2.5f, balloon = 0f, clown = 0.5f) + signature(ZombieType.RAT, 8f, weight = 6f)
     ),
     DESERT(
         "Scorched Desert", "Fast swarming runners",
-        1.3f, 0.9f, 1.4f, 1.0f, 0xFFFFD54F,
+        1.3f, 0.9f, 1.4f, 1.0f, 0xFFFFD54F, ZombieType.SCORPION_QUEEN,
         commonSpawns(walker = 0.8f, runner = 2.5f, bloater = 0.5f, bat = 0.5f, balloon = 0.8f, clown = 0.8f) + signature(ZombieType.SCORPION, 12f, weight = 4f)
     ),
     GRAVEYARD(
         "Haunted Graveyard", "Brutes and bloaters that hit very hard",
-        1.7f, 1.25f, 1.0f, 1.35f, 0xFFB39DDB,
+        1.7f, 1.25f, 1.0f, 1.35f, 0xFFB39DDB, ZombieType.GARGOYLE,
         commonSpawns(walker = 0.8f, brute = 2.5f, bloater = 3f, bat = 2f, balloon = 0.3f, clown = 0.5f, bruteFrom = 30f) + signature(ZombieType.SKELETON, 12f)
     ),
     SWAMP(
         "Murky Swamp", "Crocodiles lurk in the bog and gas bloaters drift through the mist",
-        1.45f, 1.1f, 1.1f, 1.1f, 0xFF26A69A,
+        1.45f, 1.1f, 1.1f, 1.1f, 0xFF26A69A, ZombieType.SWAMP_TYRANT,
         commonSpawns(walker = 0.8f, runner = 0.6f, bloater = 2f, balloon = 0f, clown = 0.5f, bruteFrom = 55f) + signature(ZombieType.CROCODILE, 10f)
     ),
     MOON(
         "Lunar Rails", "Low gravity: leapers hop onto your roofs and meteors rain down",
-        1.5f, 1.2f, 1.1f, 1.1f, 0xFFB0BEC5,
+        1.5f, 1.2f, 1.1f, 1.1f, 0xFFB0BEC5, ZombieType.LUNAR_COLOSSUS,
         commonSpawns(walker = 0.8f, runner = 0.8f, bloater = 0.5f, bat = 0f, balloon = 0f, clown = 0f) + signature(ZombieType.LEAPER, 20f),
         gravityMult = 0.4f, hazards = listOf(HazardKind.METEORS)
     ),
     ORBITAL(
         "Orbital Station", "Zero-g: hunter drones swarm and hull breaches drain your coins",
-        1.6f, 1.1f, 1.2f, 1.1f, 0xFF7C4DFF,
+        1.6f, 1.1f, 1.2f, 1.1f, 0xFF7C4DFF, ZombieType.OVERSEER,
         commonSpawns(walker = 0.6f, runner = 0.5f, brute = 0.8f, bloater = 0.3f, bat = 0f, balloon = 0f, clown = 0f) + signature(ZombieType.DRONE, 22f),
         gravityMult = 0.3f, hazards = listOf(HazardKind.HULL_BREACH)
     ),
     VOLCANO(
         "Volcano Line", "Lava geysers burn everything and golems shrug off flames",
-        1.6f, 1.3f, 1.0f, 1.25f, 0xFFFF5722,
+        1.6f, 1.3f, 1.0f, 1.25f, 0xFFFF5722, ZombieType.MAGMA_TITAN,
         commonSpawns(walker = 0.8f, brute = 1.8f, bloater = 1.5f, bat = 0.8f, balloon = 0f, clown = 0f) + signature(ZombieType.MAGMA_GOLEM, 40f),
         hazards = listOf(HazardKind.GEYSERS)
     ),
     TUNDRA(
         "Frozen Tundra", "Blizzard cuts your range 20% and ice wolves slide in fast",
-        1.5f, 1.2f, 1.2f, 1.1f, 0xFFB3E5FC,
+        1.5f, 1.2f, 1.2f, 1.1f, 0xFFB3E5FC, ZombieType.FROST_QUEEN,
         commonSpawns(walker = 0.8f, runner = 0.8f, brute = 1.5f, bloater = 0.3f, bat = 0f, balloon = 0.8f, clown = 0f) +
             signature(ZombieType.ICE_WOLF, 10f) + signature(ZombieType.FROST_WRAITH, 30f, weight = 3f, perSecond = 1f / 80f),
         rangeMult = 0.8f, speedMult = 1.2f
     ),
     GHOST_TOWN(
         "Ghost Town", "Gunslingers shoot from afar: outrange them",
-        1.5f, 1.1f, 1.0f, 1.2f, 0xFFFFAB40,
+        1.5f, 1.1f, 1.0f, 1.2f, 0xFFFFAB40, ZombieType.OUTLAW_KING,
         commonSpawns(runner = 1.2f, bloater = 0.8f, bat = 0.3f, balloon = 0f, clown = 0.3f) + signature(ZombieType.GUNSLINGER, 18f)
     ),
     CARNIVAL(
         "Carnival of Horrors", "Clowns split into minis when they pop; jugglers and strongmen",
-        1.55f, 1.0f, 1.3f, 1.0f, 0xFFFF4081,
+        1.55f, 1.0f, 1.3f, 1.0f, 0xFFFF4081, ZombieType.CLOWN_PRINCE,
         commonSpawns(walker = 0.5f, runner = 0.8f, brute = 0.8f, bloater = 0.5f, bat = 0f, balloon = 1.5f, clown = 3f) +
             signature(ZombieType.JUGGLER, 15f) + signature(ZombieType.STRONGMAN, 45f, weight = 3f, perSecond = 1f / 80f)
     ),
     SEA_BRIDGE(
         "Sea Bridge", "Tentacles grab your wagons from below and sharks breach onto your roofs",
-        1.6f, 1.15f, 0.9f, 1.15f, 0xFF29B6F6,
+        1.6f, 1.15f, 0.9f, 1.15f, 0xFF29B6F6, ZombieType.MEGALODON,
         commonSpawns(walker = 0.9f, runner = 0.8f, bat = 1.5f, balloon = 0f, clown = 0.2f) + signature(ZombieType.DROWNED, 8f) +
             signature(ZombieType.LEAPING_SHARK, 30f, weight = 3f, perSecond = 1f / 80f),
         hazards = listOf(HazardKind.TENTACLES)
     ),
     CITY_RUINS(
         "City Ruins", "Zombies drop from overpasses; riot zombies carry shields",
-        1.55f, 1.2f, 1.1f, 1.2f, 0xFF90A4AE,
+        1.55f, 1.2f, 1.1f, 1.2f, 0xFF90A4AE, ZombieType.JUGGERNAUT,
         commonSpawns(runner = 1.2f, brute = 1.4f, bloater = 0.8f, bat = 0.5f, balloon = 0f, clown = 0.2f) + signature(ZombieType.RIOT, 25f),
         hazards = listOf(HazardKind.OVERPASS_DROPS)
     ),
     DEEP_SEA(
         "Deep Sea Tube", "A pressure tunnel on the ocean floor: piranha swarms, jellyfish, leaks and kraken tentacles",
-        1.7f, 1.2f, 1.2f, 1.15f, 0xFF00ACC1,
+        1.7f, 1.2f, 1.2f, 1.15f, 0xFF00ACC1, ZombieType.ANGLERFISH,
         commonSpawns(walker = 0.5f, runner = 0.6f, brute = 0.8f, bloater = 1f, bat = 0f, balloon = 0f, clown = 0f) +
             signature(ZombieType.PIRANHA, 8f, weight = 6f) + signature(ZombieType.JELLYFISH, 25f, weight = 3f, perSecond = 1f / 80f) +
             signature(ZombieType.DEEP_CRAB, 20f, weight = 4f) + signature(ZombieType.SHARK, 18f, weight = 3f, perSecond = 1f / 60f),
@@ -168,7 +170,7 @@ enum class Biome(
     ),
     SOLAR(
         "Solar Rail", "Right next to the sun: fire-proof enemies and flares that burn the train unless you raise the shields",
-        1.8f, 1.3f, 1.1f, 1.3f, 0xFFFFCA28,
+        1.8f, 1.3f, 1.1f, 1.3f, 0xFFFFCA28, ZombieType.SUN_KING,
         commonSpawns(walker = 0.6f, runner = 1f, brute = 1.2f, bloater = 0.8f, bat = 0f, balloon = 0f, clown = 0f) +
             signature(ZombieType.EMBER, 8f) + signature(ZombieType.SOLAR_SPRITE, 22f, weight = 4f) +
             signature(ZombieType.SUN_PRIEST, 35f, weight = 3f, perSecond = 1f / 80f),

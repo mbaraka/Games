@@ -32,8 +32,7 @@ const val WORLD_SPEED = 170f
 private const val MAX_ATTACKERS_PER_SIDE = 3
 internal const val MAX_ZOMBIES = 70
 
-/** Bosses arrive in the order they are declared in ZombieType. */
-private val BOSSES = ZombieType.entries.filter { it.boss }
+
 private const val MAX_PARTICLES = 420
 internal const val MAX_TEXTS = 40
 private const val SHELL_GRAVITY = 1000f
@@ -58,6 +57,9 @@ class Zombie(val type: ZombieType, var x: Float, var y: Float, val side: Int, va
     var retarget = 0f
     /** Countdown to this boss's next special move. */
     var special = 4f
+    /** Separate timers so a boss can lunge, shoot and use its special at the same time. */
+    var lungeTimer = 3f
+    var shootTimer = 2f
     // Damage is shown as one floating number every quarter second instead of one per bullet.
     var pendingDamage = 0f
     var numberTimer = 0f
@@ -666,11 +668,11 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         return z
     }
 
-    fun spawnBoss() {
+    /** Spawns the boss of the current route (or [type], for the debug tools). */
+    fun spawnBoss(type: ZombieType = biome.boss) {
         if (boss != null) return
         val side = if (rng.nextBoolean()) 1 else -1
         val x = if (side > 0) worldW + 120f else -120f
-        val type = BOSSES[bossNumber % BOSSES.size]
         val hp = type.hp * (1f + 0.55f * bossNumber) * danger.hpMult
         val y = if (type.flying) 190f else RAIL_Y + 30f
         val b = Zombie(type, x, y, side, hp, (1f + time / 200f) * danger.dmgMult, 0.5f)
@@ -717,13 +719,13 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
                 var speedMul = 1f
                 if (z.type.lunges) {
                     // Crocodiles creep, then LUNGE in short fast bursts.
-                    z.special -= dt
+                    z.lungeTimer -= dt
                     if (z.retarget > 0f) {
                         z.retarget -= dt
                         speedMul = 2.6f
-                    } else if (z.special <= 0f && !z.attacking) {
+                    } else if (z.lungeTimer <= 0f && !z.attacking) {
                         z.retarget = 0.7f
-                        z.special = 3.5f
+                        z.lungeTimer = 3.5f
                     }
                 }
                 val step = z.type.speed * dt * speedMul * z.speedMul * biome.speedMult
@@ -845,8 +847,8 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             z.x += (if (dx > 0f) 1f else -1f) * min(abs(dx), z.type.speed * z.speedMul * biome.speedMult * dt)
         } else {
             z.attacking = true
-            z.special -= dt
-            if (z.special <= 0f) rangedShoot(z)
+            z.shootTimer -= dt
+            if (z.shootTimer <= 0f) rangedShoot(z)
         }
     }
 
@@ -861,13 +863,13 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         z.y += (if (dy > 0f) 1f else -1f) * min(abs(dy), 110f * dt)
         z.attacking = abs(dx) <= 30f
         if (z.attacking) {
-            z.special -= dt
-            if (z.special <= 0f) rangedShoot(z)
+            z.shootTimer -= dt
+            if (z.shootTimer <= 0f) rangedShoot(z)
         }
     }
 
     private fun rangedShoot(z: Zombie) {
-        z.special = 2.2f + rng.nextFloat() * 0.8f
+        z.shootTimer = 2.2f + rng.nextFloat() * 0.8f
         val slot = if (z.side > 0) 0 else rearSlot()
         val sy = z.y - (if (z.flying) 10f else 30f)
         val color = when (z.type) {
@@ -978,7 +980,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             if (type.callout.isNotEmpty()) floatText(z.x, z.y - 90f, type.callout, 0.9f, 0xFFFF4081.toInt(), 26f)
         } else if (type.smash > 0f && z.attacking) {
             z.special = type.specialEvery
-            hurtCar(if (z.side > 0) 0 else rearSlot(), type.smash * z.dmgScale)
+            hurtCar(if (z.jumpState == 2) z.roofSlot else if (z.side > 0) 0 else rearSlot(), type.smash * z.dmgScale)
             explosion(z.x - z.side * 30f, 470f, 40f)
             shake = max(shake, 0.7f)
             if (type.callout.isNotEmpty()) floatText(z.x, z.y - 150f, type.callout, 0.9f, 0xFFFF7043.toInt(), 28f)

@@ -88,6 +88,19 @@ private val zombieNotes: Map<ZombieType, ZombieNote> = mapOf(
     ZombieType.DEEP_CRAB to ZombieNote("Deep Sea Tube, from ~20 s", "A low, armored (4) crab that scuttles in with a heavy claw.", "Sniper, Rocket and Cannon punch through its shell."),
     ZombieType.SHARK to ZombieNote("Deep Sea Tube, after ~18 s", "A big armored (3) swimmer with bandages and a red eye. It circles the train and bites a wagon from above.", "Sniper, Rocket and Laser; the Cannon can't reach a swimmer."),
     ZombieType.LEAPING_SHARK to ZombieNote("Sea Bridge, after ~30 s", "Slides along the deck, then BREACHES: it leaps onto a wagon roof and bites from there.", "Shoot it before it jumps, or focus it once it lands on a roof."),
+    ZombieType.YETI_KING to ZombieNote("Boss of the Mountain Pass", "A towering frost giant. Every few seconds it ROARs and smashes the wagon it is clawing.", "Armor 8: bring big hitters and Dynamite."),
+    ZombieType.RAT_KING to ZombieNote("Boss of the Dark Tunnel", "A huge rat that squeaks up a pack of four rats every few seconds.", "Splash and chain weapons clear the pack; focus the King between waves."),
+    ZombieType.SCORPION_QUEEN to ZombieNote("Boss of the Scorched Desert", "A giant armored (8) scorpion that skitters out two scorpions at a time.", "Heavy single hits for the Queen, splash for her brood."),
+    ZombieType.SWAMP_TYRANT to ZombieNote("Boss of the Murky Swamp", "A giant crocodile that lunges and then CHOMPS a wagon for big damage.", "Armor 8: Sniper, Rocket and Cannon, and keep wagons repaired."),
+    ZombieType.LUNAR_COLOSSUS to ZombieNote("Boss of Lunar Rails", "A giant astronaut that leaps onto a wagon roof and SLAMS it.", "Shoot it while it floats; Overdrive and Dynamite help."),
+    ZombieType.OVERSEER to ZombieNote("Boss of the Orbital Station", "A flying mother drone that shoots from afar and deploys two drones at a time.", "Flak Turret, Rocket and Laser; the Cannon can't reach it."),
+    ZombieType.MAGMA_TITAN to ZombieNote("Boss of the Volcano Line", "A towering lava giant. Fire-proof, armor 12, and it ERUPTs on the wagon it holds.", "Skip the Flamethrower: Sniper, Rocket, Tesla and Dynamite."),
+    ZombieType.FROST_QUEEN to ZombieNote("Boss of the Frozen Tundra", "A flying ice queen that FREEZEs two frost wraiths into the fight every few seconds.", "Flak Turret and long-range guns - the blizzard cuts your range."),
+    ZombieType.OUTLAW_KING to ZombieNote("Boss of Ghost Town", "A gunslinging boss that stands far back, shoots the train and calls in gunslingers.", "Outrange him: Sniper, Laser and Rocket."),
+    ZombieType.MEGALODON to ZombieNote("Boss of the Sea Bridge", "A giant shark that BREACHes onto a wagon roof and bites down.", "Shoot it before it jumps, then focus it on the roof."),
+    ZombieType.JUGGERNAUT to ZombieNote("Boss of the City Ruins", "A slow armored (14) riot giant that CRUSHes the wagon it reaches.", "Only big hits matter: Rocket, Sniper, Laser, Dynamite."),
+    ZombieType.ANGLERFISH to ZombieNote("Boss of the Deep Sea Tube", "A giant glowing-lure angler that summons four piranhas at a time.", "Splash and rapid fire for the piranhas, big hits for the Angler."),
+    ZombieType.SUN_KING to ZombieNote("Boss of the Solar Rail", "A fiery king that burns the train from far away and BURNs three sprites into the fight. Fire-proof.", "Outrange it and raise the shields when flares warn."),
     ZombieType.EMBER to ZombieNote("Solar Rail, from ~8 s", "A burning zombie with a flaming head. Fire cannot hurt it, so the Flamethrower does nothing.", "Any gun works; Tesla and Mortar are good too."),
     ZombieType.SOLAR_SPRITE to ZombieNote("Solar Rail, after ~22 s", "A flickering ball of plasma that darts around erratically. Fire-proof, and solar flares can't burn it.", "Rapid-fire guns and Flak Turret."),
     ZombieType.SUN_PRIEST to ZombieNote("Solar Rail, after ~35 s", "A robed priest that stays back and hurls fire at the train from a distance. Fire-proof.", "Outrange it: Sniper, Laser and Rocket."),
@@ -252,6 +265,7 @@ private fun RouteGuide() {
                 Text(biome.displayName, color = accent, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                 Text(biome.tagline, color = Color(0xFFD0D6E0), fontSize = 11.sp)
                 Text("Signature enemies: " + biome.signatureEnemies.joinToString(" and ") { it.displayName }, color = Color(0xFF81C784), fontSize = 11.sp)
+                Text("Boss: " + biome.boss.displayName, color = Color(0xFFE040FB), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 for (hazard in biome.hazards) Text("Hazard - " + hazard.displayName + ": " + hazard.description, color = Color(0xFFFF8A65), fontSize = 11.sp)
                 if (biome.rangeMult != 1f) Text("Weapon range x" + fmt(biome.rangeMult), color = Color(0xFFB0BEC5), fontSize = 11.sp)
                 if (biome.gravityMult != 1f) Text("Low gravity: debris and shells float", color = Color(0xFFB0BEC5), fontSize = 11.sp)

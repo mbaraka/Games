@@ -93,8 +93,10 @@ fun runDebugSections(
         ZombieType.entries.filter { !it.boss }.map { type ->
             DebugItem.Action("Spawn 5 ${type.displayName}") { game.debugSpawn(type, 5) }
         } + listOf(
-            DebugItem.Action("Spawn the next boss") { game.spawnBoss() },
-        ) + com.baraka.game.trainsurvivor.model.EliteTrait.entries.map { trait ->
+            DebugItem.Action("Spawn this route's boss") { game.spawnBoss() },
+        ) + ZombieType.entries.filter { it.boss }.map { b ->
+            DebugItem.Action("Boss: " + b.displayName) { game.spawnBoss(b) }
+        } + com.baraka.game.trainsurvivor.model.EliteTrait.entries.map { trait ->
             DebugItem.Action("Spawn ${trait.displayName} elite") { game.debugSpawnElite(trait) }
         } + listOf(
             DebugItem.Action("Kill everything") { game.debugKillAll() }

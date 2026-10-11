@@ -87,7 +87,22 @@ enum class ZombieType(
     // Solar Rail.
     EMBER("Ember Zombie", 60f, 44f, 7f, 6, 1.0f, fireImmune = true),
     SOLAR_SPRITE("Solar Sprite", 35f, 105f, 6f, 5, 0.8f, flying = true, erratic = true, fireImmune = true),
-    SUN_PRIEST("Sun Priest", 70f, 38f, 8f, 9, 1.05f, ranged = 280f, fireImmune = true)
+    SUN_PRIEST("Sun Priest", 70f, 38f, 8f, 9, 1.05f, ranged = 280f, fireImmune = true),
+
+    // Area bosses: each route names one in Biome.boss (Titan, Gargoyle King and Clown Prince above are bosses too).
+    YETI_KING("Yeti King", 1300f, 22f, 28f, 170, 2.6f, boss = true, armor = 8f, specialEvery = 6f, smash = 26f, callout = "ROAR!"),
+    RAT_KING("Rat King", 900f, 40f, 12f, 160, 2.4f, boss = true, armor = 4f, aimHeight = 20f, specialEvery = 5f, summon = RAT, summonCount = 4, callout = "SQUEAK!"),
+    SCORPION_QUEEN("Scorpion Queen", 1100f, 36f, 22f, 170, 2.2f, boss = true, armor = 8f, aimHeight = 24f, specialEvery = 8f, summon = SCORPION, summonCount = 2, callout = "SKITTER!"),
+    SWAMP_TYRANT("Swamp Tyrant", 1400f, 34f, 30f, 180, 2.2f, boss = true, armor = 8f, aimHeight = 24f, lunges = true, specialEvery = 6f, smash = 30f, callout = "CHOMP!"),
+    LUNAR_COLOSSUS("Lunar Colossus", 1200f, 30f, 26f, 180, 2.3f, boss = true, armor = 7f, leaper = true, specialEvery = 6f, smash = 26f, callout = "SLAM!"),
+    OVERSEER("Overseer", 1000f, 50f, 20f, 180, 2.4f, flying = true, boss = true, armor = 6f, ranged = 340f, specialEvery = 7f, summon = DRONE, summonCount = 2, callout = "DEPLOY!"),
+    MAGMA_TITAN("Magma Titan", 1500f, 20f, 30f, 190, 2.6f, boss = true, armor = 12f, fireImmune = true, specialEvery = 5.5f, smash = 28f, callout = "ERUPT!"),
+    FROST_QUEEN("Frost Queen", 950f, 48f, 22f, 180, 2.3f, flying = true, boss = true, armor = 6f, specialEvery = 7f, summon = FROST_WRAITH, summonCount = 2, callout = "FREEZE!"),
+    OUTLAW_KING("Outlaw King", 1000f, 34f, 22f, 190, 2.1f, boss = true, armor = 6f, ranged = 330f, specialEvery = 9f, summon = GUNSLINGER, summonCount = 1, callout = "DRAW!"),
+    MEGALODON("Megalodon", 1300f, 55f, 32f, 200, 2.8f, boss = true, armor = 8f, aimHeight = 20f, leaper = true, specialEvery = 6f, smash = 30f, callout = "BREACH!"),
+    JUGGERNAUT("Juggernaut", 1600f, 20f, 32f, 200, 2.4f, boss = true, armor = 14f, specialEvery = 5.5f, smash = 32f, callout = "CRUSH!"),
+    ANGLERFISH("Abyssal Angler", 1000f, 45f, 22f, 190, 2.8f, flying = true, boss = true, armor = 5f, specialEvery = 6f, summon = PIRANHA, summonCount = 4, callout = "FEAST!"),
+    SUN_KING("Sun King", 1100f, 36f, 24f, 210, 2.3f, boss = true, armor = 6f, ranged = 330f, fireImmune = true, specialEvery = 7f, summon = SOLAR_SPRITE, summonCount = 3, callout = "BURN!")
 }
 
 /** A random upgrade some zombies spawn with; elites are tougher, worth 2.5x coins, and each trait calls for a different answer. */

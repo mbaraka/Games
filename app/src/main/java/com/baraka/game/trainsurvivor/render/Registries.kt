@@ -33,6 +33,11 @@ object MobArtRegistry {
     }
 
     operator fun get(type: ZombieType): MobArt? = arts[type]
+
+    /** Draw [type] exactly like [like] (bigger bosses reuse their smaller cousin's art; size comes from the type). */
+    fun alias(type: ZombieType, like: ZombieType) {
+        arts[like]?.let { arts[type] = it }
+    }
 }
 
 /** Extra drawing for a humanoid enemy (accessories on the standard zombie body), in the body's local coordinates. */
@@ -45,6 +50,11 @@ object HumanoidExtras {
 
     fun register(type: ZombieType, extra: HumanoidExtra) {
         extras[type] = extra
+    }
+
+    /** Give [type] the same accessories as [like]. */
+    fun alias(type: ZombieType, like: ZombieType) {
+        extras[like]?.let { extras[type] = it }
     }
 
     fun draw(scope: DrawScope, z: Zombie, headY: Float, bob: Float, skin: Color, shirt: Color) {

@@ -892,7 +892,7 @@ private fun DrawScope.drawZombie(z: Zombie) {
         }
         // Torso.
         when (type) {
-            ZombieType.BRUTE, ZombieType.YETI, ZombieType.STRONGMAN, ZombieType.MAGMA_GOLEM -> rbox(shirt, -11f, -40f + bob, 22f, 28f, 6f)
+            in BULKY -> rbox(shirt, -11f, -40f + bob, 22f, 28f, 6f)
             ZombieType.BLOATER -> {
                 drawCircle(shirt, 17f, Offset(0f, -26f + bob))
                 drawCircle(skin, 14f, Offset(0f, -26f + bob))
@@ -954,7 +954,7 @@ private fun DrawScope.drawZombie(z: Zombie) {
             drawCircle(Color.Black, 1.4f, Offset(-1f + sin(z.anim * 2f) * 1.3f, headY - 2f + cos(z.anim * 2f)))
         }
         HumanoidExtras.draw(this, z, headY, bob, skin, shirt)
-        if (type == ZombieType.YETI) {
+        if (type == ZombieType.YETI || type == ZombieType.YETI_KING) {
             for (k in 0..3) { // shaggy fur tufts and icy eyes
                 path.rewind(); path.moveTo(-8f + k * 5f, headY - 6f); path.lineTo(-6f + k * 5f, headY - 15f); path.lineTo(-3f + k * 5f, headY - 6f); path.close()
                 drawPath(path, skin)
@@ -988,7 +988,7 @@ private fun DrawScope.drawZombie(z: Zombie) {
         }
         // Arms reaching toward the train; raised and swinging while clawing.
         val armAngle = if (type == ZombieType.BALLOON) -82f + sin(z.anim) * 4f else if (z.attacking) -55f + sin(z.anim * 2.2f) * 22f else -12f + walk * 6f
-        val armW = when (type) { ZombieType.BRUTE, ZombieType.TITAN, ZombieType.YETI, ZombieType.STRONGMAN, ZombieType.MAGMA_GOLEM -> 8f; else -> 5f }
+        val armW = if (type in BULKY || type == ZombieType.TITAN) 8f else 5f
         val armLen = when (type) { ZombieType.BRUTE -> 20f; ZombieType.TITAN -> 24f; else -> 16f }
         withTransform({ translate(2f, -32f + bob); rotate(armAngle, Offset.Zero) }) { box(skin, 0f, -armW / 2f, armLen, armW) }
         withTransform({ translate(0f, -30f + bob); rotate(armAngle + 12f, Offset.Zero) }) { box(tint(shirtDark(type)), 0f, -armW / 2f, armLen, armW) }
@@ -1051,10 +1051,11 @@ private fun DrawScope.drawCreature(z: Zombie, dir: Float) {
     val scuttle = sin(z.anim * 1.6f)
     drawOval(Color.Black.copy(alpha = 0.28f), Offset(z.x - 24f * size, z.y - 3f * size), Size(48f * size, 7f * size))
     withTransform({ translate(z.x, z.y); scale(size * dir, size, Offset.Zero) }) {
-        when (type) {
-            ZombieType.ZOMBIE_DOG -> {
-                val fur = tint(0xFF7B6F57.toInt())
-                val dark = tint(0xFF4E4538.toInt())
+        when (CREATURE_KIND[type] ?: type) {
+            ZombieType.ZOMBIE_DOG, ZombieType.ICE_WOLF -> {
+                val icy = type == ZombieType.ICE_WOLF
+                val fur = tint(if (icy) 0xFFDCEBF5.toInt() else 0xFF7B6F57.toInt())
+                val dark = tint(if (icy) 0xFF8FA9BB.toInt() else 0xFF4E4538.toInt())
                 for (k in 0..3) box(dark, -14f + k * 9f + sin(z.anim * 1.6f + k * 1.7f) * 4f, -12f, 4f, 12f)
                 drawOval(fur, Offset(-20f, -27f), Size(40f, 18f))
                 for (k in 0..2) drawLine(Color(0xFFE6DFC8).copy(alpha = 0.8f), Offset(-8f + k * 7f, -23f), Offset(-8f + k * 7f, -15f), 1.5f)
@@ -1368,6 +1369,16 @@ private inline fun DrawScope.withTransformLeft(x: Float, block: DrawScope.() -> 
 
 /** The livery in use this frame (set at the start of [drawTrainScene]). */
 internal var palette: Livery = Livery.CLASSIC
+
+/** Humanoids drawn with the broad torso and thick arms. */
+private val BULKY = setOf(ZombieType.BRUTE, ZombieType.YETI, ZombieType.STRONGMAN, ZombieType.MAGMA_GOLEM, ZombieType.YETI_KING, ZombieType.MAGMA_TITAN, ZombieType.JUGGERNAUT)
+
+/** Boss versions of the animal enemies are drawn with their smaller cousin's body. */
+private val CREATURE_KIND = mapOf(
+    ZombieType.RAT_KING to ZombieType.RAT,
+    ZombieType.SCORPION_QUEEN to ZombieType.SCORPION,
+    ZombieType.SWAMP_TYRANT to ZombieType.CROCODILE
+)
 
 private val CLOWN_TYPES = setOf(ZombieType.CLOWN, ZombieType.CLOWN_PRINCE, ZombieType.JUGGLER, ZombieType.MINI_CLOWN)
 

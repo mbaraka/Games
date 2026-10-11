@@ -53,8 +53,13 @@ internal fun registerMobLooks() {
 }
 
 internal fun registerMobArts() {
+    registerRouteMobs()
     registerSeaAndSunMobs()
     registerPortraitSizes()
+    registerBossArts()
+}
+
+private fun registerRouteMobs() {
     MobArtRegistry.register(ZombieType.DRONE) { s, z, d -> with(s) { drawDrone(z, d) } }
     MobArtRegistry.register(ZombieType.FROST_WRAITH) { s, z, d -> with(s) { drawWraith(z, d) } }
     MobArtRegistry.register(ZombieType.TENTACLE) { s, z, _ -> with(s) { drawTentacle(z) } }
@@ -118,9 +123,9 @@ internal fun registerMobArts() {
 }
 
 /** A hovering hunter drone: twin rotors, a camera eye and a gun. */
-private fun DrawScope.drawDrone(z: Zombie, dir: Float) {
+internal fun DrawScope.drawDrone(z: Zombie, dir: Float, k: Float = 1f) {
     val body = lerp(Color(0xFF455A64), Color.White, z.flash * 0.75f)
-    withTransform({ translate(z.x, z.y - 18f); scale(dir, 1f, Offset.Zero) }) {
+    withTransform({ translate(z.x, z.y - 18f * k); scale(dir * k, k, Offset.Zero) }) {
         for (sx in floatArrayOf(-16f, 16f)) {
             drawLine(Color(0xFF263238), Offset(sx * 0.7f, -4f), Offset(sx, -11f), 2f)
             val blur = 0.25f + 0.2f * abs(sin(z.anim * 6f))
@@ -136,11 +141,11 @@ private fun DrawScope.drawDrone(z: Zombie, dir: Float) {
 }
 
 /** A frost wraith: a translucent hooded ghost that trails a wavy cloak. */
-private fun DrawScope.drawWraith(z: Zombie, dir: Float) {
+internal fun DrawScope.drawWraith(z: Zombie, dir: Float, k: Float = 1f) {
     val fade = 0.72f
     val cloak = lerp(Color(0xFFBBDEFB), Color.White, z.flash * 0.75f).copy(alpha = fade)
     val wave = sin(z.anim * 2f) * 3f
-    withTransform({ translate(z.x, z.y - 36f); scale(dir, 1f, Offset.Zero) }) {
+    withTransform({ translate(z.x, z.y - 36f * k); scale(dir * k, k, Offset.Zero) }) {
         path.rewind()
         path.moveTo(-13f, -8f); path.lineTo(13f, -8f); path.lineTo(10f, 18f + wave)
         path.lineTo(4f, 10f); path.lineTo(0f, 22f - wave); path.lineTo(-5f, 10f); path.lineTo(-10f, 18f + wave); path.close()

@@ -225,15 +225,16 @@ Code is in `app/src/main/java/com/baraka/game/trainsurvivor/`:
 ### Recipes
 
 **New enemy** - (1) add an entry to `ZombieType` using the flags (`flying`, `leaper`, `ranged`, `stationary`,
-`armor`, `fireImmune`, `lunges`, `erratic`, `packSize`, `specialEvery/summon/smash` for bosses); a boss joins
-the boss rotation automatically. (2) Put it in a route's spawn table (`signature(...)` in `Biome`). (3) Give it
+`armor`, `fireImmune`, `lunges`, `erratic`, `packSize`, `specialEvery/summon/smash` for bosses). To make it a
+route's boss, set `boss = ...` on that `Biome` entry (every route names one); a boss with no unique art can be
+`alias`ed to a smaller cousin's art in `BossArts.kt`. (2) Put it in a route's spawn table (`signature(...)` in `Biome`). (3) Give it
 colours in `registerMobLooks()` (`MobArts.kt`) and, if it isn't a standard humanoid size, a Field Guide
 portrait size in `PortraitSizes`; if it needs accessories register a `HumanoidExtra`, if it is not a
 humanoid write a `MobArt` and register it in `registerMobArts()`. (4) Add its `ZombieNote` in
 `FieldGuideScreen.kt` (the guide looks notes up by type). New AI behaviour that no flag covers goes in
 `TrainGame.updateZombies` behind a new flag on `ZombieType`.
 
-**New route** - (1) add a `Biome` entry: stats, `commonSpawns(...) + signature(...)`, optional
+**New route** - (1) add a `Biome` entry: stats, its `boss`, `commonSpawns(...) + signature(...)`, optional
 `gravityMult/rangeMult/speedMult/repairMult/flatRegen` and `hazards`. (2) Write a `RouteArt` object in
 `RouteArts.kt` (`backdrop` required; `foreground`, `weather`, `darkness`, `glowNight`, `trainKit` optional) and
 register it in `registerRouteArts()`. Junction cards, the Field Guide, debug "Go to route" and the spawn logic

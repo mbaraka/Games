@@ -84,10 +84,10 @@ internal fun registerPortraitSizes() {
 }
 
 /** A zombie piranha: a fast, toothy flyer (it swims through the tube's water) that arrives in packs. */
-private fun DrawScope.drawPiranha(z: Zombie, dir: Float) {
+internal fun DrawScope.drawPiranha(z: Zombie, dir: Float, k: Float = 1f) {
     val body = lerp(Color(0xFF5E7B6A), Color.White, z.flash * 0.75f)
     val tail = sin(z.anim * 1.5f) * 4f
-    withTransform({ translate(z.x, z.y - 16f); scale(dir, 1f, Offset.Zero) }) {
+    withTransform({ translate(z.x, z.y - 16f * k); scale(dir * k, k, Offset.Zero) }) {
         path.rewind(); path.moveTo(-10f, 0f); path.lineTo(-22f, -8f + tail); path.lineTo(-22f, 8f + tail); path.close()
         drawPath(path, body)
         drawOval(body, Offset(-12f, -9f), Size(26f, 18f))
