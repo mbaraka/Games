@@ -1336,30 +1336,13 @@ private fun DrawScope.drawHud(g: TrainGame) {
 
 /** Draws one animated zombie of [type] scaled to fill this canvas (used by the Field Guide). */
 fun DrawScope.drawZombiePortrait(type: ZombieType, timeSeconds: Float) {
-    val height = when (type) {
-        ZombieType.BALLOON -> 150f
-        ZombieType.BAT -> 48f
-        ZombieType.ZOMBIE_DOG -> 55f
-        ZombieType.RAT -> 40f
-        ZombieType.SCORPION -> 75f
-        ZombieType.CROCODILE -> 100f
-        ZombieType.DRONE -> 48f
-        ZombieType.FROST_WRAITH -> 90f
-        ZombieType.TENTACLE -> 110f
-        ZombieType.GARGOYLE -> 120f
-        ZombieType.TITAN -> 150f
-        else -> 74f * max(1f, type.size)
-    }
+    val height = PortraitSizes.heightOf(type) ?: (74f * max(1f, type.size))
     val k = min(size.height / height, size.width / (height * 0.9f))
     val z = Zombie(type, 0f, 0f, 1, 1f, 1f, 0.9f)
     z.facing = 1
     z.anim = timeSeconds * 3f
     z.x = size.width / (2f * k)
-    z.y = when (type) {
-        ZombieType.BAT, ZombieType.DRONE -> height * 0.62f
-        ZombieType.GARGOYLE -> height * 0.75f
-        else -> height - 4f
-    }
+    z.y = (PortraitSizes.floatingAt(type) ?: 1f) * height - (if (PortraitSizes.floatingAt(type) == null) 4f else 0f)
     withTransform({ scale(k, k, Offset.Zero) }) { drawZombie(z) }
 }
 

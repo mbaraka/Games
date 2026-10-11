@@ -6,7 +6,8 @@ enum class HazardKind(val displayName: String, val description: String) {
     GEYSERS("Lava geysers", "Geysers erupt after a short warning, burning everything standing on them - zombies and wagons."),
     HULL_BREACH("Hull breaches", "A wagon springs a leak: tap it within 6 seconds or lose 12% of your run coins."),
     TENTACLES("Sea tentacles", "Tentacles rise from the water and squeeze a wagon until you kill them."),
-    OVERPASS_DROPS("Overpass drops", "Zombies drop from overpasses onto your roofs.")
+    OVERPASS_DROPS("Overpass drops", "Zombies drop from overpasses onto your roofs."),
+    SOLAR_FLARES("Solar flares", "A flare hits after a short warning: tap to raise the shields or every wagon is burned. Flying enemies burn either way.")
 }
 
 /** One enemy a route can spawn. Its spawn weight is `scale * (base + perSecond * time)` once `time >= from`. */
@@ -155,6 +156,22 @@ enum class Biome(
         1.55f, 1.2f, 1.1f, 1.2f, 0xFF90A4AE,
         commonSpawns(runner = 1.2f, brute = 1.4f, bloater = 0.8f, bat = 0.5f, balloon = 0f, clown = 0.2f) + signature(ZombieType.RIOT, 25f),
         hazards = listOf(HazardKind.OVERPASS_DROPS)
+    ),
+    DEEP_SEA(
+        "Deep Sea Tube", "A pressure tunnel on the ocean floor: piranha swarms, jellyfish, leaks and kraken tentacles",
+        1.7f, 1.2f, 1.2f, 1.15f, 0xFF00ACC1,
+        commonSpawns(walker = 0.5f, runner = 0.6f, brute = 0.8f, bloater = 1f, bat = 0f, balloon = 0f, clown = 0f) +
+            signature(ZombieType.PIRANHA, 8f, weight = 6f) + signature(ZombieType.JELLYFISH, 25f, weight = 3f, perSecond = 1f / 80f) +
+            signature(ZombieType.DEEP_CRAB, 20f, weight = 4f),
+        gravityMult = 0.6f, speedMult = 0.9f, hazards = listOf(HazardKind.HULL_BREACH, HazardKind.TENTACLES)
+    ),
+    SOLAR(
+        "Solar Rail", "Right next to the sun: fire-proof enemies and flares that burn the train unless you raise the shields",
+        1.8f, 1.3f, 1.1f, 1.3f, 0xFFFFCA28,
+        commonSpawns(walker = 0.6f, runner = 1f, brute = 1.2f, bloater = 0.8f, bat = 0f, balloon = 0f, clown = 0f) +
+            signature(ZombieType.EMBER, 8f) + signature(ZombieType.SOLAR_SPRITE, 22f, weight = 4f) +
+            signature(ZombieType.SUN_PRIEST, 35f, weight = 3f, perSecond = 1f / 80f),
+        hazards = listOf(HazardKind.SOLAR_FLARES)
     );
 
     /** The enemies listed as this route's own (shown on junction cards and in the Field Guide). */

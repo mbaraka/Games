@@ -52,6 +52,21 @@ object HumanoidExtras {
     }
 }
 
+/** How big an enemy is drawn in the Field Guide portrait. Unlisted enemies use a standard humanoid size. */
+object PortraitSizes {
+    private val heights = HashMap<ZombieType, Float>()
+    private val floatFraction = HashMap<ZombieType, Float>()
+
+    /** [height] is the world height shown; [floating] (0..1) puts flyers that far down the frame instead of on the ground. */
+    fun set(type: ZombieType, height: Float, floating: Float? = null) {
+        heights[type] = height
+        if (floating != null) floatFraction[type] = floating
+    }
+
+    fun heightOf(type: ZombieType): Float? = heights[type]
+    fun floatingAt(type: ZombieType): Float? = floatFraction[type]
+}
+
 /** Skin and shirt colours of plain humanoid enemies (ARGB). Unlisted types use the walker's colours. */
 object MobLooks {
     private class Look(val skin: Int, val shirt: Int)

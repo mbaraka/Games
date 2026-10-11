@@ -10,6 +10,7 @@ import com.baraka.game.trainsurvivor.systems.HullBreaches
 import com.baraka.game.trainsurvivor.systems.LavaGeysers
 import com.baraka.game.trainsurvivor.systems.MeteorShower
 import com.baraka.game.trainsurvivor.systems.OverpassDrops
+import com.baraka.game.trainsurvivor.systems.SolarFlares
 import com.baraka.game.trainsurvivor.systems.Tentacles
 import com.baraka.game.trainsurvivor.systems.TrainGame
 import kotlin.math.abs
@@ -28,6 +29,7 @@ internal fun DrawScope.drawHazards(g: TrainGame) {
             is LavaGeysers -> drawGeysers(h, g)
             is HullBreaches -> drawBreach(h, g)
             is OverpassDrops -> drawOverpass(h, g)
+            is SolarFlares -> drawFlare(h, g)
             is Tentacles -> {} // tentacles are ordinary enemies; see MobArts.kt
         }
     }
@@ -95,4 +97,19 @@ private fun DrawScope.drawOverpass(h: OverpassDrops, g: TrainGame) {
         x += 70f
     }
     box(Color(0xFFFFC107).copy(alpha = 0.8f * a), -200f, 232f, g.worldW + 400f, 4f)
+}
+
+private fun DrawScope.drawFlare(h: SolarFlares, g: TrainGame) {
+    if (h.warning > 0f) {
+        val pulse = 0.12f + 0.12f * abs(sin(g.time * 10f))
+        drawRect(Color(0xFFFFAB00).copy(alpha = pulse), Offset(-200f, -1200f), Size(g.worldW + 400f, 2400f))
+        outlinedText("SOLAR FLARE! TAP TO SHIELD " + ceil(h.warning).toInt(), g.worldW / 2f, 280f, 24f, 0xFFFFE082.toInt())
+    }
+    if (h.shielded && (h.warning > 0f || h.flash > 0f)) {
+        val x = g.rearEnd - 24f
+        val w = g.frontEnd - g.rearEnd + 48f
+        drawOval(Color(0xFF40E0FF).copy(alpha = 0.16f), Offset(x, 350f), Size(w, 170f))
+        drawOval(Color(0xFF40E0FF).copy(alpha = 0.7f), Offset(x, 350f), Size(w, 170f), style = Stroke(3f))
+    }
+    if (h.flash > 0f) drawRect(Color.White.copy(alpha = (h.flash * 1.6f).coerceIn(0f, 0.8f)), Offset(-200f, -1200f), Size(g.worldW + 400f, 2400f))
 }

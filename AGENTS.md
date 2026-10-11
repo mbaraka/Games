@@ -225,9 +225,10 @@ Code is in `app/src/main/java/com/baraka/game/trainsurvivor/`:
 ### Recipes
 
 **New enemy** - (1) add an entry to `ZombieType` using the flags (`flying`, `leaper`, `ranged`, `stationary`,
-`armor`, `fireImmune`, `specialEvery/summon/smash` for bosses); a boss joins the boss rotation automatically.
-(2) Put it in a route's spawn table (`signature(...)` in `Biome`). (3) Give it colours in
-`registerMobLooks()` (`MobArts.kt`); if it needs accessories register a `HumanoidExtra`, if it is not a
+`armor`, `fireImmune`, `lunges`, `erratic`, `packSize`, `specialEvery/summon/smash` for bosses); a boss joins
+the boss rotation automatically. (2) Put it in a route's spawn table (`signature(...)` in `Biome`). (3) Give it
+colours in `registerMobLooks()` (`MobArts.kt`) and, if it isn't a standard humanoid size, a Field Guide
+portrait size in `PortraitSizes`; if it needs accessories register a `HumanoidExtra`, if it is not a
 humanoid write a `MobArt` and register it in `registerMobArts()`. (4) Add its `ZombieNote` in
 `FieldGuideScreen.kt` (the guide looks notes up by type). New AI behaviour that no flag covers goes in
 `TrainGame.updateZombies` behind a new flag on `ZombieType`.

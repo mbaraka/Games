@@ -44,6 +44,7 @@ object HazardRegistry {
         HazardKind.HULL_BREACH -> HullBreaches()
         HazardKind.TENTACLES -> Tentacles()
         HazardKind.OVERPASS_DROPS -> OverpassDrops()
+        HazardKind.SOLAR_FLARES -> SolarFlares()
     }
 }
 
@@ -295,4 +296,64 @@ class OverpassDrops : Hazard() {
             }
         }
     }
+}
+
+/**
+ * Solar flares: a warning counts down, then a heat wave burns every wagon and every flying enemy that isn't
+ * fire-proof. Tapping during the warning raises the shields, which protects the wagons.
+ */
+class SolarFlares : Hazard() {
+    override val kind = HazardKind.SOLAR_FLARES
+    /** Seconds until the flare strikes (the renderer shows a warning while this is positive). */
+    var warning = 0f
+    var shielded = false
+    /** White-hot flash right after a strike. */
+    var flash = 0f
+    private var timer = 10f
+
+    override val idle: Boolean get() = warning <= 0f && flash <= 0f
+
+    override fun trigger() {
+        timer = 0f
+    }
+
+    override fun update(g: TrainGame, dt: Float) {
+        flash = max(0f, flash - dt)
+        if (warning > 0f) {
+            warning -= dt
+            if (warning <= 0f) strike(g)
+        } else if (!retiring) {
+            timer -= dt
+            if (timer <= 0f) {
+                timer = 14f + g.rng.nextFloat() * 6f
+                warning = 2.6f
+                shielded = false
+                g.sound(TrainSoundCue.HORDE)
+            }
+        }
+    }
+
+    private fun strike(g: TrainGame) {
+        flash = 0.5f
+        g.shake = max(g.shake, 0.6f)
+        if (!shielded) {
+            for (slot in 0 until g.slotCount) if (g.carAlive(slot)) g.hurtCar(slot, 14f * g.danger.dmgMult)
+        }
+        g.shooter = -1
+        val burn = 60f + g.time * 0.8f
+        for (k in g.zombies.indices) {
+            val z = g.zombies[k]
+            if (!z.dead && z.flying && !z.isBoss && !z.type.fireImmune) g.damageZombie(z, burn)
+        }
+        shielded = false
+    }
+
+    override fun onTap(g: TrainGame, lx: Float, ly: Float): Boolean {
+        if (warning <= 0f || shielded) return false
+        shielded = true
+        g.floatText(g.worldW / 2f, 330f, "Shields up!", 1.2f, 0xFF40E0FF.toInt(), 24f)
+        g.sound(TrainSoundCue.CRATE)
+        return true
+    }
+
 }

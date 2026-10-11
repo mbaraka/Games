@@ -648,11 +648,10 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         val x = if (side > 0) worldW + 40f + rng.nextFloat() * 80f else -40f - rng.nextFloat() * 80f
         val feetY = if (type.flying) 110f + rng.nextFloat() * 170f else RAIL_Y + 24f + rng.nextFloat() * 36f
         addZombie(type, x, feetY, side)
-        // Rats and hounds come in packs.
-        if (type == ZombieType.RAT) repeat(3) { if (zombies.size < MAX_ZOMBIES) addZombie(type, x + side * (it + 1) * 18f, feetY + (it % 2) * 10f, side) }
-        if (type == ZombieType.ZOMBIE_DOG && zombies.size < MAX_ZOMBIES) addZombie(type, x + side * 24f, feetY + 8f, side)
-        if (type == ZombieType.ICE_WOLF && zombies.size < MAX_ZOMBIES) addZombie(type, x + side * 24f, feetY + 8f, side)
-        if (type == ZombieType.DRONE && zombies.size < MAX_ZOMBIES) addZombie(type, x + side * 30f, feetY + 30f, side)
+        // Packs: the rest of the group spawns beside the first.
+        repeat(type.packSize - 1) {
+            if (zombies.size < MAX_ZOMBIES) addZombie(type, x + side * (it + 1) * 22f, feetY + (if (type.flying) (it + 1) * 18f else (it % 2) * 10f), side)
+        }
     }
 
     internal fun addZombie(type: ZombieType, x: Float, feetY: Float, side: Int): Zombie {
@@ -716,7 +715,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
                 val spot = end + side * (14f + min(rank, 16) * 22f * z.type.size.coerceAtLeast(1f))
                 val delta = spot - z.x
                 var speedMul = 1f
-                if (z.type == ZombieType.CROCODILE) {
+                if (z.type.lunges) {
                     // Crocodiles creep, then LUNGE in short fast bursts.
                     z.special -= dt
                     if (z.retarget > 0f) {
@@ -934,7 +933,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
 
     /** Flyers ignore the queue: they cruise high, swoop over a car on the train and claw it from above. */
     private fun updateFlyer(z: Zombie, dt: Float) {
-        val isBat = z.type == ZombieType.BAT
+        val isBat = z.type.erratic
         z.anim += dt * (if (isBat) 12f else if (z.isBoss) 4f else 5f)
         z.flash = max(0f, z.flash - dt * 6f)
         z.retarget -= dt

@@ -11,6 +11,9 @@ object Mat {
     const val DIRT: Byte = 1
     const val STEEL: Byte = 2
     const val BRICK: Byte = 3
+    /** One-way dirt: bashers and miners may only dig it while moving the way the arrows point. */
+    const val ARROW_R: Byte = 4
+    const val ARROW_L: Byte = 5
 }
 
 private const val STEEL_BASE = 0xFF9AA8BA.toInt()
@@ -66,36 +69,41 @@ class Terrain(private val theme: CrewTheme) {
     fun dirt(x: Int, y: Int, w: Int, h: Int) = fillRect(x, y, w, h, Mat.DIRT)
     fun steel(x: Int, y: Int, w: Int, h: Int) = fillRect(x, y, w, h, Mat.STEEL)
     fun air(x: Int, y: Int, w: Int, h: Int) = fillRect(x, y, w, h, Mat.AIR)
+    fun arrowDirt(x: Int, y: Int, w: Int, h: Int, dir: Int) = fillRect(x, y, w, h, if (dir > 0) Mat.ARROW_R else Mat.ARROW_L)
 
-    fun hasSteel(x: Int, y: Int, w: Int, h: Int): Boolean {
+    /** True if [m] cannot be dug by something moving in [dir] (0 = digging down or exploding, which only steel stops). */
+    private fun blocksDig(m: Byte, dir: Int): Boolean =
+        m == Mat.STEEL || (m == Mat.ARROW_R && dir < 0) || (m == Mat.ARROW_L && dir > 0)
+
+    fun hasSteel(x: Int, y: Int, w: Int, h: Int, dir: Int = 0): Boolean {
         for (yy in maxOf(0, y) until minOf(WORLD_H, y + h)) {
             for (xx in maxOf(0, x) until minOf(WORLD_W, x + w)) {
-                if (cell[yy * WORLD_W + xx] == Mat.STEEL) return true
+                if (blocksDig(cell[yy * WORLD_W + xx], dir)) return true
             }
         }
         return false
     }
 
-    fun discHasSteel(cx: Int, cy: Int, r: Int): Boolean {
+    fun discHasSteel(cx: Int, cy: Int, r: Int, dir: Int = 0): Boolean {
         val rr = r * r
         for (yy in maxOf(0, cy - r)..minOf(WORLD_H - 1, cy + r)) {
             for (xx in maxOf(0, cx - r)..minOf(WORLD_W - 1, cx + r)) {
                 val dx = xx - cx
                 val dy = yy - cy
-                if (dx * dx + dy * dy <= rr && cell[yy * WORLD_W + xx] == Mat.STEEL) return true
+                if (dx * dx + dy * dy <= rr && blocksDig(cell[yy * WORLD_W + xx], dir)) return true
             }
         }
         return false
     }
 
     /** Removes every non-steel pixel in the rectangle; returns how many were removed. */
-    fun carveRect(x: Int, y: Int, w: Int, h: Int): Int {
+    fun carveRect(x: Int, y: Int, w: Int, h: Int, dir: Int = 0): Int {
         var removed = 0
         for (yy in maxOf(0, y) until minOf(WORLD_H, y + h)) {
             for (xx in maxOf(0, x) until minOf(WORLD_W, x + w)) {
                 val idx = yy * WORLD_W + xx
                 val m = cell[idx]
-                if (m != Mat.AIR && m != Mat.STEEL) {
+                if (m != Mat.AIR && !blocksDig(m, dir)) {
                     cell[idx] = Mat.AIR
                     removed++
                     mark(xx, yy)
@@ -105,7 +113,7 @@ class Terrain(private val theme: CrewTheme) {
         return removed
     }
 
-    fun carveDisc(cx: Int, cy: Int, r: Int): Int {
+    fun carveDisc(cx: Int, cy: Int, r: Int, dir: Int = 0): Int {
         var removed = 0
         val rr = r * r
         for (yy in maxOf(0, cy - r)..minOf(WORLD_H - 1, cy + r)) {
@@ -115,7 +123,7 @@ class Terrain(private val theme: CrewTheme) {
                 if (dx * dx + dy * dy > rr) continue
                 val idx = yy * WORLD_W + xx
                 val m = cell[idx]
-                if (m != Mat.AIR && m != Mat.STEEL) {
+                if (m != Mat.AIR && !blocksDig(m, dir)) {
                     cell[idx] = Mat.AIR
                     removed++
                     mark(xx, yy)
@@ -161,6 +169,11 @@ class Terrain(private val theme: CrewTheme) {
                 (x and 7) == 1 && (y and 7) == 1 -> STEEL_DARK
                 (y and 7) == 0 -> STEEL_LIGHT
                 else -> STEEL_BASE
+            }
+            Mat.ARROW_R, Mat.ARROW_L -> {
+                val d = kotlin.math.abs(2 * (y and 7) - 7) / 2
+                val on = if (m == Mat.ARROW_R) ((x + d) and 7) == 0 else ((x - d) and 7) == 0
+                if (edge) theme.rim else if (on) 0xFFFFE08A.toInt() else blend(theme.dirt[n], 0xFFFFD27A.toInt(), 0.22f)
             }
             else -> if (edge) BRICK_RIM else if ((y and 1) == 0) BRICK_MORTAR else BRICK_BASE
         }

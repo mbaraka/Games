@@ -71,7 +71,7 @@ class CrewRepository(context: Context) {
     }
 }
 
-enum class Cue { ASSIGN, REFUSE, HATCH, SAVE, SPLAT, BOOM, CLINK, WIN, LOSE }
+enum class Cue { ASSIGN, REFUSE, HATCH, SAVE, SPLAT, BOOM, CLINK, WIN, LOSE, FLAME, WARN }
 
 /** Procedurally synthesised sound effects (no asset files), one preloaded [AudioTrack] per [Cue]. */
 class CrewAudio {
@@ -101,6 +101,8 @@ class CrewAudio {
         Cue.CLINK -> sweep(1500.0, 1200.0, 45, 0.28f)
         Cue.WIN -> notes(listOf(523.25, 659.25, 783.99, 1046.5), 120, 0.35f)
         Cue.LOSE -> sweep(320.0, 70.0, 600, 0.35f)
+        Cue.FLAME -> mix(noiseBurst(300, 0.4f, 0.5), sweep(180.0, 90.0, 300, 0.2f))
+        Cue.WARN -> notes(listOf(1250.0, 1250.0), 45, 0.22f)
     }
 
     private fun sweep(startHz: Double, endHz: Double, ms: Int, vol: Float): ShortArray {

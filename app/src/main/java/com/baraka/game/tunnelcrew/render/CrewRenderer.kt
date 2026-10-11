@@ -123,6 +123,7 @@ fun DrawScope.drawCrewScene(sim: CrewSim, image: ImageBitmap, sky: Brush, fit: W
         )
 
         drawHazards(sim, fit)
+        drawTraps(sim, fit)
         drawHatch(sim, fit)
         drawExit(sim, fit)
 
@@ -162,6 +163,28 @@ private fun DrawScope.drawHazards(sim: CrewSim, fit: WorldFit) {
             circle(fit, xx + 3f, h[1] + sin(t + xx * 0.5f) * 1.2f, 3.2f, LAVA_B)
             xx += 6
         }
+    }
+}
+
+/** Timed flame jets: a metal nozzle on the floor, a warm glow just before ignition, and flames while firing. */
+private fun DrawScope.drawTraps(sim: CrewSim, fit: WorldFit) {
+    val tr = sim.level.traps
+    for (i in tr.indices) {
+        val r = tr[i]
+        val x = r[0].toFloat()
+        val bottom = (r[1] + r[3]).toFloat()
+        val w = r[2].toFloat()
+        val phase = (sim.tick + r[6]) % r[4]
+        val on = sim.trapOn(r)
+        val warn = !on && phase >= r[4] - 25
+        if (warn) rrect(fit, x, bottom - 4f, w, 4f, 1.5f, LAVA_A.copy(alpha = 0.35f + 0.25f * sin(sim.tick * 0.6f)))
+        if (on) {
+            val flick = sin(sim.tick * 1.3f + x)
+            val h = r[3] * (0.85f + 0.15f * flick)
+            rrect(fit, x + 1f, bottom - h, w - 2f, h, w * 0.4f, LAVA_A)
+            rrect(fit, x + w * 0.25f, bottom - h * 0.7f, w * 0.5f, h * 0.7f, w * 0.25f, LAVA_B)
+        }
+        rrect(fit, x - 1f, bottom - 3f, w + 2f, 3f, 1f, STONE)
     }
 }
 

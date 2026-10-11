@@ -13,6 +13,9 @@ private const val FLOAT_AFTER = 6
 private const val FUSE_TICKS = 150
 private const val BRICKS_PER_BUILD = 12
 private const val MAX_PARTICLES = 160
+private const val RATE_BASE = 120
+private const val RATE_STEP = 5
+private const val MIN_INTERVAL = 6
 
 /** Activity of one crew member. Values from [GONE] up mean "no longer on the map". */
 object Mode {
@@ -41,7 +44,9 @@ object Ev {
     const val SAVE = 2
     const val CLINK = 3
     const val HATCH = 4
-    const val COUNT = 5
+    const val FLAME = 5
+    const val WARN = 6
+    const val COUNT = 7
 }
 
 const val RESULT_RUNNING = 0
@@ -91,6 +96,15 @@ class CrewSim(val level: Level) {
     private var spawnLimit = minOf(level.total, MAX_CREW)
     private var spawnTimer = level.spawnEvery - 15
 
+    /** Ticks between crew members leaving the hatch. The player may shorten it (faster release) but never go slower than the level's own rate. */
+    var interval = level.spawnEvery
+        private set
+    val rate: Int get() = RATE_BASE - interval
+    val minRate: Int get() = RATE_BASE - level.spawnEvery
+
+    fun faster() { interval = (interval - RATE_STEP).coerceAtLeast(MIN_INTERVAL) }
+    fun slower() { interval = (interval + RATE_STEP).coerceAtMost(level.spawnEvery) }
+
     private val blockX = IntArray(MAX_CREW)
     private val blockY = IntArray(MAX_CREW)
     private var blockCount = 0
@@ -119,7 +133,7 @@ class CrewSim(val level: Level) {
 
         if (spawned < spawnLimit) {
             spawnTimer++
-            if (spawnTimer >= level.spawnEvery) {
+            if (spawnTimer >= interval) {
                 spawnTimer = 0
                 spawnOne()
             }
@@ -185,6 +199,14 @@ class CrewSim(val level: Level) {
                 return
             }
         }
+        val tr = level.traps
+        for (k in tr.indices) {
+            val r = tr[k]
+            if (trapOn(r) && cx >= r[0] && cx < r[0] + r[2] && cy >= r[1] && cy < r[1] + r[3]) {
+                kill(i, Ev.FLAME)
+                return
+            }
+        }
         if (m != Mode.BLOCK) {
             val e = level.exit
             if (cx >= e[0] && cx < e[0] + e[2] && cy >= e[1] && cy <= e[1] + e[3]) {
@@ -205,6 +227,9 @@ class CrewSim(val level: Level) {
             Mode.SHRUG -> shrug(i)
         }
     }
+
+    /** Whether the timed trap `[x, y, w, h, period, onTicks, phase]` is currently firing. */
+    fun trapOn(r: IntArray): Boolean = (tick + r[6]) % r[4] < r[5]
 
     private fun startFall(i: Int) {
         mode[i] = Mode.FALL
@@ -317,12 +342,12 @@ class CrewSim(val level: Level) {
         timer[i]++
         if ((timer[i] and 1) != 0) return
         val x0 = if (d > 0) cx + 1 else cx - 2
-        if (t.hasSteel(x0, cy - 8, 2, 9)) {
+        if (t.hasSteel(x0, cy - 8, 2, 9, d)) {
             events[Ev.CLINK]++
             mode[i] = Mode.WALK
             return
         }
-        if (t.carveRect(x0, cy - 8, 2, 9) == 0) {
+        if (t.carveRect(x0, cy - 8, 2, 9, d) == 0) {
             aux[i]++
             if (aux[i] >= 6) {
                 mode[i] = Mode.WALK
@@ -345,13 +370,13 @@ class CrewSim(val level: Level) {
         }
         timer[i]++
         if (timer[i] % 4 != 0) return
-        if (t.discHasSteel(cx + 2 * d, cy - 4, 5)) {
+        if (t.discHasSteel(cx + 2 * d, cy - 4, 5, d)) {
             events[Ev.CLINK]++
             mode[i] = Mode.WALK
             return
         }
-        t.carveDisc(cx + d, cy - 3, 5)
-        t.carveDisc(cx + 2 * d, cy - 4, 5)
+        t.carveDisc(cx + d, cy - 3, 5, d)
+        t.carveDisc(cx + 2 * d, cy - 4, 5, d)
         x[i] = cx + 2 * d
         y[i] = cy + 1
     }
@@ -395,13 +420,14 @@ class CrewSim(val level: Level) {
         var h = 1
         while (h <= BODY_H) {
             if (t.solid(nx, cy - h) || (h <= 2 && t.solid(cx + d, cy - h))) {
-                dir[i] = -d
+                // Out of room: stop building and let normal walking decide (step up a low ledge, or turn at a real wall).
                 mode[i] = Mode.WALK
                 return
             }
             h++
         }
         for (k in 1..6) t.brick(cx + d * k, cy)
+        if (aux[i] == 3) events[Ev.WARN]++
         x[i] = nx
         y[i] = cy - 1
         aux[i]--

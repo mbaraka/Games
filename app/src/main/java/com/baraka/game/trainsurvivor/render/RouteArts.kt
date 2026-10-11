@@ -31,15 +31,17 @@ internal fun registerRouteArts() {
     RouteArtRegistry.register(Biome.CARNIVAL, CarnivalArt)
     RouteArtRegistry.register(Biome.SEA_BRIDGE, SeaBridgeArt)
     RouteArtRegistry.register(Biome.CITY_RUINS, CityRuinsArt)
+    RouteArtRegistry.register(Biome.DEEP_SEA, DeepSeaArt)
+    RouteArtRegistry.register(Biome.SOLAR, SolarArt)
 }
 
 // ------------------------------------------------------------------ helpers
 
-private fun DrawScope.fillSky(g: TrainGame, top: Color, bottom: Color) {
+internal fun DrawScope.fillSky(g: TrainGame, top: Color, bottom: Color) {
     drawRect(Brush.verticalGradient(listOf(top, bottom), startY = 0f, endY = HORIZON + 30f), Offset(-200f, -1200f), Size(g.worldW + 400f, HORIZON + 1230f))
 }
 
-private fun DrawScope.fillGround(g: TrainGame, top: Color, bottom: Color) {
+internal fun DrawScope.fillGround(g: TrainGame, top: Color, bottom: Color) {
     drawRect(Brush.verticalGradient(listOf(top, bottom), startY = HORIZON, endY = 720f), Offset(-200f, HORIZON), Size(g.worldW + 400f, 800f))
 }
 
@@ -51,7 +53,7 @@ private fun DrawScope.stars(g: TrainGame, strength: Float) {
 }
 
 /** Calls [block] with the x position and a 0..1 random value for every scenery item currently on screen. */
-private inline fun scenery(g: TrainGame, spacing: Float, parallax: Float, skip: Float = 0.2f, block: (x: Float, r: Float) -> Unit) {
+internal inline fun scenery(g: TrainGame, spacing: Float, parallax: Float, skip: Float = 0.2f, block: (x: Float, r: Float) -> Unit) {
     val first = ((g.scroll * parallax - 150f) / spacing).toInt() - 1
     val last = ((g.scroll * parallax + g.worldW + 150f) / spacing).toInt() + 1
     for (i in first..last) {
@@ -62,11 +64,11 @@ private inline fun scenery(g: TrainGame, spacing: Float, parallax: Float, skip: 
 }
 
 /** A translucent tint over the whole train (soot, dust, sea spray). */
-private fun DrawScope.tintTrain(g: TrainGame, color: Color, alpha: Float) {
+internal fun DrawScope.tintTrain(g: TrainGame, color: Color, alpha: Float) {
     drawRect(color.copy(alpha = color.alpha * alpha), Offset(g.rearEnd, 384f), Size(g.frontEnd - g.rearEnd, 120f))
 }
 
-private fun wrap(value: Float, span: Float): Float = ((value % span) + span) % span
+internal fun wrap(value: Float, span: Float): Float = ((value % span) + span) % span
 
 // ------------------------------------------------------------------ Lunar Rails
 

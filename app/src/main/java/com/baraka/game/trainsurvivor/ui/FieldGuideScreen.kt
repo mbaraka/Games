@@ -83,6 +83,12 @@ private val zombieNotes: Map<ZombieType, ZombieNote> = mapOf(
     ZombieType.DROWNED to ZombieNote("Sea Bridge, from ~8 s", "A waterlogged walker draped in seaweed.", "Anything works; watch the sea for tentacles."),
     ZombieType.TENTACLE to ZombieNote("Sea Bridge hazard", "Rises from the water and squeezes a wagon until it is killed (or lets go after a while).", "Shoot it fast; it only attacks the wagon it holds."),
     ZombieType.RIOT to ZombieNote("City Ruins, from ~25 s", "A riot zombie with a shield, armor 6. Some of them drop from overpasses onto your roofs.", "Big hitters and the Tesla Coil."),
+    ZombieType.PIRANHA to ZombieNote("Deep Sea Tube, from ~8 s", "A tiny, very fast swimmer that arrives in packs of three and nips at the wagons from above.", "Rapid-fire guns, Shotgun and Tesla Coil shred a pack."),
+    ZombieType.JELLYFISH to ZombieNote("Deep Sea Tube, after ~25 s", "A slow, translucent drifter that hovers over a wagon and stings it.", "Flak Turret and anything except the Cannon."),
+    ZombieType.DEEP_CRAB to ZombieNote("Deep Sea Tube, from ~20 s", "A low, armored (4) crab that scuttles in with a heavy claw.", "Sniper, Rocket and Cannon punch through its shell."),
+    ZombieType.EMBER to ZombieNote("Solar Rail, from ~8 s", "A burning zombie with a flaming head. Fire cannot hurt it, so the Flamethrower does nothing.", "Any gun works; Tesla and Mortar are good too."),
+    ZombieType.SOLAR_SPRITE to ZombieNote("Solar Rail, after ~22 s", "A flickering ball of plasma that darts around erratically. Fire-proof, and solar flares can't burn it.", "Rapid-fire guns and Flak Turret."),
+    ZombieType.SUN_PRIEST to ZombieNote("Solar Rail, after ~35 s", "A robed priest that stays back and hurls fire at the train from a distance. Fire-proof.", "Outrange it: Sniper, Laser and Rocket."),
     ZombieType.CROCODILE to ZombieNote("Murky Swamp, from ~10 s", "Creeps out of the bog, then LUNGES in short bursts. Armor 3 and a brutal bite.", "Kill it before it lunges into range: Sniper and Rocket work best.")
 )
 

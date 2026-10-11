@@ -53,6 +53,8 @@ internal fun registerMobLooks() {
 }
 
 internal fun registerMobArts() {
+    registerSeaAndSunMobs()
+    registerPortraitSizes()
     MobArtRegistry.register(ZombieType.DRONE) { s, z, d -> with(s) { drawDrone(z, d) } }
     MobArtRegistry.register(ZombieType.FROST_WRAITH) { s, z, d -> with(s) { drawWraith(z, d) } }
     MobArtRegistry.register(ZombieType.TENTACLE) { s, z, _ -> with(s) { drawTentacle(z) } }

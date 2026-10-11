@@ -105,6 +105,7 @@ fun CrewPlayScreen(
     var hudAlive by remember(sim) { mutableIntStateOf(0) }
     var hudSaved by remember(sim) { mutableIntStateOf(0) }
     var hudTime by remember(sim) { mutableIntStateOf(level.timeSec) }
+    var hudRate by remember(sim) { mutableIntStateOf(sim.rate) }
     var result by remember(sim) { mutableIntStateOf(RESULT_RUNNING) }
     var recorded by remember(sim) { mutableStateOf(false) }
 
@@ -145,6 +146,7 @@ fun CrewPlayScreen(
                     val alive = sim.alive
                     if (hudAlive != alive) hudAlive = alive
                     if (hudSaved != sim.saved) hudSaved = sim.saved
+                    if (hudRate != sim.rate) hudRate = sim.rate
                     val secs = (sim.timeLeft.coerceAtLeast(0) + TICKS_PER_SEC - 1) / TICKS_PER_SEC
                     if (hudTime != secs) hudTime = secs
                     if (sim.result != result) {
@@ -192,6 +194,10 @@ fun CrewPlayScreen(
                 paused = paused,
                 speedLabel = if (speedIdx == 0) "x1" else "x${SPEEDS[speedIdx].toInt()}",
                 nukeArmed = nukeArmed,
+                rate = hudRate,
+                minRate = sim.minRate,
+                onRateDown = { sim.slower(); hudRate = sim.rate },
+                onRateUp = { sim.faster(); hudRate = sim.rate },
                 onPause = { paused = !paused },
                 onSpeed = { speedIdx = (speedIdx + 1) % SPEEDS.size },
                 onNuke = { if (nukeArmed) { sim.nuke(); nukeArmed = false } else nukeArmed = true },
@@ -277,6 +283,8 @@ private fun drainEvents(sim: CrewSim, audio: CrewAudio, haptics: CrewHaptics) {
     if (ev[Ev.SAVE] > 0) audio.play(Cue.SAVE)
     if (ev[Ev.CLINK] > 0) audio.play(Cue.CLINK)
     if (ev[Ev.HATCH] > 0) audio.play(Cue.HATCH)
+    if (ev[Ev.FLAME] > 0) audio.play(Cue.FLAME)
+    if (ev[Ev.WARN] > 0) audio.play(Cue.WARN)
     Arrays.fill(ev, 0)
 }
 
@@ -320,6 +328,10 @@ private fun ControlPanel(
     paused: Boolean,
     speedLabel: String,
     nukeArmed: Boolean,
+    rate: Int,
+    minRate: Int,
+    onRateDown: () -> Unit,
+    onRateUp: () -> Unit,
     onPause: () -> Unit,
     onSpeed: () -> Unit,
     onNuke: () -> Unit,
@@ -335,6 +347,12 @@ private fun ControlPanel(
         Text("Out $alive/$spawnedAll", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         Text("Saved", color = CrewColors.Muted, fontSize = 11.sp)
         Text("$saved / $needed", color = CrewColors.Good, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+        Text("Release rate", color = CrewColors.Muted, fontSize = 11.sp)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Chip("-", Modifier.weight(1f), onClick = onRateDown)
+            Text("$rate", color = if (rate > minRate) CrewColors.Accent else Color.White, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+            Chip("+", Modifier.weight(1f), onClick = onRateUp)
+        }
         Chip(if (paused) "Resume" else "Pause", Modifier.fillMaxWidth(), selected = paused, onClick = onPause)
         Chip(speedLabel, Modifier.fillMaxWidth(), onClick = onSpeed)
         Chip(if (nukeArmed) "Sure?" else "Nuke", Modifier.fillMaxWidth(), color = CrewColors.Danger, onClick = onNuke)

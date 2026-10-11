@@ -115,12 +115,22 @@ fun CrewMenuScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     LevelPreview(level, Modifier.fillMaxWidth().alpha(if (open) 1f else 0.35f))
-                    Text(
-                        if (open) "LEVEL ${i + 1}" else "LEVEL ${i + 1}  -  LOCKED",
-                        color = if (open) CrewColors.Accent else CrewColors.Muted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            if (open) "LEVEL ${i + 1}" else "LEVEL ${i + 1}  -  LOCKED",
+                            color = if (open) CrewColors.Accent else CrewColors.Muted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            level.rating.label,
+                            color = Color(0xFF10131A),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.background(Color(level.rating.color), RoundedCornerShape(8.dp)).padding(horizontal = 7.dp, vertical = 1.dp)
+                        )
+                    }
                     Text(level.name, color = CrewColors.Text, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
                     Text(
                         when {
