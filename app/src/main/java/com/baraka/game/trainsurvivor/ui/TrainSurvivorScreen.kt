@@ -214,6 +214,7 @@ private fun RunScreen(
     var showSettings by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<RunResult?>(null) }
     var godMode by remember { mutableStateOf(false) }
+    var crewVisible by remember { mutableStateOf(true) }
     var timeScale by remember { mutableFloatStateOf(1f) }
     val tick = remember { mutableLongStateOf(0L) }
     val stats = remember { FrameStats() }
@@ -380,8 +381,16 @@ private fun RunScreen(
                     AbilityButton(tick, "BLAST", Color(0xFFB71C1C), { game.dynamiteReady }, { 1f - game.dynamiteCooldown / game.dynamiteCooldownMax }, { game.dynamiteCooldown }) { game.useDynamite() }
                 }
                 JunctionPanel(game, tick, Modifier.align(Alignment.BottomCenter))
-                if (session != null) CoopHud(game, session, tick, Modifier.align(Alignment.TopCenter))
-                WeaponSwitcher(game, tick, Modifier.align(Alignment.CenterStart).padding(top = 44.dp))
+                if (session != null) {
+                    CoopPartnerStrip(session, tick, Modifier.align(Alignment.TopStart))
+                    CoopAlert(game, session, tick, Modifier.align(Alignment.TopCenter))
+                    CoopDock(game, session, tick, Modifier.align(Alignment.BottomEnd).padding(bottom = 84.dp))
+                    CoopHelpButton(game, session, tick, Modifier.align(Alignment.BottomCenter).padding(bottom = if (game.junction != null && game.junction?.chosen == null) 104.dp else 10.dp))
+                }
+                Column(modifier = Modifier.align(Alignment.CenterStart).padding(top = 44.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    RoundButton(label = if (crewVisible) "\u25C0" else "\u25B6", modifier = Modifier, size = 30, onClick = { crewVisible = !crewVisible })
+                    if (crewVisible) WeaponSwitcher(game, tick, Modifier)
+                }
                 if (settings.showFps) FpsOverlay(stats, Modifier.align(Alignment.BottomStart))
             }
         }
@@ -488,10 +497,20 @@ private fun WeaponSwitcher(game: TrainGame, tick: MutableLongState, modifier: Mo
                     .clickable(enabled = g.alive) { game.cycleWeapon(i) }
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
-                Text(
-                    SURVIVORS[i].name + if (!g.alive) "  LOST" else if (auto) "  AUTO" else "  MANUAL",
-                    color = accent, fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1
-                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    val away = game.seatAwayTime[i] > 0f
+                    Text(
+                        SURVIVORS[i].name + if (away) "  AWAY ${game.seatAwayTime[i].toInt() + 1}s" else if (!g.alive) "  LOST" else if (auto) "  AUTO" else "  MANUAL",
+                        color = if (away) Color(0xFF80DEEA) else accent, fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1
+                    )
+                    if (game.canSendPassenger(i)) {
+                        Text(
+                            "SEND \u279C",
+                            color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold,
+                            modifier = Modifier.clip(RoundedCornerShape(5.dp)).background(Color(0xFF40E0FF)).clickable { game.sendPassenger(i) }.padding(horizontal = 4.dp, vertical = 1.dp)
+                        )
+                    }
+                }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         if (!g.alive) "-" else if (g.isHot) g.weapon.displayName.substringBefore(' ') + " HOT" else g.weapon.displayName.substringBefore(' '),
@@ -556,7 +575,7 @@ private fun RouteCard(biome: Biome, onClick: () -> Unit) {
 
 /** A round active-ability button with a cooldown ring; [activeNow] highlights an ability that is currently running. */
 @Composable
-private fun AbilityButton(
+internal fun AbilityButton(
     tick: MutableLongState,
     label: String,
     color: Color,
@@ -564,6 +583,8 @@ private fun AbilityButton(
     progress: () -> Float,
     secondsLeft: () -> Float,
     activeNow: () -> Boolean = { false },
+    diameter: Int = 72,
+    fontSize: Int = 12,
     onClick: () -> Unit
 ) {
     tick.longValue
@@ -571,7 +592,7 @@ private fun AbilityButton(
     val active = activeNow()
     val fraction = if (isReady) 1f else progress().coerceIn(0f, 1f)
     Box(
-        modifier = Modifier.size(72.dp).clip(CircleShape)
+        modifier = Modifier.size(diameter.dp).clip(CircleShape)
             .background(if (isReady) color else if (active) Color(0xFF8D5A00) else Color.Black.copy(alpha = 0.6f))
             .clickable(enabled = isReady, onClick = onClick),
         contentAlignment = Alignment.Center
@@ -587,107 +608,6 @@ private fun AbilityButton(
                 style = Stroke(5f)
             )
         }
-        Text(if (isReady) label else "${secondsLeft().toInt() + 1}s", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-    }
-}
-
-/** Co-op HUD: the partner's train status, and chips to lend a passenger across the Gangway. */
-@Composable
-private fun CoopHud(game: TrainGame, session: CoopSession, tick: MutableLongState, modifier: Modifier) {
-    tick.longValue
-    val p = session.partner
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(
-            modifier = Modifier.background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically
-        ) {
-            val status = when {
-                !p.connected -> "PARTNER LEFT"
-                p.down -> "PARTNER DOWN"
-                p.away -> "PARTNER AWAY..."
-                else -> "PARTNER  ${p.distance} m  ${p.biome.displayName}"
-            }
-            Text(status, color = if (p.connected && !p.down && !p.away) Color(0xFF80DEEA) else Color(0xFFFF8A80), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-            if (p.connected && !p.down) {
-                Box(Modifier.width(70.dp).height(7.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFF37474F))) {
-                    Box(Modifier.fillMaxHeight().fillMaxWidth(p.hpFrac.coerceIn(0f, 1f)).background(if (p.hpFrac > 0.4f) Color(0xFF66BB6A) else Color(0xFFEF5350)))
-                }
-            }
-            if (p.ourPassengerAway > 0f) Text("guest ${p.ourPassengerAway.toInt()}s", color = Color(0xFFFFD54F), fontSize = 10.sp)
-        }
-        if (game.partnerRescueTime > 0f && p.connected) {
-            Text(
-                "PARTNER NEEDS A RESCUE (${game.partnerRescueTime.toInt() + 1}s): send a passenger across!",
-                color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
-                modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFFFFD54F)).padding(horizontal = 10.dp, vertical = 4.dp)
-            )
-        }
-        if (game.rescueTime > 0f) {
-            Text(
-                if (game.guestPresent) "RESCUING..." else if (game.partnerPresent) "SURVIVOR STRANDED: ask your partner to send a passenger (${game.rescueTime.toInt() + 1}s)" else "SURVIVOR STRANDED",
-                color = Color(0xFFFFD54F), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
-                modifier = Modifier.background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 3.dp)
-            )
-        }
-        if (game.comboCount > 0 && game.boss != null) {
-            Text("COMBO x${game.comboCount}", color = Color(0xFF40E0FF), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
-        }
-        if (game.towLevel > 0 && p.connected && !p.down) {
-            Text(
-                if (game.towReady) "SEND TOW" else "Tow ${game.towCooldown.toInt() + 1}s",
-                color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                modifier = Modifier.clip(RoundedCornerShape(8.dp))
-                    .background(if (game.towReady) Color(0xFF80CBC4) else Color(0xFF90A4AE))
-                    .clickable(enabled = game.towReady) { game.sendTow() }
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-            )
-        }
-        val help = game.partnerHelp
-        if (help != null && p.connected && !p.down) {
-            Text(
-                if (help == com.baraka.game.trainsurvivor.model.HazardKind.SIGNAL_JAM) "CLEAR PARTNER'S JAM (${game.partnerHelpTime.toInt() + 1}s)" else "OPEN PARTNER'S GATE (${game.partnerHelpTime.toInt() + 1}s)",
-                color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold,
-                modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFFFF8A65)).clickable { game.helpPartner() }.padding(horizontal = 14.dp, vertical = 8.dp)
-            )
-        }
-        if (game.lockedBy != null) {
-            Text(
-                if (game.jammed) "YOUR GUNS ARE JAMMED - waiting for your partner" else "GATE CLOSED - waiting for your partner",
-                color = Color(0xFFFF8A65), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
-                modifier = Modifier.background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 3.dp)
-            )
-        }
-        if (p.connected && !p.down) {
-            Text(
-                if (game.coinGiftReady) "GIVE ${game.coinGiftAmount} COINS" else "Give coins",
-                color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                modifier = Modifier.clip(RoundedCornerShape(8.dp))
-                    .background(if (game.coinGiftReady) Color(0xFFFFD54F) else Color(0xFF90A4AE))
-                    .clickable(enabled = game.coinGiftReady) { game.sendCoins() }
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-            )
-        }
-        if (game.gangwayLevel > 0 && p.connected && !p.down) {
-            Text(
-                if (game.repairSendReady) "SEND REPAIR" else "Repair ${game.repairSendCooldown.toInt() + 1}s",
-                color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                modifier = Modifier.clip(RoundedCornerShape(8.dp))
-                    .background(if (game.repairSendReady) Color(0xFF66BB6A) else Color(0xFF90A4AE))
-                    .clickable(enabled = game.repairSendReady) { game.sendRepair() }
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                val cooldown = game.outgoingLoanCooldown.toInt() + 1
-                Text(if (game.outgoingLoanCooldown > 0f) "Gangway ${cooldown}s" else "Send:", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                for (i in 0 until game.slotCount) {
-                    if (!game.canSendPassenger(i)) continue
-                    Text(
-                        SURVIVORS[i].name,
-                        color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFF40E0FF)).clickable { game.sendPassenger(i) }.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-            }
-        }
+        Text(if (isReady) label else if (secondsLeft() > 0f) "${secondsLeft().toInt() + 1}s" else "-", color = Color.White, fontWeight = FontWeight.Bold, fontSize = fontSize.sp)
     }
 }
