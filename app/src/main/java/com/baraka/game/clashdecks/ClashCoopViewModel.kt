@@ -48,27 +48,36 @@ class ClashCoopViewModel(application: Application) : AndroidViewModel(applicatio
 
     private var session: ClashCoopSession? = null
     private var role: CoopRole = CoopRole.HOST
+    private var localName: String = ""
     private var screenBeforeOverlay: ClashScreen = ClashScreen.DUEL
     private var pollJob: Job? = null
 
     val isHost: Boolean get() = role == CoopRole.HOST
     val partnerConnected: Boolean get() = session?.connected ?: false
 
+    fun playerName(): String = settingsRepository.playerName()
+
+    fun setPlayerName(name: String) {
+        settingsRepository.setPlayerName(name)
+    }
+
     fun setSoundEnabled(enabled: Boolean) {
         settingsRepository.setSoundEnabled(enabled)
         _ui.update { it.copy(soundEnabled = enabled) }
     }
 
-    /** Starts carrying a just-connected [link] as [role]. The host deals immediately; the guest waits for the first sync. */
-    fun begin(link: ClashCoopLink, role: CoopRole) {
+    /** Starts carrying a just-connected [link] as [role], introducing us as [localName] (blank falls back to "You"/"Opponent"). The host deals immediately; the guest waits for the first sync. */
+    fun begin(link: ClashCoopLink, role: CoopRole, localName: String) {
         this.role = role
-        val newSession = ClashCoopSession(link, role)
+        this.localName = localName
+        val newSession = ClashCoopSession(link, role, localName)
         session = newSession
         when (role) {
             CoopRole.HOST -> {
                 newSession.onRemotePlayCard = { cardId -> hostApplyRemoteCard(cardId) }
                 newSession.onRemoteEndTurn = { hostApplyRemoteEndTurn() }
                 newSession.onRematchRequested = { hostStartDuel() }
+                newSession.onPartnerHello = { partnerName -> hostRenamePartner(partnerName) }
                 hostStartDuel()
             }
             CoopRole.GUEST -> {
@@ -128,8 +137,16 @@ class ClashCoopViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun hostStartDuel() {
-        val state = DuelEngine.startDuel(rng, playerName = "Player 1", cpuName = "Player 2")
+        val state = DuelEngine.startDuel(rng, playerName = localName.ifBlank { "You" }, cpuName = "Opponent")
         applyHostState(state, forceDuelScreen = true)
+    }
+
+    /** The guest's Hello told us their chosen name — rename them in the live duel (if one's running) and let the guest know via the next broadcast. */
+    private fun hostRenamePartner(partnerName: String) {
+        val resolved = partnerName.ifBlank { "Opponent" }
+        val duel = _ui.value.duel ?: return
+        if (duel.cpu.name == resolved) return
+        applyHostState(duel.copy(cpu = duel.cpu.copy(name = resolved)))
     }
 
     private fun hostApplyRemoteCard(cardId: String) {

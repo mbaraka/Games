@@ -13,9 +13,17 @@ class ClashDecksSettingsRepository private constructor(
         preferences.edit().putBoolean(KEY_SOUND_ENABLED, enabled).apply()
     }
 
+    /** What a two-phone co-op partner sees you as (DuelEngine.startDuel's playerName). Empty until the player picks one. */
+    fun playerName(): String = preferences.getString(KEY_PLAYER_NAME, null).orEmpty()
+
+    fun setPlayerName(name: String) {
+        preferences.edit().putString(KEY_PLAYER_NAME, name).apply()
+    }
+
     companion object {
         private const val PREF_FILE = "clash_decks_settings"
         private const val KEY_SOUND_ENABLED = "sound_enabled"
+        private const val KEY_PLAYER_NAME = "player_name"
 
         @Volatile
         private var instance: ClashDecksSettingsRepository? = null

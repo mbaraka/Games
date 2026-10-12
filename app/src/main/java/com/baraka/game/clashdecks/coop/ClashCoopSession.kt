@@ -10,17 +10,19 @@ import com.baraka.game.coop.CoopSide as CoopRole
  * [onRemotePlayCard]/[onRemoteEndTurn] fire on the host when the guest acts,
  * [onStateReceived] fires on the guest for every host update.
  */
-class ClashCoopSession(private val link: ClashCoopLink, val role: CoopRole) {
+class ClashCoopSession(private val link: ClashCoopLink, val role: CoopRole, localName: String) {
 
     var onStateReceived: ((DuelState) -> Unit)? = null
     var onRemotePlayCard: ((String) -> Unit)? = null
     var onRemoteEndTurn: (() -> Unit)? = null
     var onRematchRequested: (() -> Unit)? = null
+    /** Fired once the partner's [ClashCoopMsg.Hello] arrives with their chosen name (blank if they never set one). */
+    var onPartnerHello: ((String) -> Unit)? = null
 
     val connected: Boolean get() = link.connected
 
     init {
-        link.send(ClashCoopMsg.Hello(CLASH_COOP_PROTOCOL))
+        link.send(ClashCoopMsg.Hello(CLASH_COOP_PROTOCOL, localName))
     }
 
     /** Call regularly (e.g. every ~100ms) from the owning ViewModel's scope. */
@@ -47,7 +49,7 @@ class ClashCoopSession(private val link: ClashCoopLink, val role: CoopRole) {
 
     private fun handle(message: ClashCoopMsg) {
         when (message) {
-            is ClashCoopMsg.Hello -> {}
+            is ClashCoopMsg.Hello -> onPartnerHello?.invoke(message.name)
             is ClashCoopMsg.DuelSync -> onStateReceived?.invoke(message.state)
             is ClashCoopMsg.PlayCard -> onRemotePlayCard?.invoke(message.cardId)
             ClashCoopMsg.EndTurn -> onRemoteEndTurn?.invoke()

@@ -17,6 +17,7 @@ import com.baraka.game.clashdecks.coop.ClashCoopMsg
 import com.baraka.game.clashdecks.coop.SimulatedClashLink
 import com.baraka.game.coop.CoopLaunch
 import com.baraka.game.coop.CoopLobbyScreen
+import com.baraka.game.clashdecks.ui.ClashCoopNameEntryScreen
 import com.baraka.game.clashdecks.ui.ClashCoopScreen
 import com.baraka.game.clashdecks.ui.ClashDecksScreen
 import com.baraka.game.ui.theme.GameTheme
@@ -38,9 +39,10 @@ class ClashDecksActivity : ComponentActivity() {
 }
 
 /**
- * Three mutually-exclusive screens live here: the normal (single-player) flow, the Bluetooth
- * lobby, and an active two-phone duel. [coopLaunch] is the only piece of local navigation
- * state — everything about the duel itself still lives in whichever ViewModel is driving it.
+ * Four mutually-exclusive screens live here: the normal (single-player) flow, the co-op name
+ * entry step, the Bluetooth lobby, and an active two-phone duel. [coopLaunch]/[coopName] are
+ * the only local navigation state — everything about the duel itself still lives in whichever
+ * ViewModel is driving it.
  */
 @Composable
 private fun ClashDecksRoot(
@@ -48,16 +50,18 @@ private fun ClashDecksRoot(
     coopViewModel: ClashCoopViewModel,
     onBack: () -> Unit
 ) {
+    var showNameEntry by remember { mutableStateOf(false) }
     var showCoopLobby by remember { mutableStateOf(false) }
     var coopLaunch by remember { mutableStateOf<CoopLaunch<ClashCoopMsg>?>(null) }
+    var coopName by remember { mutableStateOf("") }
 
     val launch = coopLaunch
     if (launch != null) {
-        LaunchedEffect(launch) { coopViewModel.begin(launch.link, launch.side) }
+        LaunchedEffect(launch) { coopViewModel.begin(launch.link, launch.side, coopName) }
         val coopModel by coopViewModel.ui.collectAsState()
         ClashCoopScreen(
             model = coopModel,
-            opponentLabel = if (coopViewModel.isHost) "Player 2" else "Player 1",
+            opponentLabel = coopModel.duel?.cpu?.name?.takeIf { it.isNotBlank() } ?: "Opponent",
             onPlayCard = coopViewModel::playCard,
             onEndTurn = coopViewModel::endTurn,
             onOpenCodex = coopViewModel::openCodex,
@@ -70,6 +74,20 @@ private fun ClashDecksRoot(
                 coopViewModel.disconnect()
                 coopLaunch = null
             }
+        )
+        return
+    }
+
+    if (showNameEntry) {
+        ClashCoopNameEntryScreen(
+            initialName = coopViewModel.playerName(),
+            onContinue = { name ->
+                coopName = name
+                coopViewModel.setPlayerName(name)
+                showNameEntry = false
+                showCoopLobby = true
+            },
+            onClose = { showNameEntry = false }
         )
         return
     }
@@ -105,6 +123,6 @@ private fun ClashDecksRoot(
         onSetSoundEnabled = viewModel::setSoundEnabled,
         onRematch = viewModel::rematch,
         onBackToMenu = viewModel::backToMenu,
-        onPlayVsFriend = { showCoopLobby = true }
+        onPlayVsFriend = { showNameEntry = true }
     )
 }

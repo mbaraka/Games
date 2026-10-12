@@ -14,11 +14,12 @@ import java.io.DataOutputStream
 import java.util.UUID
 import kotlin.random.Random
 
-const val CLASH_COOP_PROTOCOL = 1
+const val CLASH_COOP_PROTOCOL = 2 // bumped: Hello now also carries the sender's chosen name
 
 /** Everything two phones say to each other over a duel — small and infrequent (once per card play or turn), so a whole [DuelState] snapshot per sync is simplest and never a bandwidth concern. */
 sealed class ClashCoopMsg {
-    class Hello(val version: Int) : ClashCoopMsg()
+    /** [name] is blank if the sender hasn't set one — the receiver falls back to "Opponent". */
+    class Hello(val version: Int, val name: String) : ClashCoopMsg()
     /** Host → guest, after every rules change: the authoritative state to mirror and render. */
     class DuelSync(val state: DuelState) : ClashCoopMsg()
     /** Guest → host: "play this card of mine". */
@@ -30,7 +31,7 @@ sealed class ClashCoopMsg {
 
     fun write(o: DataOutputStream) {
         when (this) {
-            is Hello -> { o.writeByte(1); o.writeInt(version) }
+            is Hello -> { o.writeByte(1); o.writeInt(version); o.writeUTF(name) }
             is DuelSync -> { o.writeByte(2); ClashDuelCodec.write(o, state) }
             is PlayCard -> { o.writeByte(3); o.writeUTF(cardId) }
             EndTurn -> o.writeByte(4)
@@ -41,7 +42,7 @@ sealed class ClashCoopMsg {
 
     companion object {
         fun read(i: DataInputStream): ClashCoopMsg? = when (i.readUnsignedByte()) {
-            1 -> Hello(i.readInt())
+            1 -> Hello(i.readInt(), i.readUTF())
             2 -> DuelSync(ClashDuelCodec.read(i))
             3 -> PlayCard(i.readUTF())
             4 -> EndTurn
