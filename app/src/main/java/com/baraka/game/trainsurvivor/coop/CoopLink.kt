@@ -9,7 +9,7 @@ import java.io.DataOutputStream
 import java.util.UUID
 
 /** Bumped whenever messages are added, so two phones with different builds can warn each other instead of silently ignoring messages. */
-const val COOP_PROTOCOL = 2
+const val COOP_PROTOCOL = 3
 
 /** Everything two trains say to each other. Small, so a Bluetooth link carries it easily. */
 sealed class CoopMsg {
@@ -33,6 +33,12 @@ sealed class CoopMsg {
     /** The sender cleared the receiver's lock. */
     object HelpGiven : CoopMsg()
     object Tow : CoopMsg()
+    /** Shared world: the sender's train (see SaveCodec), swapped before a run. */
+    class SaveBlob(val data: ByteArray) : CoopMsg()
+    /** Shared world, host to guest: a snapshot of the whole world (see RigSync.kt). */
+    class Snap(val data: ByteArray) : CoopMsg()
+    /** Shared world, guest to host: a button press (see GuestAction). */
+    class Act(val code: Int, val arg: Int, val x: Float, val y: Float) : CoopMsg()
     /** The sender's train for the partner's second-track view: shape, paint, health percent per seat, guns that fired. */
     class Ghost(val shape: Int, val livery: Int, val hp: IntArray, val shotMask: Int) : CoopMsg()
     object RescueCall : CoopMsg()
@@ -59,6 +65,9 @@ sealed class CoopMsg {
             is HelpNeeded -> { o.writeByte(14); o.writeByte(kind) }
             HelpGiven -> o.writeByte(15)
             Tow -> o.writeByte(16)
+            is SaveBlob -> { o.writeByte(22); o.writeInt(data.size); o.write(data) }
+            is Snap -> { o.writeByte(23); o.writeInt(data.size); o.write(data) }
+            is Act -> { o.writeByte(24); o.writeByte(code); o.writeShort(arg); o.writeFloat(x); o.writeFloat(y) }
             is Ghost -> {
                 o.writeByte(19); o.writeByte(shape); o.writeByte(livery); o.writeByte(hp.size)
                 for (v in hp) o.writeByte(v)
@@ -70,6 +79,12 @@ sealed class CoopMsg {
     }
 
     companion object {
+        private fun readBlob(i: DataInputStream): ByteArray {
+            val n = i.readInt()
+            if (n !in 0..60000) throw java.io.IOException("bad blob")
+            return ByteArray(n).also { i.readFully(it) }
+        }
+
         fun read(i: DataInputStream): CoopMsg? = when (i.readUnsignedByte()) {
             1 -> Hello(i.readInt())
             2 -> State(i.readFloat(), i.readInt(), i.readUnsignedByte(), i.readInt(), i.readFloat(), i.readFloat())
@@ -87,6 +102,9 @@ sealed class CoopMsg {
             14 -> HelpNeeded(i.readUnsignedByte())
             15 -> HelpGiven
             16 -> Tow
+            22 -> SaveBlob(readBlob(i))
+            23 -> Snap(readBlob(i))
+            24 -> Act(i.readUnsignedByte(), i.readShort().toInt(), i.readFloat(), i.readFloat())
             19 -> {
                 val shape = i.readUnsignedByte(); val livery = i.readUnsignedByte(); val n = i.readUnsignedByte()
                 val hp = IntArray(n.coerceIn(0, 8)) { i.readUnsignedByte() }

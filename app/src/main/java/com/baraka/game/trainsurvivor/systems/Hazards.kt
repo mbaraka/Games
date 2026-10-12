@@ -3,6 +3,8 @@ package com.baraka.game.trainsurvivor.systems
 import com.baraka.game.trainsurvivor.data.TrainSoundCue
 import com.baraka.game.trainsurvivor.model.HazardKind
 import com.baraka.game.trainsurvivor.model.ZombieType
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -34,6 +36,12 @@ sealed class Hazard {
 
     /** Debug tools: make the next threat appear right away. */
     open fun trigger() {}
+
+    /** Shared worlds: what a partner's phone needs to DRAW this hazard (nothing, for hazards made of ordinary enemies). */
+    open fun writeState(out: DataOutputStream) {}
+
+    /** Reads what [writeState] wrote (on the partner's phone, where the hazard is only drawn). */
+    open fun readState(input: DataInputStream) {}
 }
 
 /** Creates hazards from route data. */
@@ -118,6 +126,20 @@ class MeteorShower : Hazard() {
         return false
     }
 
+    override fun writeState(out: DataOutputStream) {
+        out.writeByte(meteors.size)
+        for (m in meteors) { out.writeByte(m.slot); out.writeFloat(m.x); out.writeFloat(m.y); out.writeFloat(m.telegraph); out.writeBoolean(m.falling) }
+    }
+
+    override fun readState(input: DataInputStream) {
+        meteors.clear()
+        repeat(input.readUnsignedByte()) {
+            val m = Meteor(input.readUnsignedByte(), input.readFloat())
+            m.y = input.readFloat(); m.telegraph = input.readFloat(); m.falling = input.readBoolean()
+            meteors.add(m)
+        }
+    }
+
     override fun shootDown(g: TrainGame): Boolean {
         for (i in meteors.indices) {
             val m = meteors[i]
@@ -178,6 +200,20 @@ class LavaGeysers : Hazard() {
         }
     }
 
+    override fun writeState(out: DataOutputStream) {
+        out.writeByte(geysers.size)
+        for (gz in geysers) { out.writeFloat(gz.x); out.writeFloat(gz.telegraph); out.writeFloat(gz.erupt) }
+    }
+
+    override fun readState(input: DataInputStream) {
+        geysers.clear()
+        repeat(input.readUnsignedByte()) {
+            val gz = Geyser(input.readFloat())
+            gz.telegraph = input.readFloat(); gz.erupt = input.readFloat()
+            geysers.add(gz)
+        }
+    }
+
     private fun erupt(g: TrainGame, gz: Geyser) {
         gz.erupt = 0.6f
         g.explosion(gz.x, 560f, 40f)
@@ -185,7 +221,7 @@ class LavaGeysers : Hazard() {
         val damage = 160f + g.time * 1.5f
         for (k in g.zombies.indices) {
             val z = g.zombies[k]
-            if (!z.dead && !z.flying && z.jumpState == 0 && abs(z.x - gz.x) < 75f) g.damageZombie(z, damage)
+            if (!z.dead && z.lane == g.lane && !z.flying && z.jumpState == 0 && abs(z.x - gz.x) < 75f) g.damageZombie(z, damage)
         }
         if (gz.x > g.rearEnd - 40f && gz.x < g.frontEnd + 40f) g.hurtCar(g.slotAt(gz.x), 14f * g.danger.dmgMult)
     }
@@ -228,6 +264,16 @@ class HullBreaches : Hazard() {
         }
     }
 
+    override fun writeState(out: DataOutputStream) {
+        val b = breach
+        out.writeBoolean(b != null)
+        if (b != null) { out.writeByte(b.slot); out.writeFloat(b.timeLeft) }
+    }
+
+    override fun readState(input: DataInputStream) {
+        breach = if (input.readBoolean()) Breach(input.readUnsignedByte()).also { it.timeLeft = input.readFloat() } else null
+    }
+
     override fun onTap(g: TrainGame, lx: Float, ly: Float): Boolean {
         val b = breach ?: return false
         if (abs(lx - g.carCenterX(b.slot)) < 95f && ly > 350f && ly < 520f) {
@@ -256,14 +302,14 @@ class Tentacles : Hazard() {
         timer -= dt
         if (timer > 0f) return
         timer = (7f + g.rng.nextFloat() * 3f) / g.danger.spawnMult
-        if (g.zombies.size >= MAX_ZOMBIES) return
+        if (g.zombies.size >= g.zombieCap) return
         var count = 0
-        for (k in g.zombies.indices) if (!g.zombies[k].dead && g.zombies[k].type == ZombieType.TENTACLE) count++
+        for (k in g.zombies.indices) if (!g.zombies[k].dead && g.zombies[k].lane == g.lane && g.zombies[k].type == ZombieType.TENTACLE) count++
         if (count >= 2 + (if (g.slotCount > 3) 1 else 0)) return
         val slot = g.rng.nextInt(g.slotCount)
         for (k in g.zombies.indices) {
             val o = g.zombies[k]
-            if (!o.dead && o.type == ZombieType.TENTACLE && g.slotAt(o.x) == slot) return
+            if (!o.dead && o.lane == g.lane && o.type == ZombieType.TENTACLE && g.slotAt(o.x) == slot) return
         }
         g.addZombie(ZombieType.TENTACLE, g.carCenterX(slot) + (g.rng.nextFloat() - 0.5f) * 40f, 600f, 1)
     }
@@ -282,6 +328,14 @@ class OverpassDrops : Hazard() {
         timer = 0f
     }
 
+    override fun writeState(out: DataOutputStream) {
+        out.writeFloat(overpassTime)
+    }
+
+    override fun readState(input: DataInputStream) {
+        overpassTime = input.readFloat()
+    }
+
     override fun update(g: TrainGame, dt: Float) {
         overpassTime = max(0f, overpassTime - dt)
         if (retiring) return
@@ -290,7 +344,7 @@ class OverpassDrops : Hazard() {
         timer = 16f + g.rng.nextFloat() * 6f
         overpassTime = 2.8f
         repeat(2 + g.danger.ordinal / 2) {
-            if (g.zombies.size < MAX_ZOMBIES) {
+            if (g.zombies.size < g.zombieCap) {
                 val type = if (g.rng.nextFloat() < 0.3f) ZombieType.RIOT else ZombieType.WALKER
                 val z = g.addZombie(type, 0f, -40f, 1)
                 g.startDrop(z, g.rng.nextInt(g.slotCount))
@@ -334,6 +388,14 @@ class SolarFlares : Hazard() {
         }
     }
 
+    override fun writeState(out: DataOutputStream) {
+        out.writeFloat(warning); out.writeBoolean(shielded); out.writeFloat(flash)
+    }
+
+    override fun readState(input: DataInputStream) {
+        warning = input.readFloat(); shielded = input.readBoolean(); flash = input.readFloat()
+    }
+
     private fun strike(g: TrainGame) {
         flash = 0.5f
         g.shake = max(g.shake, 0.6f)
@@ -344,7 +406,7 @@ class SolarFlares : Hazard() {
         val burn = 60f + g.time * 0.8f
         for (k in g.zombies.indices) {
             val z = g.zombies[k]
-            if (!z.dead && z.flying && !z.isBoss && !z.type.fireImmune) g.damageZombie(z, burn)
+            if (!z.dead && z.lane == g.lane && z.flying && !z.isBoss && !z.type.fireImmune) g.damageZombie(z, burn)
         }
         shielded = false
     }

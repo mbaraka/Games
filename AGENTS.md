@@ -292,9 +292,16 @@ of that lane runs their AI; guns, Blast, flak and tesla reach both lanes (`laneD
 spikes stay in their own lane. Effects are tagged with a lane (`fxLane`) and drawn in that lane's frame. The renderer draws
 lane 1 `LANE_DY` above lane 0 on a viaduct (`drawTrainScene(..., ally = ...)`). `SharedRun.bridge` turns each train's
 `CoopSignal`s into direct calls on the other. Any map/route works in a shared world: nothing in the content knows about
-it. Practice mode drives the second train with a bot (`allyBrain`); the Bluetooth version (host streams a snapshot, guest
-renders and sends inputs) is the next stage. When adding engine code, remember a rig only owns its lane's zombies:
-filter loops with `z.lane == lane` and use `rigOf(z)` for the zombie's own train.
+it. **Over Bluetooth** (`coop/SharedNet.kt`, `systems/RigSync.kt`, `systems/FxLog.kt`): the host runs `SharedRun`; both phones swap saves first
+(`SharedHandshake`, `SaveCodec`); the host streams `CoopMsg.Snap` ~15x/s (world, both trains, every zombie, the log of effects
+since the last snapshot); the guest owns a `SharedMirror` (two trains that are never simulated, only overwritten and drawn by the
+same renderer, kept smooth by `visualTick`) and sends button presses as `CoopMsg.Act` (`GuestAction`): a guest's `TrainGame` has
+`remote` set, so every player action method forwards instead of acting. **To sync new game state**: write/read it in
+`writeRig`/`readRig` (or `writeWorld`/`readWorld`) in the same order; **a new effect**: record it with `fx.add` in `TrainGame` and
+replay it in `replayFx`; **a new hazard**: implement `Hazard.writeState/readState`; **a new player action**: add a `GuestAction`
+code, a `remote?.let` line at the top of the method and a case in `SharedHostSession.applyAction`. The run screen only talks to
+a `SharedDriver` (`PracticeDriver` bot, `HostDriver`, `GuestDriver`, `LoopbackDriver` = host and guest in one process, which
+tests the whole network path on one phone). Both players see the same scene: the host's train is the lower track.
 **Protocol versions**: bump `COOP_PROTOCOL` in `trainsurvivor/coop/CoopLink.kt` whenever a `CoopMsg` is added; phones that differ
 warn the player ("different version") instead of silently ignoring messages.
 Co-op-only paints unlock through `Livery.coopDistance` against `SaveData.coopBest`. The engine never touches the network:

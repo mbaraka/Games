@@ -73,7 +73,10 @@ fun <M> CoopLobbyScreen(
     onReady: (CoopLaunch<M>) -> Unit,
     onClose: () -> Unit,
     /** False hides pairing, hosting and joining (only practice is offered). */
-    networkEnabled: Boolean = true
+    networkEnabled: Boolean = true,
+    /** An optional second practice mode (label and what it starts). */
+    practiceLabel2: String? = null,
+    onPractice2: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val main = remember { Handler(Looper.getMainLooper()) }
@@ -246,6 +249,7 @@ fun <M> CoopLobbyScreen(
                 Text("Practice on one phone", color = TEXT, fontWeight = FontWeight.Bold)
                 Text(practiceNote, color = MUTED, fontSize = 11.sp)
                 LobbyButton("Practice with a simulated partner", GOOD, Color.Black) { onReady(CoopLaunch(simulate(), CoopSide.HOST)) }
+                if (practiceLabel2 != null && onPractice2 != null) LobbyButton(practiceLabel2, GOOD, Color.Black) { onPractice2() }
             }
     }
 }

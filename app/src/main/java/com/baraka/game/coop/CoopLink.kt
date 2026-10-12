@@ -49,6 +49,8 @@ interface CoopLink<M> {
     fun poll(): M?
     /** Called every frame (or every ~100 ms); lets a simulated partner act. */
     fun tick(dt: Float) {}
+    /** Messages queued to send but not yet written; a game that streams state skips a frame when this grows. */
+    val backlog: Int get() = 0
     fun close()
 }
 
@@ -76,6 +78,8 @@ abstract class SimulatedPartner<M> : CoopLink<M> {
 class BluetoothLink<M> internal constructor(private val socket: BluetoothSocket, private val spec: CoopSpec<M>) : CoopLink<M> {
     private val incoming = ConcurrentLinkedQueue<M>()
     private val writer = Executors.newSingleThreadExecutor()
+    private val pending = java.util.concurrent.atomic.AtomicInteger()
+    override val backlog: Int get() = pending.get()
     private val input = DataInputStream(socket.inputStream.buffered())
     private val output = DataOutputStream(socket.outputStream.buffered())
     @Volatile override var connected = true
@@ -103,6 +107,7 @@ class BluetoothLink<M> internal constructor(private val socket: BluetoothSocket,
         val buffer = ByteArrayOutputStream(64)
         spec.codec.write(msg, DataOutputStream(buffer))
         val bytes = buffer.toByteArray()
+        pending.incrementAndGet()
         writer.execute {
             try {
                 output.writeInt(bytes.size)
@@ -110,6 +115,8 @@ class BluetoothLink<M> internal constructor(private val socket: BluetoothSocket,
                 output.flush()
             } catch (_: Exception) {
                 connected = false
+            } finally {
+                pending.decrementAndGet()
             }
         }
     }

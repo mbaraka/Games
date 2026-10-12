@@ -83,6 +83,11 @@ class Zombie(val type: ZombieType, var x: Float, var y: Float, val side: Int, va
     var vy = 0f
     var landY = 0f
     var roofSlot = 0
+    /** Shared worlds: the id the partner's mirror knows this zombie by, and where the mirror is easing it to. */
+    var netId = 0
+    var netX = 0f
+    var netY = 0f
+    var netStamp = 0
 }
 
 /** One member of the visible repair crew walking the train's running board. */
@@ -175,6 +180,11 @@ class TrainGame(
     var onSound: ((TrainSoundCue) -> Unit)? = null
     var worldW = 1280f
 
+    /** Effects recorded for a partner's phone while a shared world is streamed (see FxLog). */
+    val fx: FxLog = lead?.fx ?: FxLog()
+    /** Set on a guest's mirror train: its buttons ask the host to act instead of acting here. */
+    var remote: RemoteControl? = null
+
     // ---- shared world: two trains in one simulation (see SharedRun)
     /** 0 for a normal train and the lead train of a shared world; 1 for the second train. */
     val lane: Int = if (lead == null) 0 else 1
@@ -183,8 +193,8 @@ class TrainGame(
     /** The other train of a shared world, whichever this is. */
     val buddy: TrainGame? get() = lead ?: ally
     /** Which lane effects created right now belong to (kills in the other lane draw their effects there). */
-    private var fxLane = lane
-    private val zombieCap get() = if (lead != null || ally != null) MAX_ZOMBIES * 2 else MAX_ZOMBIES
+    internal var fxLane = lane
+    internal val zombieCap get() = if (lead != null || ally != null) MAX_ZOMBIES * 2 else MAX_ZOMBIES
 
     // ---- options / debug switches ----
     var damageNumbers = true
@@ -223,7 +233,7 @@ class TrainGame(
     val towLevel = save.level(TrainUpgrade.TOW)
     /** Seconds each of this train's passengers is still away on the partner's train (0 = at home). */
     val seatAwayTime = FloatArray(slotCount)
-    private var loanSeat = -1
+    internal var loanSeat = -1
     var outgoingLoanCooldown = 0f
     /** The partner's passenger riding this train: seconds left, and which survivor it is. */
     var guestTime = 0f
@@ -320,10 +330,10 @@ class TrainGame(
     var crate: Crate? = null
     var hordeWarning = 0f
     var hordeTime = 0f
-    private var hordeSide = 1
+    internal var hordeSide = 1
     private var nextHordeAt = 55f
     private var nextCrateAt = 32f
-    private var buffTime = 0f
+    internal var buffTime = 0f
     val buffActive get() = buffTime > 0f
 
     // ---- routes ----
@@ -354,8 +364,8 @@ class TrainGame(
 
     private var spawnAccumulator = 0f
     private var smokeAccumulator = 0f
-    private var nextBossAt = 75f
-    private var bossNumber = 0
+    internal var nextBossAt = 75f
+    internal var bossNumber = 0
     private var hitSoundGap = 0f
     private val sideBuffer = ArrayList<Zombie>(40)
     private val scratch = ArrayList<Zombie>(16)
@@ -461,7 +471,7 @@ class TrainGame(
     }
 
     /** The second train of a shared world follows the lead's clock, scenery, route, crate and horde. */
-    private fun syncWorld(w: TrainGame) {
+    internal fun syncWorld(w: TrainGame) {
         time = w.time
         scroll = w.scroll
         worldW = w.worldW
@@ -480,6 +490,14 @@ class TrainGame(
         hordeSide = w.hordeSide
         damageNumbers = w.damageNumbers
         shakeEnabled = w.shakeEnabled
+    }
+
+    private var netCounter = 0
+
+    /** The next zombie id for the shared-world snapshot (one counter per world, kept by the lead). */
+    internal fun nextNetId(): Int {
+        val w = lead ?: this
+        return ++w.netCounter
     }
 
     /** Pairs this train with [other] as the two trains of one shared world (this one leads). */
@@ -526,6 +544,7 @@ class TrainGame(
 
     /** Sends the passenger in [seat] across to the partner's train for [loanDuration] seconds. */
     fun sendPassenger(seat: Int): Boolean {
+        remote?.let { if (canSendPassenger(seat)) { it.act(GuestAction.SEND_PASSENGER, seat); return true }; return false }
         if (!canSendPassenger(seat)) return false
         seatAwayTime[seat] = loanDuration
         loanSeat = seat
@@ -591,6 +610,7 @@ class TrainGame(
 
     /** Clears the partner's lock (the button on the co-op bar). */
     fun helpPartner() {
+        remote?.let { if (partnerHelp != null) { it.act(GuestAction.HELP_PARTNER); partnerHelp = null }; return }
         if (partnerHelp == null) return
         partnerHelp = null
         onCoop?.invoke(CoopSignal.HelpGiven)
@@ -634,6 +654,7 @@ class TrainGame(
     val towReady get() = partnerPresent && towLevel > 0 && !over && towCooldown <= 0f
 
     fun sendTow(): Boolean {
+        remote?.let { if (towReady) { it.act(GuestAction.SEND_TOW); return true }; return false }
         if (!towReady) return false
         towCooldown = towCooldownMax
         floatText(trainLeft + trainLength / 2f, 340f, "Tow sent", 1.2f, 0xFF66FF8A.toInt(), 18f)
@@ -660,7 +681,7 @@ class TrainGame(
     // ---- co-op: rescue events. A survivor is stranded on this track; only a lent passenger can fetch them.
     var rescueTime = 0f
     var rescues = 0
-    private var rescueProgress = 0f
+    internal var rescueProgress = 0f
     private var rescueTimer = 70f
     var partnerRescueTime = 0f
     /** 0..1 progress of the rescue in progress, for the beacon ring. */
@@ -733,6 +754,7 @@ class TrainGame(
 
     /** Gives a quarter of this run's coins to the partner (so a faster train can carry a slower one). */
     fun sendCoins(): Boolean {
+        remote?.let { if (coinGiftReady) { it.act(GuestAction.GIVE_COINS); return true }; return false }
         if (!coinGiftReady) return false
         val amount = coinGiftAmount
         runCoins -= amount
@@ -755,6 +777,7 @@ class TrainGame(
 
     /** Sends a repair to the partner's train: a fraction of its health, growing with the Gangway level. */
     fun sendRepair(): Boolean {
+        remote?.let { if (repairSendReady) { it.act(GuestAction.SEND_REPAIR); return true }; return false }
         if (!repairSendReady) return false
         repairSendCooldown = repairSendCooldownMax
         floatText(trainLeft + trainLength / 2f, 340f, "Repair sent", 1.2f, 0xFF66FF8A.toInt(), 18f)
@@ -790,6 +813,7 @@ class TrainGame(
     // ---------------------------------------------------------------- active abilities
 
     fun useDynamite() {
+        remote?.let { if (dynamiteReady && !over) it.act(GuestAction.BLAST); return }
         if (over || dynamiteCooldown > 0f) return
         dynamiteCooldown = dynamiteCooldownMax
         onCoop?.invoke(CoopSignal.Blast)
@@ -822,6 +846,7 @@ class TrainGame(
     }
 
     fun useOverdrive() {
+        remote?.let { if (overdriveReady && !over) it.act(GuestAction.BOOST); return }
         if (over || !overdriveReady) return
         overdriveTime = overdriveDuration
         overdriveCooldown = overdriveCooldownMax + overdriveDuration
@@ -830,6 +855,7 @@ class TrainGame(
     }
 
     fun useFieldRepair() {
+        remote?.let { if (fieldRepairReady && !over) it.act(GuestAction.FIELD_REPAIR); return }
         if (over || !fieldRepairReady) return
         fieldRepairCooldown = fieldRepairCooldownMax
         val fraction = 0.35f + 0.06f * fieldRepairLevel
@@ -852,7 +878,18 @@ class TrainGame(
 
     /** Screen tap in logical world coordinates: collects a supply crate if one was hit. */
     fun tapAt(lx: Float, ly: Float) {
+        remote?.let { it.act(GuestAction.TAP, 0, lx, ly); return }
         if (!over && tapHazard(lx, ly)) return
+        tapCrate(lx, ly)
+    }
+
+    /** A tap from the player of the second train, in the scene they see (their lane is drawn LANE_DY above the lead's). */
+    fun tapFromGuest(lx: Float, ly: Float) {
+        if (!over && tapHazard(lx, ly + LANE_DY)) return
+        tapCrate(lx, ly)
+    }
+
+    private fun tapCrate(lx: Float, ly: Float) {
         val world = lead ?: this
         val c = world.crate ?: return
         if (over || abs(lx - c.x) > 70f || abs(ly - c.y) > 80f) return
@@ -1008,6 +1045,7 @@ class TrainGame(
 
     /** Throws the switch: the chosen route's scenery sweeps in from the right and the gameplay modifiers apply once it reaches the train. */
     fun chooseRoute(choice: Biome) {
+        remote?.let { it.act(GuestAction.CHOOSE_ROUTE, choice.ordinal); return }
         val j = junction ?: return
         if (j.chosen != null || transitioning) return
         if (coopRole == CoopRole.GUEST && !applyingRemote) {
@@ -1063,7 +1101,7 @@ class TrainGame(
         }
     }
 
-    private var hordePending = false
+    internal var hordePending = false
 
     val hordeFromLeft get() = hordeSide < 0
 
@@ -1363,7 +1401,7 @@ class TrainGame(
         }
     }
 
-    private fun tapHazard(lx: Float, ly: Float): Boolean {
+    internal fun tapHazard(lx: Float, ly: Float): Boolean {
         for (i in hazards.indices) if (hazards[i].onTap(this, lx, ly)) return true
         return false
     }
@@ -1515,6 +1553,7 @@ class TrainGame(
         runCoins += coins
         if (texts.size < MAX_TEXTS) addText(FloatingText(z.x, z.y - 60f * z.type.size, "+$coins", 1.0f, 0xFFFFD54F.toInt(), 22f))
         greenBurst(z.x, z.y - 24f * z.type.size, if (z.isBoss) 60 else 12)
+        if (fx.recording) fx.add(FxLog.COINS, fxLane, z.x, z.y - 30f, count0 = if (z.isBoss) 18 else min(4, 1 + coins / 3))
         repeat(if (z.isBoss) 18 else min(4, 1 + coins / 3)) {
             addParticle(Particle(z.x, z.y - 30f, (rng.nextFloat() - 0.5f) * 160f, -150f - rng.nextFloat() * 120f, 0.9f, 0.9f, 5f, 0xFFFFC107.toInt(), ParticleKind.COIN))
         }
@@ -1561,7 +1600,7 @@ class TrainGame(
         if (boss?.dead == true) boss = null
     }
 
-    private fun rebuildDrawOrder() {
+    internal fun rebuildDrawOrder() {
         drawOrder.clear()
         drawOrder.addAll(zombies)
         for (i in 1 until drawOrder.size) {
@@ -1774,6 +1813,7 @@ class TrainGame(
 
     /** Tap-to-cycle used by the in-run switcher: AUTO, then each owned weapon, then AUTO again. */
     fun cycleWeapon(slot: Int) {
+        remote?.let { if (!over) it.act(GuestAction.CYCLE_WEAPON, slot); return }
         if (over || slot !in gunners.indices) return
         val g = gunners[slot]
         val owned = crew[slot].ownedWeapons
@@ -2040,7 +2080,7 @@ class TrainGame(
 
     // ---------------------------------------------------------------- repair crew
 
-    private fun updateRepairers(dt: Float) {
+    internal fun updateRepairers(dt: Float) {
         if (repairers.isEmpty()) return
         var healing = hp < maxHp - 0.5f
         for (i in 1 until slotCount) if (carHp[i] > 0.01f && carHp[i] < carMaxHp[i] - 0.5f) healing = true
@@ -2106,14 +2146,14 @@ class TrainGame(
         }
     }
 
-    private fun emitSmoke(dt: Float) {
+    internal fun emitSmoke(dt: Float) {
         smokeAccumulator += dt
         if (smokeAccumulator < 0.1f) return
         smokeAccumulator = 0f
         addParticle(Particle(locoLeft + shape.stackX, shape.locoRoofY - 8f, -50f - rng.nextFloat() * 20f, -45f, 1.8f, 1.8f, 9f, (if (biome == Biome.MOON || biome == Biome.ORBITAL) 0xFF80D8FF else 0xFFB0B0B0).toInt(), ParticleKind.SMOKE))
     }
 
-    private fun updateEffects(dt: Float) {
+    internal fun updateEffects(dt: Float) {
         var i = 0
         while (i < particles.size) {
             val p = particles[i]
@@ -2153,22 +2193,25 @@ class TrainGame(
         }
     }
 
-    private fun addParticle(p: Particle) {
+    internal fun addParticle(p: Particle) {
         p.lane = fxLane
         if (particles.size < MAX_PARTICLES) particles.add(p)
     }
 
-    private fun addTracer(t: Tracer) {
+    internal fun addTracer(t: Tracer) {
         t.lane = fxLane
         tracers.add(t)
+        if (fx.recording) fx.add(FxLog.TRACER, fxLane, t.x1, t.y1, t.x2, t.y2, t.width, t.color, (t.life * 100f).toInt() * 2 + (if (t.jagged) 1 else 0))
     }
 
-    private fun addText(t: FloatingText) {
+    internal fun addText(t: FloatingText) {
         t.lane = fxLane
         texts.add(t)
+        if (fx.recording) fx.add(FxLog.TEXT, fxLane, t.x, t.y, t.life, 0f, t.size, t.color, 0, t.text)
     }
 
-    private fun confetti(x: Float, y: Float, count: Int) {
+    internal fun confetti(x: Float, y: Float, count: Int) {
+        if (fx.recording) fx.add(FxLog.CONFETTI, fxLane, x, y, count0 = count)
         val colors = intArrayOf(0xFFFF4081.toInt(), 0xFFFFEB3B.toInt(), 0xFF40C4FF.toInt(), 0xFF69F0AE.toInt(), 0xFFFF9100.toInt())
         repeat(count) {
             val a = rng.nextFloat() * 2f * PI.toFloat()
@@ -2178,13 +2221,15 @@ class TrainGame(
     }
 
     internal fun spark(x: Float, y: Float) {
+        if (fx.recording) fx.add(FxLog.SPARK, fxLane, x, y)
         repeat(2) {
             val a = rng.nextFloat() * 2f * PI.toFloat()
             addParticle(Particle(x, y, cos(a) * 120f, sin(a) * 120f, 0.18f, 0.18f, 2.5f, 0xFFFFE082.toInt(), ParticleKind.SPARK))
         }
     }
 
-    private fun greenBurst(x: Float, y: Float, count: Int) {
+    internal fun greenBurst(x: Float, y: Float, count: Int) {
+        if (fx.recording) fx.add(FxLog.GREEN_BURST, fxLane, x, y, count0 = count)
         repeat(count) {
             val a = rng.nextFloat() * 2f * PI.toFloat()
             val s = 60f + rng.nextFloat() * 180f
@@ -2194,6 +2239,7 @@ class TrainGame(
     }
 
     internal fun explosion(x: Float, y: Float, radius: Float) {
+        if (fx.recording) fx.add(FxLog.EXPLOSION, fxLane, x, y, width = radius)
         addParticle(Particle(x, y, 0f, 0f, 0.35f, 0.35f, radius, 0xFFFF8F00.toInt(), ParticleKind.FIRE))
         repeat(7) {
             val a = rng.nextFloat() * 2f * PI.toFloat()
@@ -2204,6 +2250,7 @@ class TrainGame(
     }
 
     internal fun sound(cue: TrainSoundCue) {
+        if (fx.recording) fx.add(FxLog.SOUND, fxLane, 0f, 0f, count0 = cue.ordinal)
         onSound?.invoke(cue)
     }
 

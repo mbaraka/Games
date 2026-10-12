@@ -121,7 +121,7 @@ private inline fun DrawScope.forRegions(g: TrainGame, block: DrawScope.(Biome) -
  * the world is scaled so [TrainGame.worldW] logical units span the canvas width.
  * In a shared world [ally] is the second train: its lane is drawn [LANE_DY] above [g]'s.
  */
-fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boolean = true, ally: TrainGame? = null) {
+fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boolean = true, ally: TrainGame? = null, hud: TrainGame = g) {
     val s = size.width / g.worldW
     val sunHeight = sin(2f * PI.toFloat() * g.dayCycle)
     val light = smooth((sunHeight + 0.25f) / 0.6f)
@@ -169,11 +169,12 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
         drawParticles(g, glow = true, laneFilter = frontLane)
         drawLaneTexts(g, frontLane)
     }
-    if (showHud) drawHud(g)
+    if (showHud) drawHud(hud)
 }
 
 /** Everything that lives in one lane: rails, train, its zombies, shells, hazards and effects. [laneFilter] is -1 when there is only one lane. */
 private fun DrawScope.drawLaneBody(rig: TrainGame, light: Float, laneFilter: Int, front: Boolean) {
+    palette = rig.livery // each train wears its own paint
     drawRails(rig)
     drawTrain(rig, light)
     val order = rig.drawOrder

@@ -50,9 +50,11 @@ class SharedRun(val lead: TrainGame, val ally: TrainGame) {
 
     /** True while the second train is played by the practice bot. */
     var allyBrain = true
+    /** The player of the second train left (their phone disconnected); a bot has taken over. */
+    var partnerLost = false
 
     private fun refreshPartner() {
-        partner.connected = true
+        partner.connected = !partnerLost
         partner.silence = 0f
         partner.down = ally.over
         partner.hpFrac = (ally.hp / ally.maxHp).coerceIn(0f, 1f)
@@ -105,6 +107,13 @@ class SharedRun(val lead: TrainGame, val ally: TrainGame) {
     }
 
     companion object {
+        /** A shared run for two phones: the host's train leads and the guest's train is the second one. */
+        fun network(hostSave: SaveData, guestSave: SaveData): SharedRun {
+            val lead = TrainGame(hostSave)
+            val ally = TrainGame(guestSave, lead = lead)
+            return SharedRun(lead, ally)
+        }
+
         /** A shared run for practice: the second train is a copy of the player's own, played by the bot. */
         fun practice(save: SaveData): SharedRun {
             val lead = TrainGame(save)

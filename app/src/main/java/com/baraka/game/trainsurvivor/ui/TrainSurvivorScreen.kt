@@ -69,6 +69,11 @@ import com.baraka.game.coop.CoopLobbyScreen
 import com.baraka.game.coop.CoopSide
 import com.baraka.game.trainsurvivor.coop.CoopMsg
 import com.baraka.game.trainsurvivor.coop.CoopSession
+import com.baraka.game.trainsurvivor.coop.GuestDriver
+import com.baraka.game.trainsurvivor.coop.HostDriver
+import com.baraka.game.trainsurvivor.coop.LoopbackDriver
+import com.baraka.game.trainsurvivor.coop.PracticeDriver
+import com.baraka.game.trainsurvivor.coop.SharedDriver
 import com.baraka.game.trainsurvivor.coop.SharedRun
 import com.baraka.game.trainsurvivor.coop.SimulatedLink
 import com.baraka.game.trainsurvivor.coop.TRAIN_COOP
@@ -117,7 +122,8 @@ fun TrainSurvivorScreen() {
     var lobby by remember { mutableStateOf(false) }
     var coopMenu by remember { mutableStateOf(false) }
     var sharedLobby by remember { mutableStateOf(false) }
-    var sharedPractice by remember { mutableStateOf(false) }
+    var sharedStart by remember { mutableStateOf<(() -> SharedDriver)?>(null) }
+    var handshake by remember { mutableStateOf<CoopLaunch<CoopMsg>?>(null) }
     var coop by remember { mutableStateOf<CoopLaunch<CoopMsg>?>(null) }
 
     val audio = remember { TrainAudio() }
@@ -162,16 +168,50 @@ fun TrainSurvivorScreen() {
             onShared = { coopMenu = false; sharedLobby = true },
             onClose = { coopMenu = false }
         )
+    } else if (handshake != null && !inRun) {
+        val launch = handshake!!
+        val mine = remember { repository.load() }
+        SharedHandshakeScreen(
+            link = launch.link,
+            mySave = mine,
+            onReady = { theirs ->
+                val hostSave = if (launch.side == CoopSide.HOST) mine else theirs
+                val guestSave = if (launch.side == CoopSide.HOST) theirs else mine
+                sharedStart = {
+                    if (launch.side == CoopSide.HOST) HostDriver(SharedRun.network(hostSave, guestSave), launch.link)
+                    else GuestDriver(launch.link, hostSave, guestSave)
+                }
+                handshake = null
+                coop = null
+                inRun = true
+            },
+            onFail = { handshake = null; sharedLobby = true }
+        )
     } else if (sharedLobby && !inRun) {
         CoopLobbyScreen(
             spec = TRAIN_COOP,
             heading = "SHARED WORLD",
             intro = "Both trains fight in ONE world: double the zombies, every gun reaches both tracks, and you can help each other directly. " +
                 "Your train is on the lower track; your partner's is the upper one.",
-            practiceNote = "Practice with a partner bot on your own phone. The Bluetooth version of shared worlds is coming next.",
+            practiceNote = "Practice with a partner bot on your own phone. Hosting or joining over Bluetooth needs both phones to pick SHARED WORLD.",
             simulate = { SimulatedLink() },
-            networkEnabled = false,
-            onReady = { sharedLobby = false; sharedPractice = true; coop = null; inRun = true },
+            practiceLabel2 = "Practice through the network path (you play the guest)",
+            onPractice2 = {
+                sharedLobby = false
+                sharedStart = { val live = repository.load(); LoopbackDriver(live, live) }
+                coop = null
+                inRun = true
+            },
+            onReady = { launch ->
+                sharedLobby = false
+                if (launch.link is SimulatedLink) {
+                    sharedStart = { PracticeDriver(SharedRun.practice(repository.load())) }
+                    coop = null
+                    inRun = true
+                } else {
+                    handshake = launch
+                }
+            },
             onClose = { sharedLobby = false }
         )
     } else if (lobby && !inRun) {
@@ -188,7 +228,7 @@ fun TrainSurvivorScreen() {
     } else if (inRun) {
         RunScreen(
             coop = coop,
-            sharedPractice = sharedPractice,
+            sharedStart = sharedStart,
             repository = repository,
             settings = settings,
             onSettingsChange = onSettingsChange,
@@ -196,7 +236,7 @@ fun TrainSurvivorScreen() {
             audio = audio,
             playCue = playCue,
             onSaved = { save = it },
-            onExit = { coop?.link?.close(); coop = null; sharedPractice = false; inRun = false }
+            onExit = { coop?.link?.close(); coop = null; sharedStart = null; inRun = false }
         )
     } else {
         GarageScreen(
@@ -209,7 +249,7 @@ fun TrainSurvivorScreen() {
                 repository.save(it)
                 playCue(TrainSoundCue.UPGRADE)
             },
-            onDepart = { coop = null; sharedPractice = false; inRun = true },
+            onDepart = { coop = null; sharedStart = null; inRun = true },
             onCoop = { coopMenu = true },
             debugSections = garageDebugSections(
                 save = save,
@@ -223,7 +263,7 @@ fun TrainSurvivorScreen() {
 @Composable
 private fun RunScreen(
     coop: CoopLaunch<CoopMsg>?,
-    sharedPractice: Boolean,
+    sharedStart: (() -> SharedDriver)?,
     repository: TrainSaveRepository,
     settings: GameSettings,
     onSettingsChange: (GameSettings) -> Unit,
@@ -242,12 +282,14 @@ private fun RunScreen(
     var timeScale by remember { mutableFloatStateOf(1f) }
     val tick = remember { mutableLongStateOf(0L) }
     val stats = remember { FrameStats() }
-    val sharedRun = remember(runId) { if (sharedPractice) SharedRun.practice(repository.load()) else null }
-    val game = remember(runId) { (sharedRun?.lead ?: TrainGame(repository.load())).also { it.onSound = playCue; it.godMode = godMode } }
-    sharedRun?.ally?.let { it.onSound = playCue; it.godMode = godMode }
-    val session = remember(game) { coop?.let { CoopSession(game, it.link, if (it.side == CoopSide.HOST) CoopRole.HOST else CoopRole.GUEST) } }
-    // Two trains keep running when this player pauses: the partner cannot be frozen.
-    val frozen = paused && session == null
+    val shared = remember(runId) { sharedStart?.invoke() }
+    val game = remember(runId) { (shared?.me ?: TrainGame(repository.load())).also { it.onSound = playCue; it.godMode = godMode } }
+    shared?.let { it.front.onSound = playCue; it.back.onSound = playCue; it.front.godMode = godMode; it.back.godMode = godMode }
+    val session = remember(game) { if (shared == null) coop?.let { CoopSession(game, it.link, if (it.side == CoopSide.HOST) CoopRole.HOST else CoopRole.GUEST) } else null }
+    // Over a link the partner cannot be frozen, so the menu leaves the game running; practice can pause.
+    val networked = shared is HostDriver || shared is GuestDriver || shared is LoopbackDriver
+    val frozen = paused && session == null && !networked
+    DisposableEffect(shared) { onDispose { shared?.close() } }
     var banked by remember(runId) { mutableStateOf(false) }
     val bestAtStart = remember(runId) { repository.load().bestDistance }
     // What this run has already written to disk, so every checkpoint only adds the difference:
@@ -267,7 +309,7 @@ private fun RunScreen(
             bossKills = current.bossKills + dBosses,
             flyerKills = current.flyerKills + dFlyers,
             routesTaken = current.routesTaken + dRoutes,
-            coopBest = if (session != null) max(current.coopBest, game.distanceMeters) else current.coopBest,
+            coopBest = if (session != null || shared != null) max(current.coopBest, game.distanceMeters) else current.coopBest,
             coopRescues = current.coopRescues + (game.rescues - written[5]),
             bestDistance = max(current.bestDistance, game.distanceMeters)
         )
@@ -345,9 +387,10 @@ private fun RunScreen(
                     stats.record(real * 1000f)
                     game.damageNumbers = currentSettings.damageNumbers
                     game.shakeEnabled = currentSettings.screenShake
+                    shared?.front?.let { it.damageNumbers = currentSettings.damageNumbers; it.shakeEnabled = currentSettings.screenShake }
                     val step = real.coerceAtMost(0.05f) * currentTimeScale
                     session?.update(step)
-                    if (sharedRun != null) sharedRun.update(step) else game.update(step)
+                    if (shared != null) shared.update(step) else game.update(step)
                 }
                 last = now
                 tick.longValue++
@@ -377,7 +420,10 @@ private fun RunScreen(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .onSizeChanged { game.worldW = 720f * it.width / it.height.coerceAtLeast(1) }
+                .onSizeChanged {
+                    val w = 720f * it.width / it.height.coerceAtLeast(1)
+                    if (shared != null) shared.setWorldWidth(w) else game.worldW = w
+                }
                 .pointerInput(game) {
                     detectTapGestures { offset ->
                         val scale = size.width / game.worldW
@@ -386,7 +432,7 @@ private fun RunScreen(
                 }
         ) {
             tick.longValue
-            drawTrainScene(game, ally = sharedRun?.ally)
+            if (shared != null) drawTrainScene(shared.front, ally = shared.back, hud = game) else drawTrainScene(game)
         }
 
         Box(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(12.dp)) {
@@ -407,7 +453,7 @@ private fun RunScreen(
                     AbilityButton(tick, "BLAST", Color(0xFFB71C1C), { game.dynamiteReady }, { 1f - game.dynamiteCooldown / game.dynamiteCooldownMax }, { game.dynamiteCooldown }) { game.useDynamite() }
                 }
                 JunctionPanel(game, tick, Modifier.align(Alignment.BottomCenter))
-                val partner = session?.partner ?: sharedRun?.partner
+                val partner = session?.partner ?: shared?.partner
                 if (partner != null) {
                     CoopPartnerStrip(partner, tick, Modifier.align(Alignment.TopStart))
                     CoopAlert(game, partner, tick, Modifier.align(Alignment.TopCenter))
@@ -424,7 +470,7 @@ private fun RunScreen(
 
         if (paused && !game.over && !showSettings) {
             Overlay {
-                Text(if (session != null) "MENU (the game keeps running)" else "PAUSED", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                Text(if (session != null || networked) "MENU (the game keeps running)" else "PAUSED", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
                 Button(onClick = { paused = false }) { Text("Resume") }
                 Button(
                     onClick = { showSettings = true },
@@ -441,7 +487,8 @@ private fun RunScreen(
         if (game.over && finished != null) {
             Overlay {
                 Text("TRAIN DESTROYED", color = Color(0xFFFF5252), fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                if (session != null) Text(if (session.partner.down) "Your partner's train was destroyed: the run ends for both of you." else "The run ends for both trains.", color = Color(0xFF80DEEA), fontSize = 13.sp)
+                val partnerState = session?.partner ?: shared?.partner
+                if (partnerState != null) Text(if (partnerState.down) "Your partner's train was destroyed: the run ends for both of you." else "The run ends for both trains.", color = Color(0xFF80DEEA), fontSize = 13.sp)
                 if (finished.isBest) Text("New best distance!", color = AMBER, fontWeight = FontWeight.Bold)
                 Text("${finished.distance} m   •   ${finished.kills} zombies   •   ${finished.bossKills} bosses", color = Color.White, fontSize = 15.sp)
                 Text("+${finished.coins} coins banked (${finished.killCoins} from kills)", color = AMBER, fontSize = 17.sp, fontWeight = FontWeight.Bold)
@@ -454,7 +501,7 @@ private fun RunScreen(
                         onClick = onExit,
                         colors = ButtonDefaults.buttonColors(containerColor = AMBER, contentColor = Color.Black)
                     ) { Text("Upgrade train", fontWeight = FontWeight.Bold) }
-                    if (session == null) Button(onClick = { runId++; result = null; paused = false }) { Text("Retry") }
+                    if (session == null && !networked) Button(onClick = { runId++; result = null; paused = false }) { Text("Retry") }
                 }
             }
         }

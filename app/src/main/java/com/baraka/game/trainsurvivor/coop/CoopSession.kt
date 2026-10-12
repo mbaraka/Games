@@ -141,6 +141,7 @@ class CoopSession(val game: TrainGame, val link: CoopLink<CoopMsg>, val role: Co
                 game.forceEnd() // two trains, one fate: the run ends for both
             }
             CoopMsg.Bye -> partner.connected = false
+            is CoopMsg.SaveBlob, is CoopMsg.Snap, is CoopMsg.Act -> {} // shared-world messages: not for a linked run
             is CoopMsg.Hello -> if (m.version != COOP_PROTOCOL) partner.versionMismatch = true
         }
     }
