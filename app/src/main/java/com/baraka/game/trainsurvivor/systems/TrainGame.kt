@@ -57,11 +57,6 @@ class Zombie(val type: ZombieType, var x: Float, var y: Float, val side: Int, va
     var targetX = x
     var cruiseY = y
     var retarget = 0f
-    /** Shared-world networking: an id the partner can name this zombie by, and (for mirrored ones) where it is heading. */
-    var netId = 0
-    var netStamp = 0
-    var netX = 0f
-    var netY = 0f
     /** Countdown to this boss's next special move. */
     var special = 4f
     /** Separate timers so a boss can lunge, shoot and use its special at the same time. */
@@ -443,7 +438,6 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         coinGiftCooldown = max(0f, coinGiftCooldown - dt)
         tickLocks(dt)
         ghost.update(dt)
-        if (sharedActive) shared.update(dt) else if (shared.mirrored.isNotEmpty()) shared.clear()
         towCooldown = max(0f, towCooldown - dt)
         tickRescue(dt)
         for (i in seatAwayTime.indices) {
@@ -659,12 +653,6 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
 
     /** The partner's train, as streamed to us (drawn on co-op routes). */
     val ghost = GhostTrain()
-    /** The partner's zombies on shared-world maps, and the hits we owe them. */
-    val shared = SharedWorld()
-    /** True on a shared-world map with a partner connected. */
-    val sharedActive get() = biome.sharedWorld && partnerPresent
-    /** Where the partner's train sits in our view (its far track is a little right of centre). */
-    val farCenterX get() = worldW * 0.58f
     private var shotMask = 0
 
     /** Which seats fired since the session last asked; sent so the partner sees our guns flash. */
@@ -1550,20 +1538,8 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
                 if (d < best) { best = d; target = z }
             }
             if (target == null) {
-                // Nothing on our track: help the partner by shooting their zombies across the gap.
-                val ally = if (sharedActive) shared.nearest(gx, range * ASSIST_RANGE, weapon.groundOnly) else null
-                if (ally == null) {
-                    g.facing = 1
-                    g.aim += (-0.15f - g.aim) * min(1f, dt * 5f)
-                    continue
-                }
-                val adx = ally.x - gx
-                g.facing = if (adx >= 0f) 1 else -1
-                g.aim = atan2(allyTargetY(ally) - shoulderY(i), max(abs(adx), 20f))
-                if (g.cooldown <= 0f && !g.overheated[weapon.ordinal] && !jammed) {
-                    g.cooldown = weapon.interval
-                    fireAssist(i, ally)
-                }
+                g.facing = 1
+                g.aim += (-0.15f - g.aim) * min(1f, dt * 5f)
                 continue
             }
             val dx = target.x - gx
@@ -1577,60 +1553,6 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     }
 
     private fun targetY(z: Zombie) = z.y - z.type.aimHeight * z.type.size
-    private fun allyTargetY(z: Zombie) = z.y - z.type.aimHeight * z.type.size * FAR_SCALE
-
-    /** A shot at one of the partner's zombies: shows the tracer here and sends the damage to the phone that owns it. */
-    private fun fireAssist(slot: Int, target: Zombie) {
-        shotMask = shotMask or (1 shl slot)
-        val g = gunners[slot]
-        val weapon = g.weapon
-        val gx = gunX(slot)
-        val len = weaponLength(weapon)
-        val mx = gx + g.facing * cos(g.aim) * len
-        val my = shoulderY(slot) + sin(g.aim) * len
-        g.recoil = 1f
-        g.flash = 0.07f
-        if (weapon.heatPerShot > 0f) {
-            val h = g.heat[weapon.ordinal] + weapon.heatPerShot
-            g.heat[weapon.ordinal] = h
-            if (h >= 1f) g.overheated[weapon.ordinal] = true
-        }
-        tracers.add(Tracer(mx, my, target.x, allyTargetY(target), 0.07f, if (weapon == WeaponType.CANNON || weapon == WeaponType.ROCKET) 3.5f else 1.8f, 0xFF80DEEA.toInt()))
-        spark(mx, my)
-        sound(TrainSoundCue.PISTOL)
-        shared.hit(target, damageFor(slot, weapon) * ASSIST_DAMAGE)
-    }
-
-    /** The partner's guns hit these zombies of ours: apply the damage; a kill earns the partner half the coins. */
-    fun applyRemoteHits(ids: IntArray, damage: FloatArray) {
-        for (n in ids.indices) {
-            var z: Zombie? = null
-            for (k in zombies.indices) if (zombies[k].netId == ids[n]) { z = zombies[k]; break }
-            if (z == null || z.dead) continue
-            damageZombie(z, damage[n])
-            if (z.dead && z.type.coins >= 2) onCoop?.invoke(CoopSignal.CoinsSent(z.type.coins / 2))
-        }
-    }
-
-    /** Builds the snapshot of our zombies for the partner (positions relative to our train's centre). */
-    fun fillSnapshot(ids: IntArray, types: IntArray, xs: IntArray, ys: IntArray, hp: IntArray, flags: IntArray): Int {
-        val center = trainLeft + trainLength / 2f
-        var n = 0
-        for (k in zombies.indices) {
-            if (n >= ids.size) break
-            val z = zombies[k]
-            if (z.dead || abs(z.x - center) > 520f) continue
-            ids[n] = shared.idOf(z)
-            types[n] = z.type.ordinal
-            xs[n] = (z.x - center).toInt()
-            ys[n] = z.y.toInt()
-            hp[n] = (z.hp / z.maxHp * 100f).toInt().coerceIn(1, 100)
-            flags[n] = (if (z.attacking) 1 else 0) or (if (z.facing > 0) 2 else 0) or ((z.elite?.let { it.ordinal + 1 } ?: 0) shl 2)
-            n++
-        }
-        return n
-    }
-
     /** Damage left after the target's flat armor (never below a quarter of the hit). */
     private fun armored(damage: Float, z: Zombie): Float {
         val armor = z.type.armor + (if (z.elite != null && z.has(EliteTrait.ARMORED)) 8f else 0f)
