@@ -3,7 +3,10 @@ package com.baraka.game.coop
 import android.Manifest
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothAdapter
+import android.app.Activity
 import android.content.BroadcastReceiver
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -128,6 +131,14 @@ fun <M> CoopLobbyScreen(
     }
     DisposableEffect(Unit) { onDispose { CoopBluetooth.stopScan() } }
 
+    // The lobby is a list, so it reads best upright. Games that run in landscape get their orientation back on leaving.
+    DisposableEffect(Unit) {
+        val activity = generateSequence(context) { (it as? ContextWrapper)?.baseContext }.filterIsInstance<Activity>().firstOrNull()
+        val previous = activity?.requestedOrientation
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+        onDispose { if (previous != null) activity.requestedOrientation = previous }
+    }
+
     fun startScan() {
         devices = CoopBluetooth.pairedDevices()
         scanning = CoopBluetooth.startScan()
@@ -157,8 +168,8 @@ fun <M> CoopLobbyScreen(
         Text(intro, color = MUTED, fontSize = 12.sp)
         Text(status, color = AMBER, fontSize = 13.sp, fontWeight = FontWeight.Bold)
 
-        Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Column(modifier = Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Portrait lobby: the two steps on top, then a tall list of phones nearby, then practice.
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Column(modifier = Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Step 1 (hosting phone): make it visible", color = TEXT, fontWeight = FontWeight.Bold)
                 Text("The joining phone can only see this phone while it is visible, so press this on the host, then press Host below. You can also pair in the system Bluetooth settings.", color = MUTED, fontSize = 11.sp)
@@ -199,15 +210,10 @@ fun <M> CoopLobbyScreen(
                     }
                 }
             }
-            Column(modifier = Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Practice on one phone", color = TEXT, fontWeight = FontWeight.Bold)
-                Text(practiceNote, color = MUTED, fontSize = 11.sp)
-                LobbyButton("Practice with a simulated partner", GOOD, Color.Black) { onReady(CoopLaunch(simulate(), CoopSide.HOST)) }
-            }
         }
-        // Phones found nearby: one tall list down the right side, so it is easy to read in landscape.
+        // Phones found nearby: one tall vertical list that takes all the spare height.
         Column(
-            modifier = Modifier.weight(1f).fillMaxHeight().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
+            modifier = Modifier.weight(1f).fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text("Phones nearby", color = TEXT, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -233,7 +239,11 @@ fun <M> CoopLobbyScreen(
                 }
             }
         }
-        }
+        Column(modifier = Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Practice on one phone", color = TEXT, fontWeight = FontWeight.Bold)
+                Text(practiceNote, color = MUTED, fontSize = 11.sp)
+                LobbyButton("Practice with a simulated partner", GOOD, Color.Black) { onReady(CoopLaunch(simulate(), CoopSide.HOST)) }
+            }
     }
 }
 
