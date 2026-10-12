@@ -133,6 +133,20 @@ object CoopBluetooth {
         emptyList()
     }
 
+    /** Starts looking for nearby phones (results arrive as broadcasts). False if it could not start. */
+    @SuppressLint("MissingPermission")
+    fun startScan(): Boolean = try {
+        val adapter = BluetoothAdapter.getDefaultAdapter()
+        adapter != null && (adapter.isDiscovering || adapter.startDiscovery())
+    } catch (_: SecurityException) {
+        false
+    }
+
+    @SuppressLint("MissingPermission")
+    fun stopScan() {
+        try { BluetoothAdapter.getDefaultAdapter()?.cancelDiscovery() } catch (_: SecurityException) {}
+    }
+
     fun hasAdapter(): Boolean = BluetoothAdapter.getDefaultAdapter() != null
 
     fun isEnabled(): Boolean = BluetoothAdapter.getDefaultAdapter()?.isEnabled == true

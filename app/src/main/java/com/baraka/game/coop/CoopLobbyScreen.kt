@@ -3,7 +3,10 @@ package com.baraka.game.coop
 import android.Manifest
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothAdapter
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
@@ -71,11 +74,63 @@ fun <M> CoopLobbyScreen(
     var hosting by remember { mutableStateOf<BluetoothHost<M>?>(null) }
     var joining by remember { mutableStateOf(false) }
     var devices by remember { mutableStateOf<List<BluetoothDevice>>(emptyList()) }
+    var scanning by remember { mutableStateOf(false) }
+    var pairing by remember { mutableStateOf<BluetoothDevice?>(null) }
     var permitted by remember { mutableStateOf(hasBluetoothPermission(context)) }
 
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        permitted = ok
-        if (!ok) status = "Bluetooth permission is needed to connect to your partner."
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        permitted = hasBluetoothPermission(context)
+        if (!permitted) status = "Bluetooth permission is needed to find and connect to your partner."
+    }
+
+    fun connect(device: BluetoothDevice) {
+        val name = deviceName(device)
+        status = "Connecting to $name..."
+        CoopBluetooth.connectTo(spec, device) { link ->
+            main.post {
+                if (link != null) onReady(CoopLaunch(link, CoopSide.GUEST))
+                else status = "Could not connect. Is $name hosting (Host pressed, and visible)?"
+            }
+        }
+    }
+
+    // While joining: find nearby phones (even unpaired ones), and connect as soon as a pairing request is accepted.
+    DisposableEffect(scanning, pairing) {
+        if (!scanning && pairing == null) return@DisposableEffect onDispose {}
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, intent: Intent) {
+                val device = deviceExtra(intent)
+                when (intent.action) {
+                    BluetoothDevice.ACTION_FOUND -> if (device != null && devices.none { it.address == device.address }) devices = devices + device
+                    BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                        scanning = false
+                        if (pairing == null) status = if (devices.isEmpty()) "No phones found. On the host phone press Host and Make visible, then Scan again." else "Pick the phone that is hosting."
+                    }
+                    BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+                        val target = pairing
+                        if (device != null && target != null && device.address == target.address) {
+                            val state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)
+                            if (state == BluetoothDevice.BOND_BONDED) { pairing = null; connect(device) }
+                            else if (state == BluetoothDevice.BOND_NONE) { pairing = null; status = "Pairing was cancelled or failed. Tap the phone to try again." }
+                        }
+                    }
+                }
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(BluetoothDevice.ACTION_FOUND)
+            addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+            addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+        }
+        context.registerReceiver(receiver, filter)
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
+    }
+    DisposableEffect(Unit) { onDispose { CoopBluetooth.stopScan() } }
+
+    fun startScan() {
+        devices = CoopBluetooth.pairedDevices()
+        scanning = CoopBluetooth.startScan()
+        status = if (scanning) "Looking for nearby phones... (the host must press Host and Make visible)" else "Could not start scanning: showing paired phones only."
     }
     DisposableEffect(Unit) { onDispose { hosting?.cancel() } }
     BackHandler { hosting?.cancel(); onClose() }
@@ -83,7 +138,7 @@ fun <M> CoopLobbyScreen(
     fun needBluetooth(): Boolean {
         if (!CoopBluetooth.hasAdapter()) { status = "This phone has no Bluetooth."; return false }
         if (!permitted) {
-            if (Build.VERSION.SDK_INT >= 31) permissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+            permissionLauncher.launch(requiredPermissions())
             return false
         }
         if (!CoopBluetooth.isEnabled()) { status = "Turn Bluetooth on first."; return false }
@@ -103,7 +158,8 @@ fun <M> CoopLobbyScreen(
 
         Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Column(modifier = Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Step 1: pair (once)", color = TEXT, fontWeight = FontWeight.Bold)
+                Text("Step 1 (hosting phone): make it visible", color = TEXT, fontWeight = FontWeight.Bold)
+                Text("The joining phone can only see this phone while it is visible, so press this on the host, then press Host below. You can also pair in the system Bluetooth settings.", color = MUTED, fontSize = 11.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LobbyButton("Bluetooth settings", BUTTON, TEXT) { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }
                     LobbyButton("Make visible", BUTTON, TEXT) {
@@ -132,25 +188,26 @@ fun <M> CoopLobbyScreen(
                     } else {
                         LobbyButton("Stop waiting", BAD, Color.White) { hosting?.cancel(); hosting = null; status = "Hosting stopped." }
                     }
-                    LobbyButton("Join", AMBER, Color.Black) {
+                    LobbyButton(if (joining) "Scan again" else "Join", AMBER, Color.Black) {
                         if (needBluetooth()) {
                             hosting?.cancel(); hosting = null
-                            devices = CoopBluetooth.pairedDevices()
                             joining = true
-                            status = if (devices.isEmpty()) "No paired phones yet: pair in Bluetooth settings first." else "Pick the phone that is hosting."
+                            startScan()
                         }
                     }
                 }
                 if (joining) {
+                    if (scanning) Text("Scanning...", color = MUTED, fontSize = 11.sp)
                     for (device in devices) {
-                        val name = try { device.name ?: device.address } catch (_: SecurityException) { device.address }
-                        LobbyButton(name, BUTTON, TEXT, Modifier.fillMaxWidth()) {
-                            status = "Connecting to $name..."
-                            CoopBluetooth.connectTo(spec, device) { link ->
-                                main.post {
-                                    if (link != null) onReady(CoopLaunch(link, CoopSide.GUEST))
-                                    else status = "Could not connect. Is $name hosting?"
-                                }
+                        val paired = device.bondState == BluetoothDevice.BOND_BONDED
+                        LobbyButton(deviceName(device) + if (paired) "  (paired)" else "  (tap to pair)", BUTTON, TEXT, Modifier.fillMaxWidth()) {
+                            if (paired) connect(device)
+                            else {
+                                CoopBluetooth.stopScan()
+                                scanning = false
+                                pairing = device
+                                status = "Pairing with ${deviceName(device)}: accept the code on BOTH phones..."
+                                if (!device.createBond()) { pairing = null; status = "Could not start pairing. Pair in Bluetooth settings instead." }
                             }
                         }
                     }
@@ -165,8 +222,20 @@ fun <M> CoopLobbyScreen(
     }
 }
 
-private fun hasBluetoothPermission(context: android.content.Context): Boolean =
-    Build.VERSION.SDK_INT < 31 || context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+private fun requiredPermissions(): Array<String> =
+    if (Build.VERSION.SDK_INT >= 31) arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN)
+    else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION) // needed to scan on Android 11 and older
+
+private fun hasBluetoothPermission(context: Context): Boolean =
+    requiredPermissions().all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
+
+private fun deviceName(device: BluetoothDevice): String =
+    try { device.name ?: device.address } catch (_: SecurityException) { device.address }
+
+@Suppress("DEPRECATION")
+private fun deviceExtra(intent: Intent): BluetoothDevice? =
+    if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+    else intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
 
 @Composable
 private fun LobbyButton(label: String, container: Color, content: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
