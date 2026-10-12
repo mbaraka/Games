@@ -598,6 +598,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
 
     // ---- co-op: rescue events. A survivor is stranded on this track; only a lent passenger can fetch them.
     var rescueTime = 0f
+    var rescues = 0
     private var rescueProgress = 0f
     private var rescueTimer = 70f
     var partnerRescueTime = 0f
@@ -621,6 +622,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             if (rescueProgress >= 4f) {
                 val bonus = 200 + distanceMeters / 4
                 rescueTime = 0f
+                rescues++
                 runCoins += bonus
                 healFraction(0.25f)
                 floatText(trainLeft + trainLength / 2f, 330f, "RESCUED! +$bonus coins", 2f, 0xFFFFD54F.toInt(), 24f)

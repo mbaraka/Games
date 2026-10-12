@@ -280,8 +280,13 @@ The manifest already holds the Bluetooth permissions. Only the real Bluetooth li
 Train Survivor specifics: `systems/Coop.kt` (`CoopRole`, `CoopSignal`), `coop/CoopSession.kt`. Each phone simulates its own
 train with double spawns (`coopSpawnMult`); the host owns junctions and boss arrivals, boss damage is forwarded as a
 fraction of boss health, Blast also goes off on the partner's train, and the **Gangway** upgrade lends a passenger to the
-partner's guest seat and unlocks Send Repair. The engine never touches the network: add shared behaviour as a
-`CoopSignal` plus a `CoopMsg`, and handle it in `CoopSession`.
+partner's guest seat and unlocks Send Repair. Also in co-op: Give Coins, **Link Up** (damage) and **Emergency Tow**
+upgrades, combo shots when both trains hit the shared boss within 2 s, rescue events (a stranded survivor only a lent
+passenger can fetch), and **co-op-only content**: a `Biome` with `coopOnly = true` (Twin Bridge, Echo Mine) only appears
+at junctions while a partner is connected; `PartnerLock` hazards (`SIGNAL_JAM`, `GATE_LOCK`) can only be cleared by the
+partner; a `ZombieType` with `partnerOnly = true` takes 10% from your own guns and full damage from your partner's.
+Co-op-only paints unlock through `Livery.coopDistance` against `SaveData.coopBest`. The engine never touches the network:
+add shared behaviour as a `CoopSignal` plus a `CoopMsg`, and handle it in `CoopSession`.
 
 ### Data and saving
 

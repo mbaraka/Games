@@ -49,8 +49,20 @@ data class SaveData(
     val livery: Int = 0,
     val liveriesOwned: Int = 1,
     val shape: Int = 0,
-    val shapesOwned: Int = 1
+    val shapesOwned: Int = 1,
+    /** Furthest distance reached in a two-phone co-op run, and survivors rescued there. Unlocks co-op paints. */
+    val coopBest: Int = 0,
+    val coopRescues: Int = 0
 ) {
+    /** A title for how far the player's co-op runs have gone. */
+    val coopRank: String get() = when {
+        coopBest >= 6000 -> "Twin Legends"
+        coopBest >= 3000 -> "Rail Partners"
+        coopBest >= 1000 -> "Track Mates"
+        coopBest > 0 -> "Rookie Pair"
+        else -> "No co-op runs yet"
+    }
+
     fun level(upgrade: TrainUpgrade): Int = upgrades[upgrade] ?: 0
 
     fun dangerUnlocked(index: Int): Boolean =
@@ -150,7 +162,7 @@ object Shop {
 
     fun buyLivery(save: SaveData, index: Int): SaveData? {
         val livery = Livery.entries.getOrNull(index) ?: return null
-        if (save.ownsLivery(index) || save.coins < livery.cost) return null
+        if (save.ownsLivery(index) || save.coins < livery.cost || save.coopBest < livery.coopDistance) return null
         return save.copy(coins = save.coins - livery.cost, liveriesOwned = save.liveriesOwned or (1 shl index), livery = index)
     }
 

@@ -49,7 +49,9 @@ class TrainSaveRepository private constructor(private val prefs: SharedPreferenc
         livery = prefs.getInt("livery", 0),
         liveriesOwned = prefs.getInt("liveries_owned", 1) or 1,
         shape = prefs.getInt("shape", 0),
-        shapesOwned = prefs.getInt("shapes_owned", 1) or 1
+        shapesOwned = prefs.getInt("shapes_owned", 1) or 1,
+        coopBest = prefs.getInt("coop_best", 0),
+        coopRescues = prefs.getInt("coop_rescues", 0)
     )
 
     fun save(data: SaveData) {
@@ -80,6 +82,8 @@ class TrainSaveRepository private constructor(private val prefs: SharedPreferenc
             putInt("liveries_owned", data.liveriesOwned)
             putInt("shape", data.shape)
             putInt("shapes_owned", data.shapesOwned)
+            putInt("coop_best", data.coopBest)
+            putInt("coop_rescues", data.coopRescues)
         }.apply()
     }
 

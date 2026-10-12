@@ -46,7 +46,9 @@ enum class Livery(
     val repairMult: Float = 1f,
     val coinMult: Float = 1f,
     /** Multiplies ability cooldowns (Dynamite, Overdrive, Field Repair); below 1 is faster. */
-    val cooldownMult: Float = 1f
+    val cooldownMult: Float = 1f,
+    /** Co-op paints unlock by reaching this distance (m) in a two-phone co-op run; 0 = always for sale. */
+    val coopDistance: Int = 0
 ) {
     CLASSIC("Classic Red", 0, 0xFF9E2A24, 0xFFB8403A, 0xFF5E2A24, 0xFF3F1B17, 0xFFD1A63A, listOf(0xFF7A3E2B, 0xFF2F5D62, 0xFF5B4B8A, 0xFF4F6B3A, 0xFF8A5A2B), perk = "No bonus: the original paint"),
     MIDNIGHT("Midnight Express", 400, 0xFF263238, 0xFF37474F, 0xFF1C2328, 0xFF11161A, 0xFFB0BEC5, listOf(0xFF37474F, 0xFF2D3A41, 0xFF424F57, 0xFF263238, 0xFF33424B), perk = "+8% weapon damage", damageMult = 1.08f),
@@ -54,5 +56,7 @@ enum class Livery(
     FOREST("Forest Line", 900, 0xFF2E7D32, 0xFF43A047, 0xFF1B5E20, 0xFF124016, 0xFFD7B35A, listOf(0xFF33691E, 0xFF5D4037, 0xFF2E7D32, 0xFF795548, 0xFF558B2F), perk = "+50% Repair Crew healing", repairMult = 1.5f),
     NEON("Neon Runner", 2500, 0xFF1A1033, 0xFF2A1A55, 0xFF130B26, 0xFF0B0617, 0xFF00E5FF, listOf(0xFF2A1A55, 0xFF1D2B55, 0xFF3A1A55, 0xFF1A3355, 0xFF2A1F44), glow = true, perk = "-15% ability cooldowns", cooldownMult = 0.85f),
     ROCKET("Rocket Express", 3000, 0xFFECEFF1, 0xFFFFFFFF, 0xFFB0BEC5, 0xFF78909C, 0xFFFF7043, listOf(0xFFECEFF1, 0xFFCFD8DC, 0xFFFFFFFF, 0xFFB0BEC5, 0xFFE0E6EA), perk = "+12% train and wagon health", hpMult = 1.12f),
-    GOLD("Golden Edition", 5000, 0xFFC9A227, 0xFFFFE082, 0xFF8D6E1F, 0xFF5D470F, 0xFFFFFFFF, listOf(0xFFB8860B, 0xFFDAA520, 0xFFC9A227, 0xFFE6C453, 0xFFA67C00), glow = true, perk = "+12% coins", coinMult = 1.12f)
+    GOLD("Golden Edition", 5000, 0xFFC9A227, 0xFFFFE082, 0xFF8D6E1F, 0xFF5D470F, 0xFFFFFFFF, listOf(0xFFB8860B, 0xFFDAA520, 0xFFC9A227, 0xFFE6C453, 0xFFA67C00), glow = true, perk = "+12% coins", coinMult = 1.12f),
+    LINK_TEAL("Link Teal", 1500, 0xFF006064, 0xFF00ACC1, 0xFF004D40, 0xFF00251A, 0xFFB2EBF2, listOf(0xFF00838F, 0xFF00695C, 0xFF006064, 0xFF00796B, 0xFF0097A7), glow = true, perk = "+6% damage, +6% repair (co-op: reach 800 m)", damageMult = 1.06f, repairMult = 1.06f, coopDistance = 800),
+    TWIN_FLAME("Twin Flame", 3000, 0xFF4A148C, 0xFFAB47BC, 0xFF311B92, 0xFF1A0F5C, 0xFFFFAB40, listOf(0xFF6A1B9A, 0xFFE65100, 0xFF4A148C, 0xFFEF6C00, 0xFF7B1FA2), glow = true, perk = "+10% coins, -10% cooldowns (co-op: reach 2,500 m)", coinMult = 1.1f, cooldownMult = 0.9f, coopDistance = 2500)
 }

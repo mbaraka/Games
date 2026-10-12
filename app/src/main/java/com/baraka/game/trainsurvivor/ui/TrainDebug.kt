@@ -30,6 +30,7 @@ fun garageDebugSections(save: SaveData, onSave: (SaveData) -> Unit, onReset: () 
         "Progress",
         listOf(
             DebugItem.Action("Max all train upgrades") { onSave(save.copy(upgrades = TrainUpgrade.entries.associateWith { it.maxLevel })) },
+            DebugItem.Action("Co-op best = 3,000 m (unlocks co-op paints)") { onSave(save.copy(coopBest = 3_000)) },
             DebugItem.Action("Unlock every seat, weapon, max power and car armor") {
                 onSave(
                     save.copy(

@@ -225,7 +225,7 @@ private fun RunScreen(
     val bestAtStart = remember(runId) { repository.load().bestDistance }
     // What this run has already written to disk, so every checkpoint only adds the difference:
     // coins, kills, bosses, flyers, routes.
-    val written = remember(runId) { IntArray(5) }
+    val written = remember(runId) { IntArray(6) }
 
     /** Writes this run's progress so far to disk and returns the new save. Safe to call repeatedly. */
     fun checkpoint(final: Boolean): SaveData {
@@ -240,6 +240,8 @@ private fun RunScreen(
             bossKills = current.bossKills + dBosses,
             flyerKills = current.flyerKills + dFlyers,
             routesTaken = current.routesTaken + dRoutes,
+            coopBest = if (session != null) max(current.coopBest, game.distanceMeters) else current.coopBest,
+            coopRescues = current.coopRescues + (game.rescues - written[5]),
             bestDistance = max(current.bestDistance, game.distanceMeters)
         )
         updated = Progression.applyProgress(updated, RunDelta(dKills, dFlyers, dBosses, dRoutes, game.finalCoins, game.distanceMeters))
@@ -250,6 +252,7 @@ private fun RunScreen(
         written[2] = game.bossKills
         written[3] = game.flyerKills
         written[4] = game.routesTaken
+        written[5] = game.rescues
         repository.save(updated)
         onSaved(updated)
         return updated

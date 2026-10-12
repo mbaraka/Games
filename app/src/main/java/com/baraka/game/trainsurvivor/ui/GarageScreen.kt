@@ -131,7 +131,8 @@ fun GarageScreen(
                     Text("TRAIN SURVIVOR", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
                     Text(
                         "Best ${save.bestDistance} m  •  ${save.totalKills} kills  •  ${save.bossKills} bosses" +
-                            if (save.prestige > 0) "  •  Prestige ${save.prestige}" else "",
+                            (if (save.prestige > 0) "  •  Prestige ${save.prestige}" else "") +
+                            (if (save.coopBest > 0) "  •  Co-op ${save.coopBest} m (${save.coopRank})" else ""),
                         color = MUTED, fontSize = 11.sp
                     )
                 }
@@ -198,7 +199,8 @@ private fun LookTab(save: SaveData, onChange: (SaveData) -> Unit) {
                 coins = save.coins,
                 swatch = listOf(livery.boiler, livery.cab, livery.trim, livery.cars[0], livery.cars[1]),
                 onSelect = { onChange(Shop.selectLivery(save, livery.ordinal)) },
-                onBuy = { Shop.buyLivery(save, livery.ordinal)?.let(onChange) }
+                onBuy = { Shop.buyLivery(save, livery.ordinal)?.let(onChange) },
+                locked = if (save.coopBest < livery.coopDistance) "Locked: ${livery.coopDistance} m in co-op" else null
             )
         }
     }
@@ -214,7 +216,8 @@ private fun LookCard(
     coins: Int,
     swatch: List<Long>?,
     onSelect: () -> Unit,
-    onBuy: () -> Unit
+    onBuy: () -> Unit,
+    locked: String? = null
 ) {
     Row(
         Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
@@ -233,6 +236,7 @@ private fun LookCard(
         when {
             selected -> Text("EQUIPPED", color = AMBER, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
             owned -> Button(onClick = onSelect, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) { Text("USE", fontSize = 12.sp) }
+            locked != null -> Text(locked, color = Color(0xFF80DEEA), fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(112.dp))
             else -> BuyButton("BUY", cost, coins >= cost, Modifier.width(112.dp), onBuy)
         }
     }
