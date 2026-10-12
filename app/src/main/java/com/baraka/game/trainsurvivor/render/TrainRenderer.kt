@@ -138,6 +138,7 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
         drawTransitionArt(g)
         drawRails(g)
         drawSpeedLines(g)
+        drawGhostTrain(g)
         drawTrain(g, light)
         val order = g.drawOrder
         for (i in order.indices) {

@@ -2,6 +2,9 @@ package com.baraka.game.trainsurvivor.systems
 
 import com.baraka.game.trainsurvivor.model.Biome
 import com.baraka.game.trainsurvivor.model.CrewSlot
+import com.baraka.game.trainsurvivor.model.Livery
+import com.baraka.game.trainsurvivor.model.MAX_SLOTS
+import com.baraka.game.trainsurvivor.model.TrainShape
 import com.baraka.game.trainsurvivor.model.ZombieType
 
 /** How this phone takes part in a co-op run. Solo play never leaves [SOLO]. */
@@ -41,4 +44,35 @@ sealed class CoopSignal {
     /** The stranded survivor was rescued: both trains share [bonus] coins. */
     class RescueDone(val bonus: Int) : CoopSignal()
     object TrainDestroyed : CoopSignal()
+}
+
+/**
+ * What this phone knows about the partner's train, enough to draw it on a second track (see render/GhostTrain.kt):
+ * its shape and paint, each wagon's health (index 0 is the locomotive; 0 = destroyed) and a flash per gun that just fired.
+ */
+class GhostTrain {
+    var active = false
+    var shape: TrainShape = TrainShape.STEAM
+    var livery: Livery = Livery.CLASSIC
+    var count = 1
+    val hp = FloatArray(MAX_SLOTS) { 1f }
+    val flash = FloatArray(MAX_SLOTS + 1)
+    /** Seconds since the partner last sent anything. */
+    var silence = 0f
+    val away get() = silence > 4f
+
+    fun apply(shapeIndex: Int, liveryIndex: Int, hpPercent: IntArray, shotMask: Int) {
+        active = true
+        silence = 0f
+        shape = TrainShape.entries.getOrElse(shapeIndex) { TrainShape.STEAM }
+        livery = Livery.entries.getOrElse(liveryIndex) { Livery.CLASSIC }
+        count = hpPercent.size.coerceIn(1, MAX_SLOTS)
+        for (i in 0 until count) hp[i] = hpPercent[i] / 100f
+        for (i in 0 until count) if (shotMask and (1 shl i) != 0) flash[i] = 1f
+    }
+
+    fun update(dt: Float) {
+        silence += dt
+        for (i in flash.indices) if (flash[i] > 0f) flash[i] = (flash[i] - dt * 6f).coerceAtLeast(0f)
+    }
 }

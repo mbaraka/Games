@@ -437,6 +437,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         repairSendCooldown = max(0f, repairSendCooldown - dt)
         coinGiftCooldown = max(0f, coinGiftCooldown - dt)
         tickLocks(dt)
+        ghost.update(dt)
         towCooldown = max(0f, towCooldown - dt)
         tickRescue(dt)
         for (i in seatAwayTime.indices) {
@@ -649,6 +650,21 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         partnerRescueTime = 0f
         receiveCoins(bonus)
     }
+
+    /** The partner's train, as streamed to us (drawn on co-op routes). */
+    val ghost = GhostTrain()
+    private var shotMask = 0
+
+    /** Which seats fired since the session last asked; sent so the partner sees our guns flash. */
+    fun takeShotMask(): Int {
+        val m = shotMask
+        shotMask = 0
+        return m
+    }
+
+    /** Health of the locomotive (seat 0) or a wagon as 0..1; 0 means destroyed. */
+    fun carFraction(seat: Int): Float =
+        if (seat == 0) (hp / maxHp).coerceIn(0f, 1f) else (carHp[seat] / carMaxHp[seat]).coerceIn(0f, 1f)
 
     var coinGiftCooldown = 0f
     /** What the Give Coins button would send right now: a quarter of this run's coins. */
@@ -1595,6 +1611,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         ((crew[slot].powerMultiplier * damagePerk[slot] * (if (buffTime > 0f) 1.3f else 1f) - 1f) * 100f).roundToInt()
 
     private fun fire(slot: Int, target: Zombie) {
+        shotMask = shotMask or (1 shl slot)
         val g = gunners[slot]
         val weapon = g.weapon
         val crit = critChance[slot] > 0f && rng.nextFloat() < critChance[slot]

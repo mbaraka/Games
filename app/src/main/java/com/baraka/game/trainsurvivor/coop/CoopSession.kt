@@ -25,6 +25,7 @@ class PartnerState {
 class CoopSession(val game: TrainGame, val link: CoopLink<CoopMsg>, val role: CoopRole) {
     val partner = PartnerState()
     private var sendTimer = 0f
+    private var ghostTimer = 0f
 
     init {
         game.coopRole = role
@@ -48,6 +49,13 @@ class CoopSession(val game: TrainGame, val link: CoopLink<CoopMsg>, val role: Co
             game.coopSpawnMult = 1f // alone again
             game.partnerPresent = false
             game.coopRole = CoopRole.HOST // nobody left to wait for
+        }
+        ghostTimer += dt
+        if (ghostTimer >= 0.125f && !game.over) {
+            ghostTimer = 0f
+            val n = game.slotCount
+            val hp = IntArray(n) { (game.carFraction(it) * 100f).toInt() }
+            link.send(CoopMsg.Ghost(game.shape.ordinal, game.livery.ordinal, hp, game.takeShotMask()))
         }
         sendTimer += dt
         if (sendTimer >= 0.25f) {
@@ -123,6 +131,7 @@ class CoopSession(val game: TrainGame, val link: CoopLink<CoopMsg>, val role: Co
             is CoopMsg.HelpNeeded -> game.partnerNeedsHelp(m.kind)
             CoopMsg.HelpGiven -> game.unlockTrain(true)
             CoopMsg.Tow -> game.receiveTow()
+            is CoopMsg.Ghost -> game.ghost.apply(m.shape, m.livery, m.hp, m.shotMask)
             CoopMsg.RescueCall -> game.partnerRescueCall()
             is CoopMsg.RescueDone -> game.partnerRescueDone(m.bonus)
             CoopMsg.Down -> {

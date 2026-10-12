@@ -32,6 +32,8 @@ sealed class CoopMsg {
     /** The sender cleared the receiver's lock. */
     object HelpGiven : CoopMsg()
     object Tow : CoopMsg()
+    /** The sender's train for the partner's second-track view: shape, paint, health percent per seat, guns that fired. */
+    class Ghost(val shape: Int, val livery: Int, val hp: IntArray, val shotMask: Int) : CoopMsg()
     object RescueCall : CoopMsg()
     class RescueDone(val bonus: Int) : CoopMsg()
 
@@ -56,6 +58,11 @@ sealed class CoopMsg {
             is HelpNeeded -> { o.writeByte(14); o.writeByte(kind) }
             HelpGiven -> o.writeByte(15)
             Tow -> o.writeByte(16)
+            is Ghost -> {
+                o.writeByte(19); o.writeByte(shape); o.writeByte(livery); o.writeByte(hp.size)
+                for (v in hp) o.writeByte(v)
+                o.writeByte(shotMask)
+            }
             RescueCall -> o.writeByte(17)
             is RescueDone -> { o.writeByte(18); o.writeInt(bonus) }
         }
@@ -79,6 +86,11 @@ sealed class CoopMsg {
             14 -> HelpNeeded(i.readUnsignedByte())
             15 -> HelpGiven
             16 -> Tow
+            19 -> {
+                val shape = i.readUnsignedByte(); val livery = i.readUnsignedByte(); val n = i.readUnsignedByte()
+                val hp = IntArray(n.coerceIn(0, 8)) { i.readUnsignedByte() }
+                Ghost(shape, livery, hp, i.readUnsignedByte())
+            }
             17 -> RescueCall
             18 -> RescueDone(i.readInt())
             else -> null
@@ -126,6 +138,7 @@ class SimulatedLink : SimulatedPartner<CoopMsg>() {
             stateTimer = 0f
             hp = (0.6f + 0.4f * kotlin.math.sin(clock * 0.2f)).coerceIn(0.05f, 1f)
             deliver(CoopMsg.State(hp, (clock * 14f).toInt(), 0, (clock * 0.7f).toInt(), 0f, 0f))
+            deliver(CoopMsg.Ghost(0, 0, IntArray(5) { (hp * 100f).toInt() }, if (clock.toInt() % 2 == 0) 0b00101 else 0b11010))
         }
     }
 

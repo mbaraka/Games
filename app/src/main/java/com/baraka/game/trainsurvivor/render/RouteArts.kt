@@ -33,6 +33,8 @@ internal fun registerRouteArts() {
     RouteArtRegistry.register(Biome.CITY_RUINS, CityRuinsArt)
     RouteArtRegistry.register(Biome.DEEP_SEA, DeepSeaArt)
     RouteArtRegistry.register(Biome.SOLAR, SolarArt)
+    RouteArtRegistry.register(Biome.TWIN_BRIDGE, TwinBridgeArt)
+    RouteArtRegistry.register(Biome.ECHO_MINE, EchoMineArt)
 }
 
 // ------------------------------------------------------------------ helpers
