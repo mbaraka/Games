@@ -31,7 +31,7 @@ class SharedRun(val lead: TrainGame, val ally: TrainGame) {
         for (rig in arrayOf(lead, ally)) {
             rig.coopRole = CoopRole.HOST
             rig.partnerPresent = true
-            rig.coopSpawnMult = 1f // each train already spawns its own zombies, so the world is doubled by construction
+            rig.coopSpawnMult = SPAWN_PER_TRAIN
         }
         lead.onCoop = { signal -> bridge(signal, ally) }
         ally.onCoop = { signal -> bridge(signal, lead) }
@@ -107,6 +107,12 @@ class SharedRun(val lead: TrainGame, val ally: TrainGame) {
     }
 
     companion object {
+        /**
+         * How fast each train's zombies spawn compared with a solo run. Both trains spawn their own, so the world holds twice this
+         * many in total; every gun reaches both tracks, which is why each train's share is a little more than solo.
+         */
+        const val SPAWN_PER_TRAIN = 1.5f
+
         /** A shared run for two phones: the host's train leads and the guest's train is the second one. */
         fun network(hostSave: SaveData, guestSave: SaveData): SharedRun {
             val lead = TrainGame(hostSave)

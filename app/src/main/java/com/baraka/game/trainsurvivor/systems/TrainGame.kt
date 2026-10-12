@@ -194,7 +194,7 @@ class TrainGame(
     val buddy: TrainGame? get() = lead ?: ally
     /** Which lane effects created right now belong to (kills in the other lane draw their effects there). */
     internal var fxLane = lane
-    internal val zombieCap get() = if (lead != null || ally != null) MAX_ZOMBIES * 2 else MAX_ZOMBIES
+    internal val zombieCap get() = if (lead != null || ally != null) MAX_ZOMBIES * 23 / 10 else MAX_ZOMBIES
 
     // ---- options / debug switches ----
     var damageNumbers = true
