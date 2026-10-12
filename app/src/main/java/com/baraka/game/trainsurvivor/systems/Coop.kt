@@ -29,5 +29,7 @@ sealed class CoopSignal {
     object Blast : CoopSignal()
     /** This train sent a repair to the partner (a fraction of their train's health). */
     class RepairSent(val fraction: Float) : CoopSignal()
+    /** This train gave the partner some of its run coins. */
+    class CoinsSent(val amount: Int) : CoopSignal()
     object TrainDestroyed : CoopSignal()
 }

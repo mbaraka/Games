@@ -432,6 +432,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     private fun tickLoans(dt: Float) {
         outgoingLoanCooldown = max(0f, outgoingLoanCooldown - dt)
         repairSendCooldown = max(0f, repairSendCooldown - dt)
+        coinGiftCooldown = max(0f, coinGiftCooldown - dt)
         for (i in seatAwayTime.indices) {
             if (seatAwayTime[i] > 0f) {
                 seatAwayTime[i] -= dt
@@ -488,6 +489,29 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         }
         guestTime = seconds
         floatText(gunX(seat), gunY(seat) - 60f, SURVIVORS[guestSurvivor].name + " joins!", 1.6f, 0xFF40E0FF.toInt(), 20f)
+    }
+
+    var coinGiftCooldown = 0f
+    /** What the Give Coins button would send right now: a quarter of this run's coins. */
+    val coinGiftAmount get() = runCoins / 4
+    val coinGiftReady get() = coopRole != CoopRole.SOLO && !over && coinGiftCooldown <= 0f && coinGiftAmount >= 10
+
+    /** Gives a quarter of this run's coins to the partner (so a faster train can carry a slower one). */
+    fun sendCoins(): Boolean {
+        if (!coinGiftReady) return false
+        val amount = coinGiftAmount
+        runCoins -= amount
+        coinGiftCooldown = 4f
+        floatText(trainLeft + trainLength / 2f, 340f, "-$amount coins sent", 1.2f, 0xFFFFD54F.toInt(), 18f)
+        onCoop?.invoke(CoopSignal.CoinsSent(amount))
+        return true
+    }
+
+    fun receiveCoins(amount: Int) {
+        if (over || amount <= 0) return
+        runCoins += amount
+        sound(TrainSoundCue.CRATE)
+        floatText(trainLeft + trainLength / 2f, 340f, "+$amount coins from your partner", 1.6f, 0xFFFFD54F.toInt(), 22f)
     }
 
     var repairSendCooldown = 0f

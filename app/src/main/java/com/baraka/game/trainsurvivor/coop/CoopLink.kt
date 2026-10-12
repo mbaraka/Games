@@ -26,6 +26,7 @@ sealed class CoopMsg {
     object Bye : CoopMsg()
     object Blast : CoopMsg()
     class Repair(val fraction: Float) : CoopMsg()
+    class Coins(val amount: Int) : CoopMsg()
 
     fun write(o: DataOutputStream) {
         when (this) {
@@ -44,6 +45,7 @@ sealed class CoopMsg {
             Bye -> o.writeByte(10)
             Blast -> o.writeByte(11)
             is Repair -> { o.writeByte(12); o.writeFloat(fraction) }
+            is Coins -> { o.writeByte(13); o.writeInt(amount) }
         }
     }
 
@@ -61,6 +63,7 @@ sealed class CoopMsg {
             10 -> Bye
             11 -> Blast
             12 -> Repair(i.readFloat())
+            13 -> Coins(i.readInt())
             else -> null
         }
     }

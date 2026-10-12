@@ -402,7 +402,7 @@ private fun RunScreen(
         if (game.over && finished != null) {
             Overlay {
                 Text("TRAIN DESTROYED", color = Color(0xFFFF5252), fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                if (session != null) Text(if (session.partner.connected && !session.partner.down) "Your partner is still fighting!" else "Both trains are down.", color = Color(0xFF80DEEA), fontSize = 13.sp)
+                if (session != null) Text(if (session.partner.down) "Your partner's train was destroyed: the run ends for both of you." else "The run ends for both trains.", color = Color(0xFF80DEEA), fontSize = 13.sp)
                 if (finished.isBest) Text("New best distance!", color = AMBER, fontWeight = FontWeight.Bold)
                 Text("${finished.distance} m   •   ${finished.kills} zombies   •   ${finished.bossKills} bosses", color = Color.White, fontSize = 15.sp)
                 Text("+${finished.coins} coins banked (${finished.killCoins} from kills)", color = AMBER, fontSize = 17.sp, fontWeight = FontWeight.Bold)
@@ -611,6 +611,16 @@ private fun CoopHud(game: TrainGame, session: CoopSession, tick: MutableLongStat
                 }
             }
             if (p.ourPassengerAway > 0f) Text("guest ${p.ourPassengerAway.toInt()}s", color = Color(0xFFFFD54F), fontSize = 10.sp)
+        }
+        if (p.connected && !p.down) {
+            Text(
+                if (game.coinGiftReady) "GIVE ${game.coinGiftAmount} COINS" else "Give coins",
+                color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.clip(RoundedCornerShape(8.dp))
+                    .background(if (game.coinGiftReady) Color(0xFFFFD54F) else Color(0xFF90A4AE))
+                    .clickable(enabled = game.coinGiftReady) { game.sendCoins() }
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            )
         }
         if (game.gangwayLevel > 0 && p.connected && !p.down) {
             Text(

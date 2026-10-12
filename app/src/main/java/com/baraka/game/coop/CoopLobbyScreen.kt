@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -158,7 +159,7 @@ fun <M> CoopLobbyScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(BG).windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp),
+        modifier = Modifier.fillMaxSize().background(BG).windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
@@ -213,7 +214,7 @@ fun <M> CoopLobbyScreen(
         }
         // Phones found nearby: one tall vertical list that takes all the spare height.
         Column(
-            modifier = Modifier.weight(1f).fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp).background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text("Phones nearby", color = TEXT, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -222,7 +223,7 @@ fun <M> CoopLobbyScreen(
             } else {
                 if (scanning) Text("Scanning...", color = MUTED, fontSize = 12.sp)
                 else if (devices.isEmpty()) Text("Nothing found yet. Press Scan again.", color = MUTED, fontSize = 12.sp)
-                Column(modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     for (device in devices) {
                         val paired = device.bondState == BluetoothDevice.BOND_BONDED
                         LobbyButton(deviceName(device) + if (paired) "  (paired)" else "  (tap to pair)", BUTTON, TEXT, Modifier.fillMaxWidth()) {
