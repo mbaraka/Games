@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.baraka.game.tunnelcrew.data.CrewRepository
 import com.baraka.game.tunnelcrew.model.LEVELS
 import com.baraka.game.tunnelcrew.model.Level
+import com.baraka.game.tunnelcrew.model.medalFor
 import com.baraka.game.tunnelcrew.model.Skill
 import com.baraka.game.tunnelcrew.render.SkillIcon
 import com.baraka.game.tunnelcrew.systems.Terrain
@@ -73,6 +75,7 @@ private fun LevelPreview(level: Level, modifier: Modifier = Modifier) {
 fun CrewMenuScreen(
     repo: CrewRepository,
     progressRev: Int,
+    gridState: LazyGridState,
     onPlay: (Int) -> Unit,
     onSettings: () -> Unit,
     onExit: () -> Unit
@@ -89,6 +92,7 @@ fun CrewMenuScreen(
             CrewButton("Settings", onClick = onSettings)
         }
         LazyVerticalGrid(
+            state = gridState,
             columns = GridCells.Adaptive(190.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -134,11 +138,11 @@ fun CrewMenuScreen(
                     Text(level.name, color = CrewColors.Text, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
                     Text(
                         when {
-                            done -> "Best $best/${level.total}  -  done"
+                            done -> "Best $best/${level.total}  -  ${level.medalFor(best)?.label ?: ""} medal"
                             best > 0 -> "Best $best/${level.total}  (need ${level.needed})"
                             else -> "Save ${level.needed} of ${level.total}"
                         },
-                        color = if (done) CrewColors.Good else CrewColors.Muted,
+                        color = if (done) Color(level.medalFor(best)?.color ?: 0xFF69F0AE) else CrewColors.Muted,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )

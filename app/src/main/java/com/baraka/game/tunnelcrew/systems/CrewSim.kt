@@ -13,6 +13,12 @@ private const val FLOAT_AFTER = 6
 private const val FUSE_TICKS = 150
 private const val BRICKS_PER_BUILD = 12
 private const val MAX_PARTICLES = 160
+private const val POUR_REACH = 30
+private const val POUR_DEPTH = 30
+private const val POUR_CAP = 700
+private const val POOL_MAX = (2 * POUR_REACH + 1) * (POUR_DEPTH + 1)
+private val NB_X = intArrayOf(1, -1, 0, 0)
+private val NB_Y = intArrayOf(0, 0, 1, -1)
 private const val RATE_BASE = 120
 private const val RATE_STEP = 5
 private const val MIN_INTERVAL = 6
@@ -29,7 +35,10 @@ object Mode {
     const val DIG = 7
     const val BUILD = 8
     const val SHRUG = 9
-    const val GONE = 10
+    const val POUR = 10
+    const val PLATFORM = 11
+    const val STACK = 12
+    const val GONE = 13
 }
 
 object Flag {
@@ -46,7 +55,8 @@ object Ev {
     const val HATCH = 4
     const val FLAME = 5
     const val WARN = 6
-    const val COUNT = 7
+    const val REFUSE = 7
+    const val COUNT = 8
 }
 
 const val RESULT_RUNNING = 0
@@ -120,6 +130,16 @@ class CrewSim(val level: Level) {
 
     private var rng = 0x2545F491
 
+    // Pourer: one pour at a time, cells filled bottom-up from a flood of the pit in front of the pourer.
+    private val poolQueue = IntArray(POOL_MAX)
+    private val poolOrder = IntArray(POOL_MAX)
+    private val rowCount = IntArray(POUR_DEPTH + 2)
+    private val visited = IntArray(WORLD_W * WORLD_H)
+    private var stamp = 0
+    private var poolN = 0
+    private var poolPos = 0
+    private var pourOwner = -1
+
     val alive: Int get() = spawned - saved - dead
     val totalCrew: Int get() = spawnLimit
 
@@ -191,6 +211,17 @@ class CrewSim(val level: Level) {
             kill(i, Ev.SPLAT)
             return
         }
+        if (terrain.solid(cx, cy)) {
+            // Buried by cement or bricks: rise with the new surface, or die if it is too deep.
+            var up = 1
+            while (up < 24 && terrain.solid(cx, cy - up)) up++
+            if (up >= 24) {
+                kill(i, Ev.SPLAT)
+                return
+            }
+            y[i] = cy - up
+            return
+        }
         val hz = level.hazards
         for (h in hz.indices) {
             val r = hz[h]
@@ -225,6 +256,9 @@ class CrewSim(val level: Level) {
             Mode.DIG -> dig(i)
             Mode.BUILD -> build(i)
             Mode.SHRUG -> shrug(i)
+            Mode.POUR -> pour(i)
+            Mode.PLATFORM -> platform(i)
+            Mode.STACK -> stack(i)
         }
     }
 
@@ -433,6 +467,138 @@ class CrewSim(val level: Level) {
         aux[i]--
     }
 
+    private fun platform(i: Int) {
+        val t = terrain
+        val cx = x[i]
+        val cy = y[i]
+        val d = dir[i]
+        if (!t.solid(cx, cy + 1)) {
+            startFall(i)
+            return
+        }
+        timer[i]++
+        if (timer[i] % 6 != 0) return
+        if (aux[i] <= 0) {
+            mode[i] = Mode.SHRUG
+            timer[i] = 0
+            return
+        }
+        val nx = cx + 2 * d
+        for (h in 0 until BODY_H) {
+            if (t.solid(nx, cy - h)) {
+                mode[i] = Mode.WALK
+                return
+            }
+        }
+        for (k in 1..6) t.brick(cx + d * k, cy + 1)
+        if (aux[i] == 3) events[Ev.WARN]++
+        x[i] = nx
+        aux[i]--
+    }
+
+    private fun stack(i: Int) {
+        val t = terrain
+        val cx = x[i]
+        val cy = y[i]
+        val d = dir[i]
+        if (!t.solid(cx, cy + 1)) {
+            startFall(i)
+            return
+        }
+        timer[i]++
+        if (timer[i] % 5 != 0) return
+        if (aux[i] <= 0) {
+            mode[i] = Mode.SHRUG
+            timer[i] = 0
+            return
+        }
+        val nx = cx + d
+        for (h in 1..BODY_H) {
+            if (t.solid(nx, cy - h)) {
+                mode[i] = Mode.WALK
+                return
+            }
+        }
+        t.brick(cx + d, cy)
+        t.brick(cx + 2 * d, cy)
+        if (aux[i] == 3) events[Ev.WARN]++
+        x[i] = nx
+        y[i] = cy - 1
+        aux[i]--
+    }
+
+    /** Floods the pit in front of pourer [i]; false if there is no pit or it leaks (no floor, too wide or too deep). */
+    private fun startPour(i: Int): Boolean {
+        val t = terrain
+        val top = y[i] + 1
+        var sx = x[i]
+        var reach = 0
+        do {
+            sx += dir[i]
+            reach++
+        } while (reach <= 12 && t.solid(sx, top))
+        if (t.solid(sx, top)) return false
+        val lo = x[i] - POUR_REACH
+        val hi = x[i] + POUR_REACH
+        val bottom = top + POUR_DEPTH
+        stamp++
+        var head = 0
+        var tail = 0
+        poolQueue[tail++] = top * WORLD_W + sx
+        visited[top * WORLD_W + sx] = stamp
+        while (head < tail) {
+            val c = poolQueue[head++]
+            val cy = c / WORLD_W
+            val cx = c - cy * WORLD_W
+            if (cx <= lo || cx >= hi || cy >= bottom || cx <= 0 || cx >= WORLD_W - 1 || cy >= WORLD_H - 1) return false
+            for (k in 0 until 4) {
+                val nx = cx + NB_X[k]
+                val ny = cy + NB_Y[k]
+                if (ny < top || t.solid(nx, ny)) continue
+                val nc = ny * WORLD_W + nx
+                if (visited[nc] == stamp) continue
+                if (tail >= POOL_MAX) return false
+                visited[nc] = stamp
+                poolQueue[tail++] = nc
+            }
+        }
+        java.util.Arrays.fill(rowCount, 0)
+        for (n in 0 until tail) rowCount[poolQueue[n] / WORLD_W - top]++
+        var pos = 0
+        for (r in POUR_DEPTH downTo 0) {
+            val c = rowCount[r]
+            rowCount[r] = pos
+            pos += c
+        }
+        for (n in 0 until tail) {
+            val r = poolQueue[n] / WORLD_W - top
+            poolOrder[rowCount[r]++] = poolQueue[n]
+        }
+        poolN = minOf(tail, POUR_CAP)
+        poolPos = 0
+        pourOwner = i
+        return true
+    }
+
+    private fun pour(i: Int) {
+        if (!terrain.solid(x[i], y[i] + 1)) {
+            if (pourOwner == i) pourOwner = -1
+            startFall(i)
+            return
+        }
+        var k = 0
+        while (k < 6 && poolPos < poolN) {
+            val c = poolOrder[poolPos++]
+            terrain.cement(c % WORLD_W, c / WORLD_W)
+            k++
+        }
+        if (poolPos >= poolN) {
+            if (pourOwner == i) pourOwner = -1
+            mode[i] = Mode.SHRUG
+            timer[i] = 0
+        }
+    }
+
     private fun shrug(i: Int) {
         if (!terrain.solid(x[i], y[i] + 1)) {
             startFall(i)
@@ -447,6 +613,7 @@ class CrewSim(val level: Level) {
     // region outcomes
 
     private fun kill(i: Int, ev: Int) {
+        if (pourOwner == i) pourOwner = -1
         if (god) {
             x[i] = level.spawnX
             y[i] = level.spawnY
@@ -461,6 +628,7 @@ class CrewSim(val level: Level) {
     }
 
     private fun explode(i: Int) {
+        if (pourOwner == i && !god) pourOwner = -1
         val cx = x[i]
         val cy = y[i] - 4
         terrain.carveDisc(cx, cy, 13)
@@ -477,6 +645,7 @@ class CrewSim(val level: Level) {
     }
 
     private fun rescue(i: Int) {
+        if (pourOwner == i) pourOwner = -1
         burst(x[i].toFloat(), (y[i] - 4).toFloat(), 0xFF69F0AE.toInt(), 10)
         mode[i] = Mode.GONE
         saved++
@@ -497,6 +666,8 @@ class CrewSim(val level: Level) {
             Skill.FLOATER -> (flags[i] and Flag.FLOATER) == 0
             Skill.BOMBER -> bomb[i] == 0
             Skill.BUILDER -> m == Mode.WALK || m == Mode.SHRUG
+            Skill.PLATFORMER, Skill.STACKER -> m == Mode.WALK || m == Mode.SHRUG
+            Skill.FILLER -> m == Mode.WALK && pourOwner == -1
             Skill.BLOCKER, Skill.BASHER, Skill.MINER, Skill.DIGGER -> m == Mode.WALK
         }
     }
@@ -516,6 +687,22 @@ class CrewSim(val level: Level) {
             Skill.BASHER -> begin(i, Mode.BASH)
             Skill.MINER -> begin(i, Mode.MINE)
             Skill.DIGGER -> begin(i, Mode.DIG)
+            Skill.PLATFORMER -> {
+                begin(i, Mode.PLATFORM)
+                aux[i] = BRICKS_PER_BUILD
+            }
+            Skill.STACKER -> {
+                begin(i, Mode.STACK)
+                aux[i] = 16
+            }
+            Skill.FILLER -> {
+                begin(i, Mode.POUR)
+                if (!startPour(i)) {
+                    mode[i] = Mode.WALK
+                    events[Ev.REFUSE]++
+                    return false
+                }
+            }
         }
         if (!infiniteSkills) skills[skill.ordinal]--
         return true

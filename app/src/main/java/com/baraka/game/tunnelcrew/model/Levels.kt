@@ -18,6 +18,13 @@ enum class Rating(val label: String, val color: Long) {
     MAYHEM("Mayhem", 0xFFFF6E6E)
 }
 
+/** Reward for a finished level: bronze for reaching the target, silver for saving half of the rest, gold for saving everyone. */
+enum class Medal(val label: String, val color: Long) {
+    BRONZE("Bronze", 0xFFE0A070),
+    SILVER("Silver", 0xFFDDE3EC),
+    GOLD("Gold", 0xFFFFD54F)
+}
+
 class Level(
     val name: String,
     val hint: String,
@@ -36,6 +43,17 @@ class Level(
     val theme: CrewTheme = CrewThemes.MEADOW,
     val build: (Terrain) -> Unit
 )
+
+/** The medal earned by saving [saved] crew members here, or null if the target was missed. */
+fun Level.medalFor(saved: Int): Medal? {
+    if (saved < needed) return null
+    val silverAt = needed + (total - needed + 1) / 2
+    return when {
+        saved >= total -> Medal.GOLD
+        saved >= silverAt -> Medal.SILVER
+        else -> Medal.BRONZE
+    }
+}
 
 private fun skills(vararg p: Pair<Skill, Int>): IntArray {
     val a = IntArray(Skill.entries.size)
@@ -338,5 +356,66 @@ val LEVELS: List<Level> = listOf(
         t.dirt(0, 120, 320, 56)
         t.steel(0, 70, 8, 50)
         t.steel(312, 70, 8, 50)
+    },
+    Level(
+        name = "Pour It On",
+        rating = Rating.TRICKY,
+        hint = "A deep pit blocks the way. Give Pour to a member near the edge: he fills the pit with cement from the bottom, lifting anyone who fell in.",
+        total = 8, needed = 6, timeSec = 240, spawnX = 30, spawnY = 100,
+        skills = skills(Skill.FILLER to 2),
+        exit = intArrayOf(276, 102, 14, 18)
+    ) { t ->
+        t.dirt(0, 120, 100, 56)
+        t.dirt(100, 134, 26, 42)
+        t.dirt(126, 120, 194, 56)
+        t.sideWalls(80, 40)
+    },
+    Level(
+        name = "Flat Out",
+        rating = Rating.TRICKY,
+        hint = "The ceiling is too low for a staircase. Deck lays a flat bridge instead - chain two of them across the gap.",
+        total = 8, needed = 5, timeSec = 300, spawnX = 30, spawnY = 108,
+        skills = skills(Skill.PLATFORMER to 3),
+        exit = intArrayOf(276, 104, 14, 16),
+        theme = CrewThemes.DUSK
+    ) { t ->
+        t.dirt(0, 90, 320, 16)
+        t.dirt(0, 120, 110, 56)
+        t.dirt(140, 120, 180, 56)
+        t.steel(0, 106, 8, 14)
+        t.steel(312, 106, 8, 14)
+    },
+    Level(
+        name = "Stack Up",
+        rating = Rating.TRICKY,
+        hint = "An 18 px ledge is too high to step onto. Stack builds steep stairs - start about 16 px back from the wall.",
+        total = 8, needed = 6, timeSec = 300, spawnX = 36, spawnY = 114,
+        skills = skills(Skill.STACKER to 3),
+        exit = intArrayOf(278, 94, 14, 18)
+    ) { t ->
+        t.dirt(0, 130, 150, 46)
+        t.dirt(150, 112, 170, 64)
+        t.steel(0, 90, 8, 40)
+        t.steel(312, 72, 8, 40)
+    },
+    Level(
+        name = "Concrete Jungle",
+        rating = Rating.MAYHEM,
+        hint = "Fill the pit, bridge the gap, stack up the ledge. Deck, Pour and Stack each have their moment - Build works on the gap too.",
+        total = 12, needed = 6, timeSec = 480, spawnX = 30, spawnY = 114,
+        skills = skills(
+            Skill.FILLER to 1, Skill.PLATFORMER to 2, Skill.STACKER to 2,
+            Skill.BUILDER to 2, Skill.BLOCKER to 1
+        ),
+        exit = intArrayOf(278, 94, 14, 18),
+        theme = CrewThemes.VOLCANO
+    ) { t ->
+        t.dirt(0, 130, 90, 46)
+        t.dirt(90, 144, 24, 32)
+        t.dirt(114, 130, 56, 46)
+        t.dirt(200, 130, 120, 46)
+        t.dirt(240, 112, 80, 18)
+        t.steel(0, 90, 8, 40)
+        t.steel(312, 70, 8, 42)
     }
 )

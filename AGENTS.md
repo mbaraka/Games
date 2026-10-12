@@ -193,6 +193,10 @@ every game fixes its look **before** building any UI:
    `screenOrientation`; landscape games use `sensorLandscape`).
 3. Add a `GameCatalogEntry` to `GAME_CATALOG` in `MainActivity.kt` and a row to the
    table in `README.md`.
+3b. **Multiplayer badge:** if the game has any multiplayer (Bluetooth co-op, or 2+ local human
+   players), set `multiplayer = true` on its `GameCatalogEntry`. `GameCard` then shows a group
+   icon on the hub card. Add it whenever a game gains multiplayer later, too. Currently:
+   Clash Decks, Snakes & Ladders, Battleship, Train Survivor.
 4. Persist progress with `SharedPreferences` (pattern: `*SettingsRepository`).
 5. Define the game's **theme and shared button first** (requirement 4), then add the
    **settings screen** and the **debug tool** described above, and keep to the performance rules.

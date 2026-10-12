@@ -104,6 +104,40 @@ private val building: ModeArt = { fit, p ->
     )
 }
 
+private val CEMENT_COLOR = Color(0xFFB9BEC7)
+private val BUCKET = Color(0xFF8E9AA8)
+
+private val pouring: ModeArt = { fit, p ->
+    val s = fit.scale
+    val bx = p.cx + p.dir * 4f
+    seg(fit, p.cx, p.cy - 4.6f, bx - p.dir * 1f, p.cy - 4.8f, 0.9f, SKIN)
+    drawRoundRect(
+        BUCKET,
+        Offset(fit.ox + (bx - 2f) * s, fit.oy + (p.cy - 7f) * s),
+        Size(4f * s, 3.4f * s),
+        CornerRadius(0.6f * s)
+    )
+    seg(fit, bx + p.dir * 1.5f, p.cy - 3.8f, bx + p.dir * 1.5f, p.cy + 0.5f + p.frame, 1f, CEMENT_COLOR)
+}
+
+private val decking: ModeArt = { fit, p ->
+    seg(fit, p.cx, p.cy - 4.6f, p.cx + p.dir * 2.4f, p.cy - 3.2f, 0.9f, SKIN)
+    seg(fit, p.cx + p.dir * 1.2f, p.cy - 2.6f, p.cx + p.dir * 5.6f, p.cy - 2.6f, 1.1f, BRICK_COLOR)
+}
+
+private val stacking: ModeArt = { fit, p ->
+    val s = fit.scale
+    seg(fit, p.cx, p.cy - 4.6f, p.cx + p.dir * 2f, p.cy - 6f, 0.9f, SKIN)
+    for (k in 0..1) {
+        drawRoundRect(
+            BRICK_COLOR,
+            Offset(fit.ox + (p.cx + p.dir * 2f - 1.4f) * s, fit.oy + (p.cy - 8.4f - k * 1.8f) * s),
+            Size(2.8f * s, 1.5f * s),
+            CornerRadius(0.4f * s)
+        )
+    }
+}
+
 /**
  * Activity -> extra drawing. To give a new [Mode] a look, add one entry; modes without an entry just
  * show the plain walking character.
@@ -118,4 +152,7 @@ internal val MODE_ARTS: Array<ModeArt?> = arrayOfNulls<ModeArt>(Mode.GONE + 1).a
     it[Mode.DIG] = digging
     it[Mode.BUILD] = building
     it[Mode.SHRUG] = shrug
+    it[Mode.POUR] = pouring
+    it[Mode.PLATFORM] = decking
+    it[Mode.STACK] = stacking
 }

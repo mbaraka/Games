@@ -98,6 +98,46 @@ private val Stop: IconPainter = { s, c ->
     drawRoundRect(Color(0xFF10131A), Offset(0.24f * s, 0.43f * s), Size(0.52f * s, 0.14f * s), androidx.compose.ui.geometry.CornerRadius(0.04f * s))
 }
 
+private val Bucket: IconPainter = { s, c ->
+    rotate(-25f, Offset(0.45f * s, 0.4f * s)) {
+        val body = Path().apply {
+            moveTo(0.2f * s, 0.18f * s)
+            lineTo(0.7f * s, 0.18f * s)
+            lineTo(0.62f * s, 0.62f * s)
+            lineTo(0.28f * s, 0.62f * s)
+            close()
+        }
+        drawPath(body, c)
+        line(s, c, 0.18f, 0.16f, 0.72f, 0.16f, 0.08f)
+    }
+    drawCircle(c, 0.055f * s, Offset(0.78f * s, 0.62f * s))
+    drawCircle(c, 0.055f * s, Offset(0.82f * s, 0.8f * s))
+    line(s, c, 0.1f, 0.94f, 0.9f, 0.94f, 0.1f)
+}
+
+/** Deck = a flat plank bridge between two posts. */
+private val Deck: IconPainter = { s, c ->
+    line(s, c, 0.08f, 0.5f, 0.92f, 0.5f, 0.16f)
+    line(s, c, 0.2f, 0.58f, 0.2f, 0.92f, 0.1f)
+    line(s, c, 0.8f, 0.58f, 0.8f, 0.92f, 0.1f)
+    line(s, c, 0.5f, 0.1f, 0.5f, 0.38f, 0.07f)
+    line(s, c, 0.38f, 0.26f, 0.5f, 0.38f, 0.07f)
+    line(s, c, 0.62f, 0.26f, 0.5f, 0.38f, 0.07f)
+}
+
+/** Stack = bricks climbing up in steps. */
+private val StackIcon: IconPainter = { s, c ->
+    for (k in 0 until 4) {
+        drawRoundRect(
+            c,
+            Offset((0.08f + k * 0.2f) * s, (0.72f - k * 0.2f) * s),
+            Size(0.3f * s, 0.18f * s),
+            androidx.compose.ui.geometry.CornerRadius(0.03f * s)
+        )
+    }
+    line(s, c, 0.1f, 0.94f, 0.9f, 0.94f, 0.08f)
+}
+
 /** One painter per skill. A new [Skill] without an entry here falls back to a plain dot instead of crashing. */
 private val ICONS: Map<Skill, IconPainter> = mapOf(
     Skill.DIGGER to Shovel,
@@ -107,7 +147,10 @@ private val ICONS: Map<Skill, IconPainter> = mapOf(
     Skill.CLIMBER to Climb,
     Skill.FLOATER to Umbrella,
     Skill.BOMBER to Bomb,
-    Skill.BLOCKER to Stop
+    Skill.BLOCKER to Stop,
+    Skill.FILLER to Bucket,
+    Skill.PLATFORMER to Deck,
+    Skill.STACKER to StackIcon
 )
 
 private val FallbackIcon: IconPainter = { s, c -> drawCircle(c, 0.3f * s, Offset(0.5f * s, 0.5f * s)) }

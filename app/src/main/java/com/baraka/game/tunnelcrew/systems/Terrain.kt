@@ -14,6 +14,8 @@ object Mat {
     /** One-way dirt: bashers and miners may only dig it while moving the way the arrows point. */
     const val ARROW_R: Byte = 4
     const val ARROW_L: Byte = 5
+    /** Poured by the Pourer; digs like dirt. */
+    const val CEMENT: Byte = 6
 }
 
 private const val STEEL_BASE = 0xFF9AA8BA.toInt()
@@ -22,6 +24,9 @@ private const val STEEL_LIGHT = 0xFFD2DAE6.toInt()
 private const val BRICK_BASE = 0xFFE0903A.toInt()
 private const val BRICK_MORTAR = 0xFFB9652A.toInt()
 private const val BRICK_RIM = 0xFF7A3E17.toInt()
+private const val CEMENT_BASE = 0xFFB9BEC7.toInt()
+private const val CEMENT_DARK = 0xFFA5ABB6.toInt()
+private const val CEMENT_RIM = 0xFF5E6573.toInt()
 
 /**
  * The destructible level: one material byte per pixel plus a mirrored ARGB bitmap that is only
@@ -133,6 +138,16 @@ class Terrain(private val theme: CrewTheme) {
         return removed
     }
 
+    /** Fills one air pixel with cement (used by the Pourer). */
+    fun cement(x: Int, y: Int) {
+        if (x < 0 || x >= WORLD_W || y < 0 || y >= WORLD_H) return
+        val idx = y * WORLD_W + x
+        if (cell[idx] == Mat.AIR) {
+            cell[idx] = Mat.CEMENT
+            mark(x, y)
+        }
+    }
+
     /** Places one brick pixel if the spot is free. */
     fun brick(x: Int, y: Int) {
         if (x < 0 || x >= WORLD_W || y < 0 || y >= WORLD_H) return
@@ -175,6 +190,7 @@ class Terrain(private val theme: CrewTheme) {
                 val on = if (m == Mat.ARROW_R) ((x + d) and 7) == 0 else ((x - d) and 7) == 0
                 if (edge) theme.rim else if (on) 0xFFFFE08A.toInt() else blend(theme.dirt[n], 0xFFFFD27A.toInt(), 0.22f)
             }
+            Mat.CEMENT -> if (edge) CEMENT_RIM else if (n == 0) CEMENT_DARK else CEMENT_BASE
             else -> if (edge) BRICK_RIM else if ((y and 1) == 0) BRICK_MORTAR else BRICK_BASE
         }
     }

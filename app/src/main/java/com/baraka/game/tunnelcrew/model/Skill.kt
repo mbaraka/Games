@@ -15,5 +15,8 @@ enum class Skill(val label: String, val description: String, val color: Color) {
     BUILDER("Build", "Lays a staircase of 12 bricks", Color(0xFFFFCA28)),
     BASHER("Bash", "Tunnels straight ahead", Color(0xFF9CCC65)),
     MINER("Mine", "Tunnels diagonally down", Color(0xFF26C6DA)),
-    DIGGER("Dig", "Digs straight down", Color(0xFFAB47BC))
+    DIGGER("Dig", "Digs straight down", Color(0xFFAB47BC)),
+    FILLER("Pour", "Pours cement into the pit in front, filling it from the bottom", Color(0xFFB0BEC5)),
+    PLATFORMER("Deck", "Lays a flat bridge with no rise (works under low ceilings)", Color(0xFFFF8A65)),
+    STACKER("Stack", "Builds a steep staircase: climbs 1 px per brick", Color(0xFFD7A86E))
 }

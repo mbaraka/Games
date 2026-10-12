@@ -50,6 +50,7 @@ import com.baraka.game.tunnelcrew.data.CrewRepository
 import com.baraka.game.tunnelcrew.data.CrewSettings
 import com.baraka.game.tunnelcrew.model.LEVELS
 import com.baraka.game.tunnelcrew.model.Skill
+import com.baraka.game.tunnelcrew.model.medalFor
 import com.baraka.game.tunnelcrew.render.SkillIcon
 import com.baraka.game.tunnelcrew.render.WorldFit
 import com.baraka.game.tunnelcrew.render.drawCrewScene
@@ -238,6 +239,8 @@ fun CrewPlayScreen(
             Overlay {
                 Text(if (won) "LEVEL COMPLETE" else "LEVEL FAILED", color = if (won) CrewColors.Good else CrewColors.Bad, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
                 Text("Saved ${sim.saved} of ${level.total}  (needed ${level.needed})", color = Color.White, fontSize = 16.sp)
+                val medal = level.medalFor(sim.saved)
+                if (medal != null) Text("${medal.label} medal", color = Color(medal.color), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
                 if (!won && sim.timeLeft <= 0) Text("Time ran out.", color = CrewColors.Muted, fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (won && levelIndex + 1 < LEVELS.size) CrewButton("Next level", primary = true) { onOpenLevel(levelIndex + 1) }
@@ -285,6 +288,7 @@ private fun drainEvents(sim: CrewSim, audio: CrewAudio, haptics: CrewHaptics) {
     if (ev[Ev.HATCH] > 0) audio.play(Cue.HATCH)
     if (ev[Ev.FLAME] > 0) audio.play(Cue.FLAME)
     if (ev[Ev.WARN] > 0) audio.play(Cue.WARN)
+    if (ev[Ev.REFUSE] > 0) audio.play(Cue.REFUSE)
     Arrays.fill(ev, 0)
 }
 

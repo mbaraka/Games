@@ -1,6 +1,7 @@
 package com.baraka.game.tunnelcrew.ui
 
 import android.app.Activity
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +28,8 @@ fun TunnelCrewScreen() {
     var level by remember { mutableIntStateOf(NO_LEVEL) }
     var showSettings by remember { mutableStateOf(false) }
     var progressRev by remember { mutableIntStateOf(0) }
+    // Owned here, not in the menu: the menu leaves composition while a level plays, which would reset its scroll position.
+    val gridState = rememberLazyGridState()
     val versionName = remember {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?"
     }
@@ -64,6 +67,7 @@ fun TunnelCrewScreen() {
         else -> CrewMenuScreen(
             repo = repo,
             progressRev = progressRev,
+            gridState = gridState,
             onPlay = { level = it },
             onSettings = { showSettings = true },
             onExit = { (context as? Activity)?.finish() }

@@ -218,7 +218,7 @@ private fun DrawScope.drawCrewMember(sim: CrewSim, i: Int, fit: WorldFit) {
     val d = sim.dir[i]
     val m = sim.mode[i]
     val anim = sim.anim[i]
-    val moving = m == Mode.WALK || m == Mode.BUILD || m == Mode.BASH || m == Mode.MINE
+    val moving = m == Mode.WALK || m == Mode.BUILD || m == Mode.BASH || m == Mode.MINE || m == Mode.PLATFORM || m == Mode.STACK
     val swing = if (moving) LEG_SWING[(anim / 2) and 3] else 0f
     val hair = HAIR[(if ((sim.flags[i] and Flag.CLIMBER) != 0) 1 else 0) + (if ((sim.flags[i] and Flag.FLOATER) != 0) 2 else 0)]
 
