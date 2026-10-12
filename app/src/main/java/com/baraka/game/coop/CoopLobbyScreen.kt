@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -156,7 +157,8 @@ fun <M> CoopLobbyScreen(
         Text(intro, color = MUTED, fontSize = 12.sp)
         Text(status, color = AMBER, fontSize = 13.sp, fontWeight = FontWeight.Bold)
 
-        Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(modifier = Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Column(modifier = Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Step 1 (hosting phone): make it visible", color = TEXT, fontWeight = FontWeight.Bold)
                 Text("The joining phone can only see this phone while it is visible, so press this on the host, then press Host below. You can also pair in the system Bluetooth settings.", color = MUTED, fontSize = 11.sp)
@@ -196,8 +198,25 @@ fun <M> CoopLobbyScreen(
                         }
                     }
                 }
-                if (joining) {
-                    if (scanning) Text("Scanning...", color = MUTED, fontSize = 11.sp)
+            }
+            Column(modifier = Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Practice on one phone", color = TEXT, fontWeight = FontWeight.Bold)
+                Text(practiceNote, color = MUTED, fontSize = 11.sp)
+                LobbyButton("Practice with a simulated partner", GOOD, Color.Black) { onReady(CoopLaunch(simulate(), CoopSide.HOST)) }
+            }
+        }
+        // Phones found nearby: one tall list down the right side, so it is easy to read in landscape.
+        Column(
+            modifier = Modifier.weight(1f).fillMaxHeight().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text("Phones nearby", color = TEXT, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            if (!joining) {
+                Text("Press Join on the phone that is NOT hosting. Phones it finds appear here.", color = MUTED, fontSize = 12.sp)
+            } else {
+                if (scanning) Text("Scanning...", color = MUTED, fontSize = 12.sp)
+                else if (devices.isEmpty()) Text("Nothing found yet. Press Scan again.", color = MUTED, fontSize = 12.sp)
+                Column(modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     for (device in devices) {
                         val paired = device.bondState == BluetoothDevice.BOND_BONDED
                         LobbyButton(deviceName(device) + if (paired) "  (paired)" else "  (tap to pair)", BUTTON, TEXT, Modifier.fillMaxWidth()) {
@@ -213,11 +232,7 @@ fun <M> CoopLobbyScreen(
                     }
                 }
             }
-            Column(modifier = Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Practice on one phone", color = TEXT, fontWeight = FontWeight.Bold)
-                Text(practiceNote, color = MUTED, fontSize = 11.sp)
-                LobbyButton("Practice with a simulated partner", GOOD, Color.Black) { onReady(CoopLaunch(simulate(), CoopSide.HOST)) }
-            }
+        }
         }
     }
 }
