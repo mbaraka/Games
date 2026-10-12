@@ -81,6 +81,9 @@ class CoopSession(val game: TrainGame, val link: CoopLink<CoopMsg>, val role: Co
             is CoopSignal.CoinsSent -> link.send(CoopMsg.Coins(s.amount))
             is CoopSignal.HelpNeeded -> link.send(CoopMsg.HelpNeeded(s.kind))
             CoopSignal.HelpGiven -> link.send(CoopMsg.HelpGiven)
+            CoopSignal.TowSent -> link.send(CoopMsg.Tow)
+            CoopSignal.RescueCall -> link.send(CoopMsg.RescueCall)
+            is CoopSignal.RescueDone -> link.send(CoopMsg.RescueDone(s.bonus))
             is CoopSignal.RepairSent -> link.send(CoopMsg.Repair(s.fraction))
             CoopSignal.TrainDestroyed -> link.send(CoopMsg.Down)
         }
@@ -119,6 +122,9 @@ class CoopSession(val game: TrainGame, val link: CoopLink<CoopMsg>, val role: Co
             is CoopMsg.Coins -> game.receiveCoins(m.amount)
             is CoopMsg.HelpNeeded -> game.partnerNeedsHelp(m.kind)
             CoopMsg.HelpGiven -> game.unlockTrain(true)
+            CoopMsg.Tow -> game.receiveTow()
+            CoopMsg.RescueCall -> game.partnerRescueCall()
+            is CoopMsg.RescueDone -> game.partnerRescueDone(m.bonus)
             CoopMsg.Down -> {
                 partner.down = true
                 game.forceEnd() // two trains, one fate: the run ends for both

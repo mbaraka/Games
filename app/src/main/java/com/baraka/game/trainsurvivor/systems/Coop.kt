@@ -35,5 +35,10 @@ sealed class CoopSignal {
     class HelpNeeded(val kind: Int) : CoopSignal()
     /** We cleared the partner's lock. */
     object HelpGiven : CoopSignal()
+    object TowSent : CoopSignal()
+    /** A stranded survivor appeared on this train's track. */
+    object RescueCall : CoopSignal()
+    /** The stranded survivor was rescued: both trains share [bonus] coins. */
+    class RescueDone(val bonus: Int) : CoopSignal()
     object TrainDestroyed : CoopSignal()
 }

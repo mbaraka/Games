@@ -612,6 +612,33 @@ private fun CoopHud(game: TrainGame, session: CoopSession, tick: MutableLongStat
             }
             if (p.ourPassengerAway > 0f) Text("guest ${p.ourPassengerAway.toInt()}s", color = Color(0xFFFFD54F), fontSize = 10.sp)
         }
+        if (game.partnerRescueTime > 0f && p.connected) {
+            Text(
+                "PARTNER NEEDS A RESCUE (${game.partnerRescueTime.toInt() + 1}s): send a passenger across!",
+                color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFFFFD54F)).padding(horizontal = 10.dp, vertical = 4.dp)
+            )
+        }
+        if (game.rescueTime > 0f) {
+            Text(
+                if (game.guestPresent) "RESCUING..." else if (game.partnerPresent) "SURVIVOR STRANDED: ask your partner to send a passenger (${game.rescueTime.toInt() + 1}s)" else "SURVIVOR STRANDED",
+                color = Color(0xFFFFD54F), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 3.dp)
+            )
+        }
+        if (game.comboCount > 0 && game.boss != null) {
+            Text("COMBO x${game.comboCount}", color = Color(0xFF40E0FF), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+        }
+        if (game.towLevel > 0 && p.connected && !p.down) {
+            Text(
+                if (game.towReady) "SEND TOW" else "Tow ${game.towCooldown.toInt() + 1}s",
+                color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.clip(RoundedCornerShape(8.dp))
+                    .background(if (game.towReady) Color(0xFF80CBC4) else Color(0xFF90A4AE))
+                    .clickable(enabled = game.towReady) { game.sendTow() }
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            )
+        }
         val help = game.partnerHelp
         if (help != null && p.connected && !p.down) {
             Text(

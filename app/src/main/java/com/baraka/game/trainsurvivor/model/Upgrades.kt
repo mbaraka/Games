@@ -33,6 +33,8 @@ enum class TrainUpgrade(
 ) {
     ARMOR("Armor Plating", "+40 train health and +25 per wagon, per level", 10, 80, 1.5),
     ENGINE("Engine Tuning", "+8% train speed per level: more distance and coins per second, but zombies close in faster and come thicker", 8, 150, 1.55),
+    LINK("Link Up", "Co-op: +5% weapon damage per level while your partner is connected", 5, 250, 1.8),
+    TOW("Emergency Tow", "Co-op: tow your partner back from the brink: revives a destroyed wagon on their train (or repairs it); faster per level", 4, 300, 1.8),
     GANGWAY("Gangway", "Co-op: lend a passenger (medics repair the host train) and send repairs to your partner; stronger and faster per level", 4, 200, 1.7),
     REPAIR("Repair Crew", "Mechanics heal the train and its wagons over time", 8, 100, 1.55),
     SPIKES("Spiked Hull", "Zombies clinging to the train take damage", 8, 90, 1.55),

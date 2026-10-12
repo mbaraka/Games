@@ -147,6 +147,7 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
         drawCrate(g)
         drawShells(g)
         drawHazards(g)
+        if (g.rescueTime > 0f) drawStranded(g)
         drawParticles(g, glow = false)
         forRegions(g) { biome ->
             val art = RouteArtRegistry.artFor(biome)
@@ -1531,4 +1532,23 @@ private fun DrawScope.drawAwayMarkers(g: TrainGame) {
         box(Color(0xFF263238).copy(alpha = 0.7f), x - 14f, y - 4f, 28f, 4f)
         outlinedText("away " + left.toInt() + "s", x, y - 14f, 12f, 0xFF80DEEA.toInt())
     }
+}
+
+/** The stranded survivor: waving next to a flare, with a ring that fills while a lent passenger is helping. */
+private fun DrawScope.drawStranded(g: TrainGame) {
+    val x = (g.trainLeft + g.trainLength + 110f).coerceAtMost(g.worldW - 40f)
+    val y = RAIL_Y + 30f
+    val pulse = 0.5f + 0.5f * sin(g.time * 6f)
+    drawCircle(Color(0xFFFFD54F).copy(alpha = 0.15f + 0.15f * pulse), 46f, Offset(x, y - 40f))
+    box(Color(0xFFFFEB3B), x - 12f, y - 34f, 24f, 24f) // jacket
+    box(Color(0xFF455A64), x - 8f, y - 10f, 16f, 10f)
+    drawCircle(Color(0xFFE0AC69), 8f, Offset(x, y - 44f))
+    val wave = sin(g.time * 9f) * 8f
+    drawLine(Color(0xFFFFEB3B), Offset(x + 10f, y - 30f), Offset(x + 20f + wave, y - 56f), 4f)
+    drawLine(Color(0xFFFF5252), Offset(x - 26f, y), Offset(x - 26f, y - 70f), 3f) // flare stick
+    drawCircle(Color(0xFFFF8A65), 6f + 3f * pulse, Offset(x - 26f, y - 72f))
+    if (g.rescueFraction > 0f) {
+        drawArc(Color(0xFF66FF8A), -90f, 360f * g.rescueFraction, false, Offset(x - 34f, y - 84f), Size(68f, 68f), style = Stroke(5f))
+    }
+    outlinedText("SOS " + g.rescueTime.toInt() + "s", x, y - 98f, 14f, 0xFFFFD54F.toInt())
 }

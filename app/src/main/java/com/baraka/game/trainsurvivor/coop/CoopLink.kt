@@ -31,6 +31,9 @@ sealed class CoopMsg {
     class HelpNeeded(val kind: Int) : CoopMsg()
     /** The sender cleared the receiver's lock. */
     object HelpGiven : CoopMsg()
+    object Tow : CoopMsg()
+    object RescueCall : CoopMsg()
+    class RescueDone(val bonus: Int) : CoopMsg()
 
     fun write(o: DataOutputStream) {
         when (this) {
@@ -52,6 +55,9 @@ sealed class CoopMsg {
             is Coins -> { o.writeByte(13); o.writeInt(amount) }
             is HelpNeeded -> { o.writeByte(14); o.writeByte(kind) }
             HelpGiven -> o.writeByte(15)
+            Tow -> o.writeByte(16)
+            RescueCall -> o.writeByte(17)
+            is RescueDone -> { o.writeByte(18); o.writeInt(bonus) }
         }
     }
 
@@ -72,6 +78,9 @@ sealed class CoopMsg {
             13 -> Coins(i.readInt())
             14 -> HelpNeeded(i.readUnsignedByte())
             15 -> HelpGiven
+            16 -> Tow
+            17 -> RescueCall
+            18 -> RescueDone(i.readInt())
             else -> null
         }
     }

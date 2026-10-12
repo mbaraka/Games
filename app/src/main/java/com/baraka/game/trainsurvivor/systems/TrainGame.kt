@@ -192,6 +192,8 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     var bossDamageOut = 0f
     private var applyingRemote = false
     val gangwayLevel = save.level(TrainUpgrade.GANGWAY)
+    val linkLevel = save.level(TrainUpgrade.LINK)
+    val towLevel = save.level(TrainUpgrade.TOW)
     /** Seconds each of this train's passengers is still away on the partner's train (0 = at home). */
     val seatAwayTime = FloatArray(slotCount)
     private var loanSeat = -1
@@ -435,6 +437,8 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         repairSendCooldown = max(0f, repairSendCooldown - dt)
         coinGiftCooldown = max(0f, coinGiftCooldown - dt)
         tickLocks(dt)
+        towCooldown = max(0f, towCooldown - dt)
+        tickRescue(dt)
         for (i in seatAwayTime.indices) {
             if (seatAwayTime[i] > 0f) {
                 seatAwayTime[i] -= dt
@@ -544,6 +548,106 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         }
     }
 
+    // ---- co-op combo: both trains hit the same boss within 2 seconds of each other for a bonus
+    private var lastOwnBossHit = -99f
+    private var lastRemoteBossHit = -99f
+    private var comboAt = -99f
+    var comboCount = 0
+
+    private fun tryCombo(boss: Zombie) {
+        if (boss.dead || time - lastOwnBossHit > 2f || time - lastRemoteBossHit > 2f || time - comboAt < 2.5f) return
+        comboAt = time
+        comboCount++
+        val wasRemote = applyingRemote
+        applyingRemote = true // the bonus is local: the partner earns their own
+        damageZombie(boss, boss.maxHp * (0.025f + 0.005f * min(comboCount, 6)), silent = true)
+        applyingRemote = wasRemote
+        floatText(boss.x, boss.y - 90f, "COMBO x$comboCount!", 1.4f, 0xFF40E0FF.toInt(), 26f)
+        sound(TrainSoundCue.UPGRADE)
+        shake = max(shake, 0.4f)
+    }
+
+    // ---- co-op: Emergency Tow (revive or repair the partner's train)
+    var towCooldown = 0f
+    val towCooldownMax get() = 80f - 10f * towLevel
+    val towReady get() = partnerPresent && towLevel > 0 && !over && towCooldown <= 0f
+
+    fun sendTow(): Boolean {
+        if (!towReady) return false
+        towCooldown = towCooldownMax
+        floatText(trainLeft + trainLength / 2f, 340f, "Tow sent", 1.2f, 0xFF66FF8A.toInt(), 18f)
+        onCoop?.invoke(CoopSignal.TowSent)
+        return true
+    }
+
+    fun receiveTow() {
+        if (over) return
+        var revived = false
+        for (i in 1 until slotCount) {
+            if (carHp[i] <= 0f) {
+                carHp[i] = carMaxHp[i] * 0.5f
+                gunners[i].alive = true
+                floatText(carCenterX(i), 360f, "Wagon towed back!", 1.6f, 0xFF66FF8A.toInt(), 22f)
+                revived = true
+                break
+            }
+        }
+        if (!revived) healFraction(0.3f)
+        sound(TrainSoundCue.REPAIR)
+    }
+
+    // ---- co-op: rescue events. A survivor is stranded on this track; only a lent passenger can fetch them.
+    var rescueTime = 0f
+    private var rescueProgress = 0f
+    private var rescueTimer = 70f
+    var partnerRescueTime = 0f
+    /** 0..1 progress of the rescue in progress, for the beacon ring. */
+    val rescueFraction get() = (rescueProgress / 4f).coerceIn(0f, 1f)
+
+    fun startRescue() {
+        if (rescueTime > 0f || over) return
+        rescueTime = 45f
+        rescueProgress = 0f
+        floatText(trainLeft + trainLength + 80f, 300f, "SURVIVOR STRANDED!", 2f, 0xFFFFD54F.toInt(), 22f)
+        sound(TrainSoundCue.BOSS)
+        if (partnerPresent) onCoop?.invoke(CoopSignal.RescueCall)
+    }
+
+    private fun tickRescue(dt: Float) {
+        if (partnerRescueTime > 0f) partnerRescueTime -= dt
+        if (rescueTime > 0f) {
+            rescueTime -= dt
+            if (guestPresent) rescueProgress += dt else rescueProgress = max(0f, rescueProgress - dt * 0.5f)
+            if (rescueProgress >= 4f) {
+                val bonus = 200 + distanceMeters / 4
+                rescueTime = 0f
+                runCoins += bonus
+                healFraction(0.25f)
+                floatText(trainLeft + trainLength / 2f, 330f, "RESCUED! +$bonus coins", 2f, 0xFFFFD54F.toInt(), 24f)
+                sound(TrainSoundCue.CRATE)
+                onCoop?.invoke(CoopSignal.RescueDone(bonus))
+            } else if (rescueTime <= 0f) {
+                floatText(trainLeft + trainLength / 2f, 330f, "The survivor was lost...", 1.8f, 0xFFFF8A65.toInt(), 20f)
+            }
+        } else if (partnerPresent && !over) {
+            rescueTimer -= dt
+            if (rescueTimer <= 0f) {
+                rescueTimer = 80f + 40f * rng.nextFloat()
+                startRescue()
+            }
+        }
+    }
+
+    fun partnerRescueCall() {
+        partnerRescueTime = 45f
+    }
+
+    /** The partner rescued their survivor with our passenger's help: we share the reward. */
+    fun partnerRescueDone(bonus: Int) {
+        partnerRescueTime = 0f
+        receiveCoins(bonus)
+    }
+
     var coinGiftCooldown = 0f
     /** What the Give Coins button would send right now: a quarter of this run's coins. */
     val coinGiftAmount get() = runCoins / 4
@@ -601,6 +705,8 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         applyingRemote = true
         damageZombie(b, fraction * b.maxHp, silent = true)
         applyingRemote = false
+        lastRemoteBossHit = time
+        tryCombo(b)
     }
 
     // ---------------------------------------------------------------- active abilities
@@ -1289,10 +1395,14 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             z.shield -= absorbed
             dealt -= absorbed
         }
-        if (z.isBoss && !applyingRemote) bossDamageOut += dealt / z.maxHp
+        if (z.isBoss && !applyingRemote) {
+            bossDamageOut += dealt / z.maxHp
+            lastOwnBossHit = time
+        }
         // Co-op bosses shrug off your own guns; the damage your partner forwards lands in full.
         if (z.type.partnerOnly && !applyingRemote && partnerPresent) dealt *= 0.1f
         z.hp -= dealt
+        if (z.isBoss && !applyingRemote && partnerPresent) tryCombo(z)
         if (!silent) {
             z.flash = 1f
             z.sinceHit = 0f
@@ -1473,7 +1583,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
     }
 
     private fun damageFor(slot: Int, weapon: WeaponType): Float =
-        weapon.damage * crew[slot].powerMultiplier * damagePerk[slot] * paint.damageMult * (if (buffTime > 0f) 1.3f else 1f)
+        weapon.damage * crew[slot].powerMultiplier * damagePerk[slot] * paint.damageMult * (if (partnerPresent) 1f + 0.05f * linkLevel else 1f) * (if (buffTime > 0f) 1.3f else 1f)
 
     /** Damage of one shot from [slot]'s current weapon, with power upgrades, perk and any damage boost applied. */
     fun shotDamage(slot: Int): Float = damageFor(slot, gunners[slot].weapon)
