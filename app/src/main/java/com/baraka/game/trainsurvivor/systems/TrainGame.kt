@@ -6,6 +6,7 @@ import com.baraka.game.trainsurvivor.model.Biome
 import com.baraka.game.trainsurvivor.model.CrewSlot
 import com.baraka.game.trainsurvivor.model.DangerLevel
 import com.baraka.game.trainsurvivor.model.EliteTrait
+import com.baraka.game.trainsurvivor.model.HazardKind
 import com.baraka.game.trainsurvivor.model.Perk
 import com.baraka.game.trainsurvivor.model.SURVIVORS
 import com.baraka.game.trainsurvivor.model.SaveData
@@ -340,7 +341,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
      * How fast the train is running: 1.0 at the start, rising to 2.6 by 2,900 m, then multiplied by the train's body and
      * Engine Tuning (capped at 4x). Faster means more distance and coins per second, more zombies and faster-closing zombies.
      */
-    val speedFactor get() = ((1f + min(1.6f, distance / 1800f)) * shape.speedMult * paint.speedMult * (1f + 0.08f * engineLevel)).coerceAtMost(4f)
+    val speedFactor get() = ((1f + min(1.6f, distance / 1800f)) * shape.speedMult * paint.speedMult * (1f + 0.08f * engineLevel)).coerceAtMost(4f) * (if (lockedBy == HazardKind.GATE_LOCK) 0.35f else 1f)
 
     /** Zombies close in a little faster as the train speeds up. */
     private val zombiePace get() = 1f + 0.25f * (speedFactor - 1f)
@@ -433,6 +434,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         outgoingLoanCooldown = max(0f, outgoingLoanCooldown - dt)
         repairSendCooldown = max(0f, repairSendCooldown - dt)
         coinGiftCooldown = max(0f, coinGiftCooldown - dt)
+        tickLocks(dt)
         for (i in seatAwayTime.indices) {
             if (seatAwayTime[i] > 0f) {
                 seatAwayTime[i] -= dt
@@ -489,6 +491,57 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
         }
         guestTime = seconds
         floatText(gunX(seat), gunY(seat) - 60f, SURVIVORS[guestSurvivor].name + " joins!", 1.6f, 0xFF40E0FF.toInt(), 20f)
+    }
+
+    /** True while a partner is connected and playing (some co-op rules only apply then). */
+    var partnerPresent = false
+
+    // ---- co-op locks (see PartnerLock): this train is jammed or gated until the partner clears it
+    var lockedBy: HazardKind? = null
+    var lockTime = 0f
+    val jammed get() = lockedBy == HazardKind.SIGNAL_JAM
+    /** The partner's lock we could clear right now, and how long it has left. */
+    var partnerHelp: HazardKind? = null
+    var partnerHelpTime = 0f
+
+    fun lockTrain(kind: HazardKind) {
+        lockedBy = kind
+        lockTime = 0f
+        shake = max(shake, 0.5f)
+        sound(TrainSoundCue.BOSS)
+        floatText(trainLeft + trainLength / 2f, 330f, if (kind == HazardKind.SIGNAL_JAM) "GUNS JAMMED! Ask your partner" else "GATE! Ask your partner", 2f, 0xFFFF8A65.toInt(), 22f)
+        if (partnerPresent) onCoop?.invoke(CoopSignal.HelpNeeded(kind.ordinal))
+    }
+
+    fun unlockTrain(byPartner: Boolean) {
+        if (lockedBy == null) return
+        lockedBy = null
+        if (byPartner) floatText(trainLeft + trainLength / 2f, 330f, "Cleared by your partner!", 1.6f, 0xFF66FF8A.toInt(), 22f)
+    }
+
+    fun partnerNeedsHelp(kind: Int) {
+        partnerHelp = HazardKind.entries.getOrNull(kind)
+        partnerHelpTime = 14f
+    }
+
+    /** Clears the partner's lock (the button on the co-op bar). */
+    fun helpPartner() {
+        if (partnerHelp == null) return
+        partnerHelp = null
+        onCoop?.invoke(CoopSignal.HelpGiven)
+        floatText(trainLeft + trainLength / 2f, 340f, "Partner freed", 1.2f, 0xFF66FF8A.toInt(), 18f)
+    }
+
+    private fun tickLocks(dt: Float) {
+        if (lockedBy != null) {
+            lockTime += dt
+            // Nobody to ask (solo, or the partner left) or nobody answered: it frees itself.
+            if (lockTime > (if (partnerPresent) 14f else 5f)) unlockTrain(false)
+        }
+        if (partnerHelp != null) {
+            partnerHelpTime -= dt
+            if (partnerHelpTime <= 0f) partnerHelp = null
+        }
     }
 
     var coinGiftCooldown = 0f
@@ -738,7 +791,12 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
 
     fun openJunction() {
         if (junction != null || transitioning) return
-        val options = Biome.entries.filter { it != biome }.shuffled(rng)
+        val options = Biome.entries.filter { it != biome && (!it.coopOnly || partnerPresent) }.shuffled(rng).toMutableList()
+        // Co-op runs often offer one of the co-op-only routes.
+        if (partnerPresent && rng.nextFloat() < 0.6f && !options[0].coopOnly && !options[1].coopOnly) {
+            val special = options.firstOrNull { it.coopOnly }
+            if (special != null) { options.remove(special); options.add(0, special) }
+        }
         var second = options[1]
         // A hurt train is always offered the calm Plains route as one of its two choices.
         if (biome != Biome.PLAINS && isHurt() && options[0] != Biome.PLAINS && options[1] != Biome.PLAINS) second = Biome.PLAINS
@@ -1232,6 +1290,8 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             dealt -= absorbed
         }
         if (z.isBoss && !applyingRemote) bossDamageOut += dealt / z.maxHp
+        // Co-op bosses shrug off your own guns; the damage your partner forwards lands in full.
+        if (z.type.partnerOnly && !applyingRemote && partnerPresent) dealt *= 0.1f
         z.hp -= dealt
         if (!silent) {
             z.flash = 1f
@@ -1357,7 +1417,7 @@ class TrainGame(private val save: SaveData, private val spawnEnabled: Boolean = 
             val dx = target.x - gx
             g.facing = if (dx >= 0f) 1 else -1
             g.aim = atan2(targetY(target) - shoulderY(i), max(abs(dx), 20f))
-            if (g.cooldown <= 0f && !g.overheated[weapon.ordinal]) {
+            if (g.cooldown <= 0f && !g.overheated[weapon.ordinal] && !jammed) {
                 g.cooldown = weapon.interval
                 fire(i, target)
             }

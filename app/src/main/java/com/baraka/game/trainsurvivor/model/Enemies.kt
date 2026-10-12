@@ -42,7 +42,9 @@ enum class ZombieType(
     /** Flits around erratically instead of flying straight (bats, piranhas, sprites). */
     val erratic: Boolean = false,
     /** Spawns as a pack of this many. */
-    val packSize: Int = 1
+    val packSize: Int = 1,
+    /** Co-op bosses: your own guns only scratch it (10%); your partner's fire cracks it. Solo it takes full damage. */
+    val partnerOnly: Boolean = false
 ) {
     WALKER("Walker", 30f, 38f, 5f, 2, 1.0f),
     RUNNER("Runner", 18f, 88f, 4f, 3, 0.9f),
@@ -102,6 +104,9 @@ enum class ZombieType(
     MEGALODON("Megalodon", 1300f, 55f, 32f, 200, 2.8f, boss = true, armor = 8f, aimHeight = 20f, leaper = true, specialEvery = 6f, smash = 30f, callout = "BREACH!"),
     JUGGERNAUT("Juggernaut", 1600f, 20f, 32f, 200, 2.4f, boss = true, armor = 14f, specialEvery = 5.5f, smash = 32f, callout = "CRUSH!"),
     ANGLERFISH("Abyssal Angler", 1000f, 45f, 22f, 190, 2.8f, flying = true, boss = true, armor = 5f, specialEvery = 6f, summon = PIRANHA, summonCount = 4, callout = "FEAST!"),
+    STRIKER("Striker", 70f, 120f, 9f, 8, 1.0f, armor = 3f, aimHeight = 26f),
+    TWIN_BULWARK("Twin Bulwark", 1500f, 22f, 30f, 230, 2.4f, boss = true, armor = 8f, specialEvery = 7f, summon = STRIKER, summonCount = 3, callout = "STRIKERS!", partnerOnly = true),
+    MIRROR_WARDEN("Mirror Warden", 1300f, 30f, 24f, 230, 2.3f, boss = true, armor = 6f, ranged = 320f, specialEvery = 6f, summon = STRIKER, summonCount = 2, callout = "ECHO!", partnerOnly = true),
     SUN_KING("Sun King", 1100f, 36f, 24f, 210, 2.3f, boss = true, armor = 6f, ranged = 330f, fireImmune = true, specialEvery = 7f, summon = SOLAR_SPRITE, summonCount = 3, callout = "BURN!")
 }
 

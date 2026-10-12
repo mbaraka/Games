@@ -27,6 +27,10 @@ sealed class CoopMsg {
     object Blast : CoopMsg()
     class Repair(val fraction: Float) : CoopMsg()
     class Coins(val amount: Int) : CoopMsg()
+    /** The sender's train is locked by a co-op hazard (kind = HazardKind ordinal). */
+    class HelpNeeded(val kind: Int) : CoopMsg()
+    /** The sender cleared the receiver's lock. */
+    object HelpGiven : CoopMsg()
 
     fun write(o: DataOutputStream) {
         when (this) {
@@ -46,6 +50,8 @@ sealed class CoopMsg {
             Blast -> o.writeByte(11)
             is Repair -> { o.writeByte(12); o.writeFloat(fraction) }
             is Coins -> { o.writeByte(13); o.writeInt(amount) }
+            is HelpNeeded -> { o.writeByte(14); o.writeByte(kind) }
+            HelpGiven -> o.writeByte(15)
         }
     }
 
@@ -64,6 +70,8 @@ sealed class CoopMsg {
             11 -> Blast
             12 -> Repair(i.readFloat())
             13 -> Coins(i.readInt())
+            14 -> HelpNeeded(i.readUnsignedByte())
+            15 -> HelpGiven
             else -> null
         }
     }
@@ -78,7 +86,10 @@ class SimulatedLink : SimulatedPartner<CoopMsg>() {
     private var junctionPending = -1f
     private var junctionA = 0
 
+    private var helpIn = -1f
+
     override fun send(msg: CoopMsg) {
+        if (msg is CoopMsg.HelpNeeded) helpIn = 2.5f // the pretend partner clears your lock after a moment
         if (msg is CoopMsg.Junction) {
             junctionPending = 3f // the pretend partner takes the first route a moment later
             junctionA = msg.a
@@ -91,6 +102,10 @@ class SimulatedLink : SimulatedPartner<CoopMsg>() {
         if (junctionPending > 0f) {
             junctionPending -= dt
             if (junctionPending <= 0f) deliver(CoopMsg.RouteReq(junctionA))
+        }
+        if (helpIn > 0f) {
+            helpIn -= dt
+            if (helpIn <= 0f) deliver(CoopMsg.HelpGiven)
         }
         lendTimer -= dt
         if (lendTimer <= 0f) {

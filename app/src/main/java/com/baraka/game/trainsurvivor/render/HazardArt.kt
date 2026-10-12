@@ -10,6 +10,7 @@ import com.baraka.game.trainsurvivor.systems.HullBreaches
 import com.baraka.game.trainsurvivor.systems.LavaGeysers
 import com.baraka.game.trainsurvivor.systems.MeteorShower
 import com.baraka.game.trainsurvivor.systems.OverpassDrops
+import com.baraka.game.trainsurvivor.systems.PartnerLock
 import com.baraka.game.trainsurvivor.systems.SolarFlares
 import com.baraka.game.trainsurvivor.systems.Tentacles
 import com.baraka.game.trainsurvivor.systems.TrainGame
@@ -30,6 +31,7 @@ internal fun DrawScope.drawHazards(g: TrainGame) {
             is HullBreaches -> drawBreach(h, g)
             is OverpassDrops -> drawOverpass(h, g)
             is SolarFlares -> drawFlare(h, g)
+            is PartnerLock -> drawPartnerLock(h, g)
             is Tentacles -> {} // tentacles are ordinary enemies; see MobArts.kt
         }
     }
@@ -112,4 +114,25 @@ private fun DrawScope.drawFlare(h: SolarFlares, g: TrainGame) {
         drawOval(Color(0xFF40E0FF).copy(alpha = 0.7f), Offset(x, 350f), Size(w, 170f), style = Stroke(3f))
     }
     if (h.flash > 0f) drawRect(Color.White.copy(alpha = (h.flash * 1.6f).coerceIn(0f, 0.8f)), Offset(-200f, -1200f), Size(g.worldW + 400f, 2400f))
+}
+
+/** Jam: sparks and a red lock over the guns. Gate: a striped barrier across the rails in front of the train. */
+private fun DrawScope.drawPartnerLock(h: PartnerLock, g: TrainGame) {
+    if (g.lockedBy != h.kind) return
+    val pulse = 0.5f + 0.5f * sin(g.time * 8f)
+    if (g.jammed) {
+        for (i in 0 until g.slotCount) {
+            if (!g.carAlive(i)) continue
+            val x = g.gunX(i)
+            val y = g.gunY(i)
+            drawCircle(Color(0xFFFF5252).copy(alpha = 0.25f + 0.2f * pulse), 20f, Offset(x, y - 20f))
+            drawLine(Color(0xFFFFEB3B), Offset(x - 8f, y - 30f), Offset(x + 8f, y - 12f), 3f)
+            drawLine(Color(0xFFFFEB3B), Offset(x + 8f, y - 30f), Offset(x - 8f, y - 12f), 3f)
+        }
+    } else {
+        val x = g.trainLeft + g.trainLength + 50f
+        box(Color(0xFF455A64), x - 6f, 380f, 12f, 100f)
+        for (k in 0 until 5) box(if (k % 2 == 0) Color(0xFFFFC107) else Color(0xFF212121), x - 6f, 380f + k * 20f, 12f, 20f)
+        drawCircle(Color(0xFFFF5252).copy(alpha = 0.3f + 0.3f * pulse), 18f, Offset(x, 370f))
+    }
 }

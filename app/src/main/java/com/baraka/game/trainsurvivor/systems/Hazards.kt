@@ -45,6 +45,7 @@ object HazardRegistry {
         HazardKind.TENTACLES -> Tentacles()
         HazardKind.OVERPASS_DROPS -> OverpassDrops()
         HazardKind.SOLAR_FLARES -> SolarFlares()
+        HazardKind.SIGNAL_JAM, HazardKind.GATE_LOCK -> PartnerLock(kind)
     }
 }
 
@@ -356,4 +357,29 @@ class SolarFlares : Hazard() {
         return true
     }
 
+}
+
+/**
+ * A co-op hazard: now and then this train is locked (guns jammed, or the track gated and the train slowed) and only the
+ * PARTNER can unlock it, from their screen. Alone (or if the partner is gone) it clears itself after a few seconds.
+ * The lock state itself lives in [TrainGame.lockedBy] so the engine can read it without knowing about hazards.
+ */
+class PartnerLock(override val kind: HazardKind) : Hazard() {
+    private var timer = 14f
+    override val idle: Boolean get() = true
+
+    override fun trigger() {
+        timer = 0f
+    }
+
+    override fun update(g: TrainGame, dt: Float) {
+        if (retiring || g.over) return
+        if (g.lockedBy == null) {
+            timer -= dt
+            if (timer <= 0f) {
+                timer = 20f + 6f * g.rng.nextFloat()
+                g.lockTrain(kind)
+            }
+        }
+    }
 }

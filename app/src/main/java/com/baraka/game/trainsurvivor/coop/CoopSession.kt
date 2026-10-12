@@ -29,6 +29,7 @@ class CoopSession(val game: TrainGame, val link: CoopLink<CoopMsg>, val role: Co
     init {
         game.coopRole = role
         game.coopSpawnMult = 2f // two trains, double the zombies
+        game.partnerPresent = true
         game.onCoop = { signal -> onSignal(signal) }
         link.send(CoopMsg.Hello(COOP_PROTOCOL))
     }
@@ -45,6 +46,7 @@ class CoopSession(val game: TrainGame, val link: CoopLink<CoopMsg>, val role: Co
         if (partner.connected && !link.connected) {
             partner.connected = false
             game.coopSpawnMult = 1f // alone again
+            game.partnerPresent = false
             game.coopRole = CoopRole.HOST // nobody left to wait for
         }
         sendTimer += dt
@@ -77,6 +79,8 @@ class CoopSession(val game: TrainGame, val link: CoopLink<CoopMsg>, val role: Co
             is CoopSignal.PassengerSent -> link.send(CoopMsg.Passenger(s.survivor, s.slot, s.seconds))
             CoopSignal.Blast -> link.send(CoopMsg.Blast)
             is CoopSignal.CoinsSent -> link.send(CoopMsg.Coins(s.amount))
+            is CoopSignal.HelpNeeded -> link.send(CoopMsg.HelpNeeded(s.kind))
+            CoopSignal.HelpGiven -> link.send(CoopMsg.HelpGiven)
             is CoopSignal.RepairSent -> link.send(CoopMsg.Repair(s.fraction))
             CoopSignal.TrainDestroyed -> link.send(CoopMsg.Down)
         }
@@ -113,6 +117,8 @@ class CoopSession(val game: TrainGame, val link: CoopLink<CoopMsg>, val role: Co
             CoopMsg.Blast -> game.remoteBlast()
             is CoopMsg.Repair -> game.receiveRepair(m.fraction)
             is CoopMsg.Coins -> game.receiveCoins(m.amount)
+            is CoopMsg.HelpNeeded -> game.partnerNeedsHelp(m.kind)
+            CoopMsg.HelpGiven -> game.unlockTrain(true)
             CoopMsg.Down -> {
                 partner.down = true
                 game.forceEnd() // two trains, one fate: the run ends for both

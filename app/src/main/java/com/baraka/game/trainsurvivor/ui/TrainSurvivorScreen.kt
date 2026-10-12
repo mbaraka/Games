@@ -612,6 +612,21 @@ private fun CoopHud(game: TrainGame, session: CoopSession, tick: MutableLongStat
             }
             if (p.ourPassengerAway > 0f) Text("guest ${p.ourPassengerAway.toInt()}s", color = Color(0xFFFFD54F), fontSize = 10.sp)
         }
+        val help = game.partnerHelp
+        if (help != null && p.connected && !p.down) {
+            Text(
+                if (help == com.baraka.game.trainsurvivor.model.HazardKind.SIGNAL_JAM) "CLEAR PARTNER'S JAM (${game.partnerHelpTime.toInt() + 1}s)" else "OPEN PARTNER'S GATE (${game.partnerHelpTime.toInt() + 1}s)",
+                color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFFFF8A65)).clickable { game.helpPartner() }.padding(horizontal = 14.dp, vertical = 8.dp)
+            )
+        }
+        if (game.lockedBy != null) {
+            Text(
+                if (game.jammed) "YOUR GUNS ARE JAMMED - waiting for your partner" else "GATE CLOSED - waiting for your partner",
+                color = Color(0xFFFF8A65), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 3.dp)
+            )
+        }
         if (p.connected && !p.down) {
             Text(
                 if (game.coinGiftReady) "GIVE ${game.coinGiftAmount} COINS" else "Give coins",

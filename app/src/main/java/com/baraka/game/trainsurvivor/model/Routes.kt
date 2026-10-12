@@ -7,6 +7,8 @@ enum class HazardKind(val displayName: String, val description: String) {
     HULL_BREACH("Hull breaches", "A wagon springs a leak: tap it within 6 seconds or lose 12% of your run coins."),
     TENTACLES("Sea tentacles", "Tentacles rise from the water and squeeze a wagon until you kill them."),
     OVERPASS_DROPS("Overpass drops", "Zombies drop from overpasses onto your roofs."),
+    SIGNAL_JAM("Signal jam", "Co-op: every so often your guns jam. Only your PARTNER can clear it, from their screen - and you clear theirs."),
+    GATE_LOCK("Track gate", "Co-op: a gate drops across your rails and your train crawls until your PARTNER opens it."),
     SOLAR_FLARES("Solar flares", "A flare hits after a short warning: tap to raise the shields or every wagon is burned. Flying enemies burn either way.")
 }
 
@@ -78,7 +80,9 @@ enum class Biome(
     val speedMult: Float = 1f,
     /** Low gravity makes debris, shells and leaping zombies float. */
     val gravityMult: Float = 1f,
-    val hazards: List<HazardKind> = emptyList()
+    val hazards: List<HazardKind> = emptyList(),
+    /** Only appears in two-phone co-op runs. */
+    val coopOnly: Boolean = false
 ) {
     PLAINS(
         "Open Plains", "Calm and safe: fewer, weaker zombies and the train repairs itself",
@@ -175,6 +179,20 @@ enum class Biome(
             signature(ZombieType.EMBER, 8f) + signature(ZombieType.SOLAR_SPRITE, 22f, weight = 4f) +
             signature(ZombieType.SUN_PRIEST, 35f, weight = 3f, perSecond = 1f / 80f),
         hazards = listOf(HazardKind.SOLAR_FLARES)
+    ),
+    TWIN_BRIDGE(
+        "Twin Bridge (CO-OP)", "Co-op only: parallel tracks over a gorge. Guns jam - your partner must clear them. The Twin Bulwark needs both trains.",
+        2.0f, 1.2f, 1.2f, 1.2f, 0xFF26C6DA, ZombieType.TWIN_BULWARK,
+        commonSpawns(walker = 0.7f, runner = 1f, brute = 1.2f, bloater = 0.6f, bat = 0.8f, balloon = 0.5f, clown = 0.3f) +
+            signature(ZombieType.STRIKER, 10f, weight = 4f, perSecond = 1f / 60f),
+        hazards = listOf(HazardKind.SIGNAL_JAM), coopOnly = true
+    ),
+    ECHO_MINE(
+        "Echo Mine (CO-OP)", "Co-op only: a mine with a crushing gate. Your partner must open it. The Mirror Warden only falls to your partner's fire.",
+        2.0f, 1.3f, 1.3f, 1.2f, 0xFFAB47BC, ZombieType.MIRROR_WARDEN,
+        commonSpawns(walker = 0.8f, runner = 0.8f, brute = 1f, bloater = 0.8f, bat = 2f, balloon = 0f, clown = 0.2f) +
+            signature(ZombieType.RAT, 8f, weight = 5f) + signature(ZombieType.STRIKER, 25f, weight = 3f, perSecond = 1f / 70f),
+        hazards = listOf(HazardKind.GATE_LOCK), coopOnly = true
     );
 
     /** The enemies listed as this route's own (shown on junction cards and in the Field Guide). */

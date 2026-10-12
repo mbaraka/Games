@@ -17,6 +17,9 @@ internal fun registerBossArts() {
     l.set(ZombieType.OUTLAW_KING, 0xFF86B864, 0xFF4E342E)
     l.set(ZombieType.JUGGERNAUT, 0xFF86B864, 0xFF263238)
     l.set(ZombieType.SUN_KING, 0xFFE0A070, 0xFFFFA000)
+    l.set(ZombieType.STRIKER, 0xFF86B864, 0xFF6A1B9A)
+    l.set(ZombieType.TWIN_BULWARK, 0xFF86B864, 0xFF00838F)
+    l.set(ZombieType.MIRROR_WARDEN, 0xFFB39DDB, 0xFF4A148C)
 
     // Animal bosses reuse their cousin's body (drawn bigger by their size).
     MobArtRegistry.alias(ZombieType.RAT_KING, ZombieType.RAT)
@@ -40,6 +43,8 @@ internal fun registerBossArts() {
     HumanoidExtras.alias(ZombieType.OUTLAW_KING, ZombieType.GUNSLINGER)
     HumanoidExtras.alias(ZombieType.JUGGERNAUT, ZombieType.RIOT)
     HumanoidExtras.alias(ZombieType.SUN_KING, ZombieType.SUN_PRIEST)
+    HumanoidExtras.alias(ZombieType.TWIN_BULWARK, ZombieType.RIOT)
+    HumanoidExtras.alias(ZombieType.MIRROR_WARDEN, ZombieType.GUNSLINGER)
 
     val p = PortraitSizes
     p.set(ZombieType.RAT_KING, 110f)
