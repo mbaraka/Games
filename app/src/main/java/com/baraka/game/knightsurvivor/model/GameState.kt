@@ -44,7 +44,27 @@ data class GameState(
     /** Once true for a run, stays true — whether any boss has died this run, for the BOSS_SLAYER achievement. */
     val bossDefeatedThisRun: Boolean = false,
     /** The best survival time persisted from previous runs, loaded once at game start purely for HUD/end-screen display and comparison — this state layer never writes to storage itself, see data/SurvivorStatsRepository.kt. */
-    val bestSurvivalTimeMsAtStart: Long = 0L
+    val bestSurvivalTimeMsAtStart: Long = 0L,
+    /**
+     * The co-op partner's own character, simulated host-side alongside [player] in the same
+     * arena — null for a solo run. Each player keeps independent weapons/level/XP (see
+     * knightsurvivor/coop/KnightCoopSession.kt); only the arena (enemies, projectiles,
+     * pickups) is shared. Only ever non-null on the host device — the guest device never
+     * runs GameLoopOrchestrator at all, it just renders whatever snapshot the host last sent.
+     */
+    val partner: PlayerState? = null,
+    /** The partner's current joystick input, relayed from the guest device over Bluetooth. */
+    val partnerJoystickInput: Vec2 = Vec2.ZERO,
+    /** The partner's own chosen weapon deck (see ui/WeaponDeckPickerScreen.kt) — only meaningful while [partner] is non-null. */
+    val partnerWeaponDeck: Set<WeaponKind> = emptySet(),
+    /**
+     * Upgrade choices rolled for the partner after their own level-up. Deliberately does
+     * NOT pause [phase] the way the host's own [pendingUpgradeChoices] does — pausing the
+     * whole shared arena because the *other* player leveled up would freeze the host's
+     * screen on an overlay with nothing to pick. The partner picks on their own device while
+     * the world keeps running; see GameLoopOrchestrator.applyPartnerUpgradeChoiceAndResume.
+     */
+    val pendingPartnerUpgradeChoices: List<UpgradeOption> = emptyList()
 ) {
     val survivalTimeMs: Long get() = elapsedMs
     val isNewBestTime: Boolean get() = survivalTimeMs > bestSurvivalTimeMsAtStart

@@ -12,15 +12,17 @@ data class EnemyRangedAttackResult(
 )
 
 /**
- * Mirrors systems/WeaponFiringSystem.kt but for enemies attacking the player instead of
- * the other way around — currently just the Imp ([com.baraka.game.knightsurvivor.model.EnemyKind.hasRangedAttack]).
+ * Mirrors systems/WeaponFiringSystem.kt but for enemies attacking a player instead of the
+ * other way around — currently just the Imp ([com.baraka.game.knightsurvivor.model.EnemyKind.hasRangedAttack]).
  * Ticks each ranged enemy's own attack cooldown ([EnemyInstance.rangedAttackCooldownMs])
- * and fires an [EnemyProjectile] at the player when it's ready and the player is within
- * [com.baraka.game.knightsurvivor.model.EnemyKind.rangedAttackRangePx].
+ * and fires an [EnemyProjectile] at the nearest of [targets] when it's ready and that
+ * target is within [com.baraka.game.knightsurvivor.model.EnemyKind.rangedAttackRangePx].
+ * [targets] is a list so a co-op partner's knight is a valid target too — solo play always
+ * passes a one-element list.
  */
 object EnemyRangedAttackSystem {
 
-    fun step(enemies: List<EnemyInstance>, playerPosition: Vec2, dtMs: Long): EnemyRangedAttackResult {
+    fun step(enemies: List<EnemyInstance>, targets: List<Vec2>, dtMs: Long): EnemyRangedAttackResult {
         val updatedEnemies = mutableListOf<EnemyInstance>()
         val newProjectiles = mutableListOf<EnemyProjectile>()
 
@@ -36,14 +38,20 @@ object EnemyRangedAttackSystem {
                 continue
             }
 
-            val distanceToPlayer = enemy.position.distanceTo(playerPosition)
-            if (distanceToPlayer > enemy.kind.rangedAttackRangePx) {
+            val nearestTarget = targets.minByOrNull { it.distanceTo(enemy.position) }
+            if (nearestTarget == null) {
+                updatedEnemies += enemy.copy(rangedAttackCooldownMs = 0L)
+                continue
+            }
+
+            val distanceToTarget = enemy.position.distanceTo(nearestTarget)
+            if (distanceToTarget > enemy.kind.rangedAttackRangePx) {
                 // Ready to fire but out of range — stay at zero so it fires the instant it's back in range.
                 updatedEnemies += enemy.copy(rangedAttackCooldownMs = 0L)
                 continue
             }
 
-            val direction = (playerPosition - enemy.position).normalized()
+            val direction = (nearestTarget - enemy.position).normalized()
             newProjectiles += EnemyProjectile(
                 id = EntityIdGenerator.next(),
                 position = enemy.position,

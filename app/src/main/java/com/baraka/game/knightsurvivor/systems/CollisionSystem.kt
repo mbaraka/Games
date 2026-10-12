@@ -34,15 +34,36 @@ data class CollisionResult(
     val enemyDebuffs: Map<Long, EnemyDebuff> = emptyMap()
 )
 
+/** Everything one tick of world-vs-enemy damage resolution produced — the half of [CollisionResult] that doesn't involve any one specific player. See [CollisionSystem.resolveWorldDamage]. */
+data class WorldDamageResult(
+    val enemies: List<EnemyInstance>,
+    val projectiles: List<Projectile>,
+    val newXpGems: List<XpGem>,
+    val newHealthPickups: List<HealthPickup>,
+    val killsThisTick: Int,
+    val hitFeedback: List<HitFeedback> = emptyList(),
+    val deathFeedback: List<HitFeedback> = emptyList(),
+    val newEnemies: List<EnemyInstance> = emptyList(),
+    val enemyDebuffs: Map<Long, EnemyDebuff> = emptyMap()
+)
+
 /**
- * The one place damage is actually applied. Resolves projectile-vs-enemy hits (including
- * splash from Firecracker String/Egg Toss), folds in any [DamageEvent]s handed over by
- * systems/WeaponFiringSystem.kt (AoE/orbit weapons have no projectile of their own), kills
- * enemies whose HP drops to zero (spawning Slime's split offspring, dropping XP/heals),
- * then resolves enemy-vs-player damage — both contact and Imp's ranged
- * [EnemyProjectile]s — respecting the player's invulnerability window and applying
- * Golem's root. Keeping all of this in one file means "how much damage did X take this
- * tick" never has to be pieced together from multiple systems.
+ * The one place damage is actually applied. Split into two halves so co-op can share the
+ * first and run the second once per player:
+ *
+ * - [resolveWorldDamage]: projectile-vs-enemy hits (including Firecracker String's splash
+ *   damage, Egg Toss's splash slow, Static Zapper's stun-on-hit), plus any [DamageEvent]s
+ *   handed over by systems/WeaponFiringSystem.kt for AoE/orbit weapons. Enemies whose HP
+ *   drops to zero die here (spawning Slime's split offspring, dropping XP/heals). Run
+ *   exactly ONCE per tick on the combined projectile/damage-event list from every player —
+ *   projectile-vs-enemy hits don't depend on which player fired them.
+ * - [resolvePlayerDamage]: enemy-vs-ONE-player damage, both contact and ranged
+ *   [EnemyProjectile]s, respecting that player's invulnerability window and applying
+ *   Golem's root. Run once per player, threading the enemy list and surviving
+ *   [EnemyProjectile]s from one call to the next so a projectile that hits player A isn't
+ *   also available to hit player B the same tick.
+ *
+ * [resolve] composes both for the common solo-player case.
  */
 object CollisionSystem {
 
@@ -55,6 +76,31 @@ object CollisionSystem {
         nowMs: Long,
         random: Random = Random.Default
     ): CollisionResult {
+        val world = resolveWorldDamage(enemies, projectiles, externalDamageEvents, nowMs, random)
+        val (updatedPlayer, survivingEnemyProjectiles) = resolvePlayerDamage(player, world.enemies, enemyProjectiles, nowMs)
+
+        return CollisionResult(
+            enemies = world.enemies,
+            projectiles = world.projectiles,
+            newXpGems = world.newXpGems,
+            newHealthPickups = world.newHealthPickups,
+            killsThisTick = world.killsThisTick,
+            player = updatedPlayer,
+            enemyProjectiles = survivingEnemyProjectiles,
+            hitFeedback = world.hitFeedback,
+            deathFeedback = world.deathFeedback,
+            newEnemies = world.newEnemies,
+            enemyDebuffs = world.enemyDebuffs
+        )
+    }
+
+    fun resolveWorldDamage(
+        enemies: List<EnemyInstance>,
+        projectiles: List<Projectile>,
+        externalDamageEvents: List<DamageEvent>,
+        nowMs: Long,
+        random: Random = Random.Default
+    ): WorldDamageResult {
         val (survivingProjectiles, projectileDamageEvents, splashDebuffs) = resolveProjectileHits(projectiles, enemies, nowMs, random)
 
         val totalDamageByEnemyId = (projectileDamageEvents + externalDamageEvents)
@@ -98,16 +144,12 @@ object CollisionSystem {
             }
         }
 
-        val (updatedPlayer, survivingEnemyProjectiles) = resolvePlayerDamage(player, survivingEnemies, enemyProjectiles, nowMs)
-
-        return CollisionResult(
+        return WorldDamageResult(
             enemies = survivingEnemies,
             projectiles = survivingProjectiles,
             newXpGems = newXpGems,
             newHealthPickups = newHealthPickups,
             killsThisTick = kills,
-            player = updatedPlayer,
-            enemyProjectiles = survivingEnemyProjectiles,
             hitFeedback = hitFeedback,
             deathFeedback = deathFeedback,
             newEnemies = newEnemies,
@@ -196,8 +238,13 @@ object CollisionSystem {
         return Triple(survivingProjectiles, damageEvents, splashDebuffs)
     }
 
-    /** Enemy-vs-player damage from both contact and Imp's ranged shots, plus Golem's root — respects one shared invulnerability window. */
-    private fun resolvePlayerDamage(
+    /**
+     * Enemy-vs-ONE-player damage from both contact and ranged shots, plus Golem's root —
+     * respects that player's own invulnerability window. Call once per player in a co-op
+     * run, threading [enemies] and [enemyProjectiles] from one call to the next (see this
+     * object's class-level KDoc).
+     */
+    fun resolvePlayerDamage(
         player: PlayerState,
         enemies: List<EnemyInstance>,
         enemyProjectiles: List<EnemyProjectile>,

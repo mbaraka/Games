@@ -14,17 +14,30 @@ import com.baraka.game.knightsurvivor.model.WeaponTargeting
 import com.baraka.game.knightsurvivor.systems.WeaponFiringSystem
 
 private val INVULNERABLE_FLASH_COLOR = Color(0xFFFF5252)
+private val PARTNER_DEFAULT_BODY_COLOR = Color(0xFFFFA726)
 
-/** Draws the knight — whichever [KnightDesign] the player picked in Settings — its currently-owned ORBIT weapons spinning around it, and its HP bar. */
-fun DrawScope.drawPlayer(player: PlayerState, design: KnightDesign, nowMs: Long) {
+/**
+ * Draws the knight — whichever [KnightDesign] was picked in Settings — its currently-owned
+ * ORBIT weapons spinning around it, and its HP bar. [isPartner] only changes the Sworn
+ * Blade design's shield tint (amber instead of blue), so in co-op two players both wearing
+ * the same design can still be told apart at a glance.
+ */
+fun DrawScope.drawPlayer(player: PlayerState, design: KnightDesign, nowMs: Long, isPartner: Boolean = false) {
     val isInvulnerable = player.isInvulnerableAt(nowMs)
     val flashOn = isInvulnerable && (nowMs / 80L) % 2L == 0L
-    val bodyColor = if (flashOn) INVULNERABLE_FLASH_COLOR else KNIGHT_DEFAULT_BODY_COLOR
+    val defaultColor = if (isPartner) PARTNER_DEFAULT_BODY_COLOR else KNIGHT_DEFAULT_BODY_COLOR
+    val bodyColor = if (flashOn) INVULNERABLE_FLASH_COLOR else defaultColor
 
     drawKnightIcon(center = player.position.toOffset(), radius = player.radius, design = design, bodyColor = bodyColor)
 
     drawOrbitWeapons(player)
     drawPlayerHpBar(player)
+}
+
+/** Draws both knights in a co-op run — the local/host player plus, if present, the co-op partner. Solo play (no [com.baraka.game.knightsurvivor.model.GameState.partner]) draws just the one. */
+fun DrawScope.drawPlayers(player: PlayerState, partner: PlayerState?, design: KnightDesign, partnerDesign: KnightDesign, nowMs: Long) {
+    drawPlayer(player, design, nowMs)
+    if (partner != null) drawPlayer(partner, partnerDesign, nowMs, isPartner = true)
 }
 
 private fun DrawScope.drawOrbitWeapons(player: PlayerState) {

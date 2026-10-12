@@ -47,7 +47,8 @@ object WeaponFiringSystem {
         enemies: List<EnemyInstance>,
         nowMs: Long,
         dtMs: Long,
-        random: Random = Random.Default
+        random: Random = Random.Default,
+        ownerIsPartner: Boolean = false
     ): WeaponFiringResult {
         val updatedWeapons = mutableListOf<WeaponInstance>()
         val newProjectiles = mutableListOf<Projectile>()
@@ -74,7 +75,7 @@ object WeaponFiringSystem {
                 WeaponTargeting.NEAREST_ENEMY -> {
                     val shotCount = spinningWeapon.kind.projectileCountAtLevel(spinningWeapon.level)
                     val targets = nearestEnemiesWithinRange(player.position, enemies, shotCount)
-                    targets.forEach { target -> newProjectiles += fireProjectileAt(player.position, target, spinningWeapon) }
+                    targets.forEach { target -> newProjectiles += fireProjectileAt(player.position, target, spinningWeapon, ownerIsPartner) }
                     if (targets.isNotEmpty()) firedWeaponKinds += spinningWeapon.kind
                 }
 
@@ -142,7 +143,7 @@ object WeaponFiringSystem {
             .take(count)
             .map { (enemy, _) -> enemy }
 
-    private fun fireProjectileAt(from: Vec2, target: EnemyInstance, weapon: WeaponInstance): Projectile {
+    private fun fireProjectileAt(from: Vec2, target: EnemyInstance, weapon: WeaponInstance, ownerIsPartner: Boolean): Projectile {
         val direction = (target.position - from).normalized()
         return Projectile(
             id = EntityIdGenerator.next(),
@@ -150,7 +151,8 @@ object WeaponFiringSystem {
             velocity = direction * weapon.kind.projectileSpeed,
             damage = weapon.kind.damageAtLevel(weapon.level),
             sourceWeapon = weapon.kind,
-            pierceRemaining = weapon.kind.pierceAtLevel(weapon.level)
+            pierceRemaining = weapon.kind.pierceAtLevel(weapon.level),
+            ownerIsPartner = ownerIsPartner
         )
     }
 

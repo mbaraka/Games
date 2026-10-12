@@ -15,6 +15,13 @@ import kotlin.random.Random
  * between systems. Every system above stays independently swappable — this file is
  * intentionally the sole place that couples them, mirroring how MainActivity's
  * `when(gameType)` block is the sole coupling point for the whole Game Hub.
+ *
+ * Co-op: when [GameState.partner] is non-null, this runs a second player (own weapons,
+ * level, XP) through the per-player systems alongside the host's own [GameState.player],
+ * sharing one arena (enemies, projectiles, pickups). Only the host device ever calls
+ * [tick] — the guest device never runs this at all; it just renders whatever snapshot the
+ * host last sent over Bluetooth and sends back its joystick input. See
+ * knightsurvivor/coop/KnightCoopSession.kt.
  */
 object GameLoopOrchestrator {
 
@@ -25,33 +32,45 @@ object GameLoopOrchestrator {
         val dtMs = GameTunables.TICK_MS
         val dtSeconds = dtMs / 1000f
         val newElapsedMs = state.elapsedMs + dtMs
+        val hasPartner = state.partner != null
 
-        val movedPlayer = PlayerMovementSystem.step(state.player, state.joystickInput, state.arenaSize, newElapsedMs, dtSeconds)
+        val movedHost = PlayerMovementSystem.step(state.player, state.joystickInput, state.arenaSize, newElapsedMs, dtSeconds)
+        val firingHost = WeaponFiringSystem.step(movedHost, state.enemies, newElapsedMs, dtMs, random, ownerIsPartner = false)
+        val hostWithWeapons = movedHost.copy(weapons = firingHost.weapons)
 
-        val firing = WeaponFiringSystem.step(movedPlayer, state.enemies, newElapsedMs, dtMs, random)
-        val playerWithWeapons = movedPlayer.copy(weapons = firing.weapons)
+        val movedPartner = state.partner?.let { PlayerMovementSystem.step(it, state.partnerJoystickInput, state.arenaSize, newElapsedMs, dtSeconds) }
+        val firingPartner = movedPartner?.let { WeaponFiringSystem.step(it, state.enemies, newElapsedMs, dtMs, random, ownerIsPartner = true) }
+        val partnerWithWeapons = movedPartner?.let { mp -> firingPartner?.let { mp.copy(weapons = it.weapons) } ?: mp }
 
-        val movedEnemies = EnemyMovementSystem.step(state.enemies, playerWithWeapons.position, newElapsedMs, dtSeconds)
-        val rangedAttack = EnemyRangedAttackSystem.step(movedEnemies, playerWithWeapons.position, dtMs)
+        val targets = listOfNotNull(hostWithWeapons.position, partnerWithWeapons?.position)
+        val movedEnemies = EnemyMovementSystem.step(state.enemies, targets, newElapsedMs, dtSeconds)
+        val rangedAttack = EnemyRangedAttackSystem.step(movedEnemies, targets, dtMs)
 
-        val movedProjectiles =
-            ProjectileMovementSystem.step(state.projectiles + firing.newProjectiles, state.arenaSize, playerWithWeapons.position, dtSeconds)
+        val allNewProjectiles = firingHost.newProjectiles + (firingPartner?.newProjectiles ?: emptyList())
+        val movedProjectiles = ProjectileMovementSystem.step(
+            state.projectiles + allNewProjectiles, state.arenaSize, hostWithWeapons.position, partnerWithWeapons?.position, dtSeconds
+        )
         val movedEnemyProjectiles =
             EnemyProjectileMovementSystem.step(state.enemyProjectiles + rangedAttack.newProjectiles, state.arenaSize, dtSeconds)
 
-        val collision = CollisionSystem.resolve(
-            enemies = rangedAttack.enemies,
-            projectiles = movedProjectiles,
-            enemyProjectiles = movedEnemyProjectiles,
-            player = playerWithWeapons,
-            externalDamageEvents = firing.directDamageEvents,
-            nowMs = newElapsedMs,
-            random = random
-        )
+        // Projectile-vs-enemy damage is resolved exactly once on the combined list — it
+        // doesn't matter who fired what, every hit lands on the same shared enemy pool.
+        val allDamageEvents = firingHost.directDamageEvents + (firingPartner?.directDamageEvents ?: emptyList())
+        val world = CollisionSystem.resolveWorldDamage(rangedAttack.enemies, movedProjectiles, allDamageEvents, newElapsedMs, random)
 
-        val mergedDebuffs = mergeDebuffs(firing.enemyDebuffs, collision.enemyDebuffs)
-        val enemiesWithEffects = collision.enemies.map { enemy -> applyPullAndDebuff(enemy, firing.enemyPulls[enemy.id], mergedDebuffs[enemy.id]) } +
-            collision.newEnemies
+        // Enemy-vs-player damage is resolved once PER player, threading enemies/enemyProjectiles
+        // so a projectile that lands on the host isn't also available to land on the partner.
+        val (hostAfterDamage, enemyProjectilesAfterHost) = CollisionSystem.resolvePlayerDamage(hostWithWeapons, world.enemies, movedEnemyProjectiles, newElapsedMs)
+        val (partnerAfterDamage, enemyProjectilesAfterPartner) = if (partnerWithWeapons != null) {
+            CollisionSystem.resolvePlayerDamage(partnerWithWeapons, world.enemies, enemyProjectilesAfterHost, newElapsedMs)
+        } else {
+            null to enemyProjectilesAfterHost
+        }
+
+        val mergedDebuffs = mergeDebuffs(mergeDebuffs(firingHost.enemyDebuffs, firingPartner?.enemyDebuffs ?: emptyMap()), world.enemyDebuffs)
+        val mergedPulls = firingHost.enemyPulls + (firingPartner?.enemyPulls ?: emptyMap())
+        val enemiesWithEffects = world.enemies.map { enemy -> applyPullAndDebuff(enemy, mergedPulls[enemy.id], mergedDebuffs[enemy.id]) } +
+            world.newEnemies
 
         val spawnedEnemies = EnemySpawnSystem.step(
             currentEnemyCount = enemiesWithEffects.size,
@@ -59,49 +78,69 @@ object GameLoopOrchestrator {
             previousElapsedMs = state.elapsedMs,
             newElapsedMs = newElapsedMs,
             difficulty = state.difficulty,
-            random = random
+            random = random,
+            spawnMultiplier = if (hasPartner) 2f else 1f
         )
 
-        val xpStep = XpAndLevelingSystem.step(collision.player, state.xpGems + collision.newXpGems, dtSeconds)
-        val healthStep = HealthPickupSystem.step(xpStep.player, state.healthPickups + collision.newHealthPickups, dtSeconds)
+        val xpStepHost = XpAndLevelingSystem.step(hostAfterDamage, state.xpGems + world.newXpGems, dtSeconds)
+        val xpStepPartner = partnerAfterDamage?.let { XpAndLevelingSystem.step(it, xpStepHost.xpGems, dtSeconds) }
+        val xpGemsAfterBoth = xpStepPartner?.xpGems ?: xpStepHost.xpGems
 
-        val prunedActivations = (state.recentWeaponActivations + firing.newActivationEvents)
+        val healthStepHost = HealthPickupSystem.step(xpStepHost.player, state.healthPickups + world.newHealthPickups, dtSeconds)
+        val healthStepPartner = (xpStepPartner?.player ?: partnerAfterDamage)?.let { HealthPickupSystem.step(it, healthStepHost.pickups, dtSeconds) }
+        val finalPickups = healthStepPartner?.pickups ?: healthStepHost.pickups
+        val finalPartner = healthStepPartner?.player ?: xpStepPartner?.player ?: partnerAfterDamage
+
+        val prunedActivations = (state.recentWeaponActivations + firingHost.newActivationEvents + (firingPartner?.newActivationEvents ?: emptyList()))
             .filter { event -> newElapsedMs - event.activatedAtMs <= GameTunables.WEAPON_EFFECT_VISIBLE_MS }
 
-        val newParticles = collision.hitFeedback.flatMap { ParticleSystem.hitSpark(it.position, it.colorArgb, random) } +
-            collision.deathFeedback.flatMap { ParticleSystem.deathBurst(it.position, it.colorArgb, random) }
+        val newParticles = world.hitFeedback.flatMap { ParticleSystem.hitSpark(it.position, it.colorArgb, random) } +
+            world.deathFeedback.flatMap { ParticleSystem.deathBurst(it.position, it.colorArgb, random) }
         val updatedParticles = ParticleSystem.step(state.particles + newParticles, dtMs, dtSeconds)
 
         val soundCues = buildList {
-            if (collision.hitFeedback.isNotEmpty()) add(SoundCue.ENEMY_HIT)
-            if (collision.deathFeedback.isNotEmpty()) add(SoundCue.ENEMY_DEATH)
-            if (collision.player.hp < playerWithWeapons.hp) add(SoundCue.PLAYER_HURT)
-            if (healthStep.player.hp > xpStep.player.hp) add(SoundCue.HEALTH_PICKUP)
-            if (xpStep.leveledUp) add(SoundCue.LEVEL_UP)
+            if (world.hitFeedback.isNotEmpty()) add(SoundCue.ENEMY_HIT)
+            if (world.deathFeedback.isNotEmpty()) add(SoundCue.ENEMY_DEATH)
+            if (hostAfterDamage.hp < hostWithWeapons.hp) add(SoundCue.PLAYER_HURT) // host's own hurt sound only — the guest's client reacts to its own hp drop locally, see KnightCoopSession
+            if (healthStepHost.player.hp > xpStepHost.player.hp) add(SoundCue.HEALTH_PICKUP)
+            if (xpStepHost.leveledUp) add(SoundCue.LEVEL_UP)
+        }
+
+        // If the partner leveled up, roll (and remember) their choices, but don't touch
+        // `phase` — see GameState.pendingPartnerUpgradeChoices's KDoc for why.
+        val partnerUpgradeChoices = if (xpStepPartner?.leveledUp == true && finalPartner != null) {
+            UpgradeChoiceSystem.rollChoices(finalPartner, state.partnerWeaponDeck, random)
+        } else {
+            state.pendingPartnerUpgradeChoices
         }
 
         val nextState = state.copy(
-            player = healthStep.player,
+            player = healthStepHost.player,
+            partner = finalPartner,
             enemies = enemiesWithEffects + spawnedEnemies,
-            projectiles = collision.projectiles,
-            enemyProjectiles = collision.enemyProjectiles,
-            xpGems = xpStep.xpGems,
-            healthPickups = healthStep.pickups,
+            projectiles = world.projectiles,
+            enemyProjectiles = enemyProjectilesAfterPartner,
+            xpGems = xpGemsAfterBoth,
+            healthPickups = finalPickups,
             particles = updatedParticles,
             recentWeaponActivations = prunedActivations,
             pendingSoundCues = soundCues,
-            pendingWeaponFireSounds = firing.firedWeaponKinds,
+            pendingWeaponFireSounds = firingHost.firedWeaponKinds,
             elapsedMs = newElapsedMs,
-            killCount = state.killCount + collision.killsThisTick,
-            bossDefeatedThisRun = state.bossDefeatedThisRun || collision.deathFeedback.any { it.isBoss }
+            killCount = state.killCount + world.killsThisTick,
+            bossDefeatedThisRun = state.bossDefeatedThisRun || world.deathFeedback.any { it.isBoss },
+            pendingPartnerUpgradeChoices = partnerUpgradeChoices
         )
 
         // If every weapon in the deck is maxed and every passive is at its max stacks, the
         // pool is legitimately empty — pausing for a choice that doesn't exist would
         // softlock the run (no cards to tap, nothing ever resumes it). Skip the pause
         // rather than get stuck; the level-up sound still played above.
-        val upgradeChoices = if (xpStep.leveledUp) UpgradeChoiceSystem.rollChoices(nextState.player, state.weaponDeck, random) else emptyList()
+        val hostUpgradeChoices = if (xpStepHost.leveledUp) UpgradeChoiceSystem.rollChoices(nextState.player, state.weaponDeck, random) else emptyList()
 
+        // Co-op: a partner's death doesn't end the run on its own, but the host's death does
+        // (the host is where the shared simulation lives) — "two knights, one fate", the
+        // same simplification Train Survivor's shared-train co-op makes.
         return when {
             nextState.player.hp <= 0 ->
                 nextState.copy(phase = GamePhase.GAME_OVER, pendingSoundCues = soundCues + SoundCue.GAME_OVER)
@@ -109,8 +148,8 @@ object GameLoopOrchestrator {
             nextState.elapsedMs >= GameTunables.VICTORY_SURVIVAL_TIME_MS ->
                 nextState.copy(phase = GamePhase.VICTORY, pendingSoundCues = soundCues + SoundCue.VICTORY)
 
-            xpStep.leveledUp && upgradeChoices.isNotEmpty() ->
-                nextState.copy(phase = GamePhase.LEVEL_UP_PAUSE, pendingUpgradeChoices = upgradeChoices)
+            xpStepHost.leveledUp && hostUpgradeChoices.isNotEmpty() ->
+                nextState.copy(phase = GamePhase.LEVEL_UP_PAUSE, pendingUpgradeChoices = hostUpgradeChoices)
 
             else -> nextState
         }
@@ -126,7 +165,16 @@ object GameLoopOrchestrator {
         )
     }
 
-    /** Combines this tick's weapon-inflicted debuffs (Frying Pan's stun) with collision-inflicted ones (Egg Toss's splash slow), keeping the stronger of each per enemy. */
+    /** Applies the co-op partner's chosen upgrade — called by KnightCoopSession when the guest picks from [GameState.pendingPartnerUpgradeChoices]. Never touches [GameState.phase]: the shared run was never paused for it. */
+    fun applyPartnerUpgradeChoice(state: GameState, choice: UpgradeOption): GameState {
+        val partner = state.partner ?: return state
+        return state.copy(
+            partner = UpgradeChoiceSystem.applyChoice(partner, choice),
+            pendingPartnerUpgradeChoices = emptyList()
+        )
+    }
+
+    /** Combines two ticks' worth of debuffs (stun from an AoE hit, slow from a splash hit, from either player), keeping the stronger of each per enemy. */
     private fun mergeDebuffs(a: Map<Long, EnemyDebuff>, b: Map<Long, EnemyDebuff>): Map<Long, EnemyDebuff> {
         if (a.isEmpty()) return b
         if (b.isEmpty()) return a

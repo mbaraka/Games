@@ -29,9 +29,12 @@ object EnemySpawnSystem {
         previousElapsedMs: Long,
         newElapsedMs: Long,
         difficulty: Difficulty,
-        random: Random = Random.Default
+        random: Random = Random.Default,
+        /** >1 in co-op (two knights, so more enemies) — scales both the live-enemy cap and how often regular enemies spawn. 1 in solo play. */
+        spawnMultiplier: Float = 1f
     ): List<EnemyInstance> {
-        if (currentEnemyCount >= GameTunables.MAX_LIVE_ENEMIES) return emptyList()
+        val effectiveMaxLiveEnemies = (GameTunables.MAX_LIVE_ENEMIES * spawnMultiplier).toInt()
+        if (currentEnemyCount >= effectiveMaxLiveEnemies) return emptyList()
 
         val spawned = mutableListOf<EnemyInstance>()
         val elapsedSeconds = newElapsedMs / 1000f
@@ -42,7 +45,7 @@ object EnemySpawnSystem {
             }
         }
 
-        val regularIntervalMs = (GameTunables.spawnIntervalMsAt(elapsedSeconds) * difficulty.spawnIntervalMultiplier).toLong()
+        val regularIntervalMs = (GameTunables.spawnIntervalMsAt(elapsedSeconds) * difficulty.spawnIntervalMultiplier / spawnMultiplier).toLong()
         if (crossedInterval(previousElapsedMs, newElapsedMs, regularIntervalMs)) {
             val kind = pickWeightedRegularKind(elapsedSeconds, random)
             spawned += spawnEnemy(kind, elapsedSeconds, arenaSize, difficulty, random)

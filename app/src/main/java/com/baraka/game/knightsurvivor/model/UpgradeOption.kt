@@ -8,10 +8,17 @@ package com.baraka.game.knightsurvivor.model
  * hands the chosen option back to `UpgradeChoiceSystem.applyChoice()` — the UI layer
  * never needs to know about [WeaponKind]/[PassiveKind] internals directly.
  */
-sealed class UpgradeOption {
-    abstract val title: String
-    abstract val description: String
-    abstract val colorArgb: Long
+/** Just enough to render a level-up card — [UpgradeOption] implements this directly; knightsurvivor/coop/KnightCoopMsg.kt's UpgradeOptionDto implements it too, so ui/LevelUpOverlay.kt can render either a real local choice or a co-op partner's choice with the same composable. */
+interface UpgradeDisplay {
+    val title: String
+    val description: String
+    val colorArgb: Long
+}
+
+sealed class UpgradeOption : UpgradeDisplay {
+    abstract override val title: String
+    abstract override val description: String
+    abstract override val colorArgb: Long
 
     data class NewWeapon(val kind: WeaponKind) : UpgradeOption() {
         override val title: String = "New: ${kind.displayName}"

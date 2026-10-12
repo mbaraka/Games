@@ -20,12 +20,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.baraka.game.knightsurvivor.model.UpgradeOption
+import com.baraka.game.knightsurvivor.model.UpgradeDisplay
 import com.baraka.game.ui.theme.GameColors
 
-/** Pauses the run on level-up: pick one of the offered [choices]. Purely presentational — see systems/UpgradeChoiceSystem.kt for how choices are rolled/applied. */
+/**
+ * Pauses the run on level-up: pick one of the offered [choices]. Purely presentational —
+ * see systems/UpgradeChoiceSystem.kt for how real choices are rolled/applied. Generic over
+ * [UpgradeDisplay] rather than the real `UpgradeOption` sealed type so a co-op guest (which
+ * only ever receives title/description/color over the wire, see
+ * knightsurvivor/coop/KnightCoopMsg.kt's UpgradeOptionDto) can reuse this exact composable.
+ */
 @Composable
-fun LevelUpOverlay(choices: List<UpgradeOption>, onChoiceSelected: (UpgradeOption) -> Unit) {
+fun <T : UpgradeDisplay> LevelUpOverlay(choices: List<T>, onChoiceSelected: (T) -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()

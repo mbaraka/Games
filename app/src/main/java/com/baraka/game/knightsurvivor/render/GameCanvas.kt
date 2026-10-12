@@ -10,17 +10,23 @@ import com.baraka.game.knightsurvivor.model.KnightDesign
 
 /**
  * Renders one frame of [state], layering arena -> gems -> weapon effects -> enemies ->
- * projectiles -> hit/death particles -> player. Reports its measured pixel size via
+ * projectiles -> hit/death particles -> player(s). Reports its measured pixel size via
  * [onSizeMeasured] so ui/KnightSurvivorScreen.kt can keep `GameState.arenaSize` in sync
  * with actual layout — this file only draws; it never reads input or mutates game state.
  *
- * [knightDesign] is passed in separately from [state] rather than living on [GameState]:
- * it's purely cosmetic (see model/KnightDesign.kt's KDoc) and never needs to reach
- * systems/, so it stays UI-level state in ui/KnightSurvivorScreen.kt instead of polluting
- * the gameplay model.
+ * [knightDesign] and [partnerKnightDesign] are passed in separately from [state] rather
+ * than living on [GameState]: they're purely cosmetic (see model/KnightDesign.kt's KDoc)
+ * and never need to reach systems/, so they stay UI-level state in
+ * ui/KnightSurvivorScreen.kt instead of polluting the gameplay model. [partnerKnightDesign]
+ * is only drawn when [GameState.partner] is non-null (a co-op run).
  */
 @Composable
-fun GameCanvas(state: GameState, knightDesign: KnightDesign, onSizeMeasured: (widthPx: Float, heightPx: Float) -> Unit) {
+fun GameCanvas(
+    state: GameState,
+    knightDesign: KnightDesign,
+    partnerKnightDesign: KnightDesign = KnightDesign.SWORN_BLADE,
+    onSizeMeasured: (widthPx: Float, heightPx: Float) -> Unit
+) {
     Canvas(
         modifier = Modifier
             .fillMaxSize()
@@ -34,6 +40,6 @@ fun GameCanvas(state: GameState, knightDesign: KnightDesign, onSizeMeasured: (wi
         drawProjectiles(state.projectiles)
         drawEnemyProjectiles(state.enemyProjectiles)
         drawParticles(state.particles)
-        drawPlayer(state.player, knightDesign, state.elapsedMs)
+        drawPlayers(state.player, state.partner, knightDesign, partnerKnightDesign, state.elapsedMs)
     }
 }
