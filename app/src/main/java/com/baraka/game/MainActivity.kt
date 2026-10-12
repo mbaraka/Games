@@ -27,6 +27,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -63,6 +64,7 @@ import com.baraka.game.clashdecks.ClashDecksActivity
 import com.baraka.game.keyreader.KeyReaderActivity
 import com.baraka.game.knightsurvivor.KnightSurvivorActivity
 import com.baraka.game.memorymatch.MemoryMatchGame
+import com.baraka.game.minesweeper.MinesweeperActivity
 import com.baraka.game.missilecommand.MissileCommandActivity
 import com.baraka.game.numbercorridor.NumberCorridorActivity
 import com.baraka.game.numbercruncher.NumberCruncherGame
@@ -106,7 +108,9 @@ data class GameCatalogEntry(
     val title: String,
     val description: String,
     val color: Color,
-    val activityClass: Class<out ComponentActivity>
+    val activityClass: Class<out ComponentActivity>,
+    /** Shows a multiplayer badge on the game's card (co-op, or several local players). */
+    val multiplayer: Boolean = false
 )
 
 val GAME_CATALOG: List<GameCatalogEntry> = listOf(
@@ -171,7 +175,8 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         title = "Clash Decks",
         description = "Card duel vs computer — Attack, Defense, Support, and status-effect tactics.",
         color = Color(0xFF3949AB),
-        activityClass = ClashDecksActivity::class.java
+        activityClass = ClashDecksActivity::class.java,
+        multiplayer = true
     ),
     GameCatalogEntry(
         id = "memory_match",
@@ -192,7 +197,8 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         title = "Snakes & Ladders",
         description = "2D board — 2–6 players, each human or CPU.",
         color = Color(0xFF00897B),
-        activityClass = SnakeLadderActivity::class.java
+        activityClass = SnakeLadderActivity::class.java,
+        multiplayer = true
     ),
     GameCatalogEntry(
         id = "base_defender",
@@ -213,7 +219,8 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         title = "Battleship",
         description = "Local 2 players or vs computer — place fleets, then take turns firing.",
         color = Color(0xFF0277BD),
-        activityClass = BattleShipActivity::class.java
+        activityClass = BattleShipActivity::class.java,
+        multiplayer = true
     ),
     GameCatalogEntry(
         id = "rhythm_runner",
@@ -227,7 +234,8 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         title = "Train Survivor",
         description = "Ride an armored train through zombie hordes - earn coins, upgrade the train and its gunners.",
         color = Color(0xFF8B0000),
-        activityClass = TrainSurvivorActivity::class.java
+        activityClass = TrainSurvivorActivity::class.java,
+        multiplayer = true
     ),
     GameCatalogEntry(
         id = "tunnel_crew",
@@ -235,6 +243,14 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         description = "Lemmings-style puzzler - give your tiny crew skills (dig, build, bash, climb...) to guide them safely to the exit.",
         color = Color(0xFF8D6E63),
         activityClass = TunnelCrewActivity::class.java
+    ),
+    GameCatalogEntry(
+        id = "minesweeper",
+        title = "Minesweeper",
+        description = "Two-phone Bluetooth minefield - clear the board together or race for cells.",
+        color = Color(0xFF4DD0E1),
+        activityClass = MinesweeperActivity::class.java,
+        multiplayer = true
     ),
     GameCatalogEntry(
         id = "key_reader",
@@ -380,6 +396,7 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
                             title = entry.title,
                             description = entry.description,
                             color = entry.color,
+                            multiplayer = entry.multiplayer,
                             enabled = !timeUp,
                             onClick = { onGameSelected(entry) }
                         )
@@ -413,6 +430,7 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
                             title = entry.title,
                             description = entry.description,
                             color = entry.color,
+                            multiplayer = entry.multiplayer,
                             enabled = !timeUp,
                             onClick = { onGameSelected(entry) }
                         )
@@ -462,7 +480,8 @@ fun GameCard(
     description: String,
     color: Color,
     onClick: () -> Unit,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    multiplayer: Boolean = false
 ) {
     Card(
         modifier = Modifier
@@ -509,6 +528,17 @@ fun GameCard(
                     text = description,
                     color = if (enabled) GameColors.TextSecondary else GameColors.TextDisabled,
                     fontSize = 14.sp
+                )
+            }
+
+            if (multiplayer) {
+                Icon(
+                    imageVector = Icons.Default.Group,
+                    contentDescription = "Multiplayer",
+                    tint = if (enabled) GameColors.TextSecondary else GameColors.TextDisabled,
+                    modifier = Modifier
+                        .padding(end = 12.dp)
+                        .size(24.dp)
                 )
             }
 

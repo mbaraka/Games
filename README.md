@@ -22,7 +22,8 @@ No ads, no accounts, no tracking. Just simple, fun games.
 | Battleship | Local 2 players or vs computer — place fleets, then take turns firing. |
 | Rhythm Runner | Run, jump, and collect to the beat. |
 | Train Survivor | Side-view train defense — fight ground and flying zombies and bosses, pick routes, earn coins, upgrade the train and its named survivors. Two-phone Bluetooth co-op: two trains, double zombies, lend passengers across a Gangway. |
-| Tunnel Crew | Lemmings-style puzzler — hand skills (dig, build, bash, mine, climb, float, block, bomb) to a walking crew and guide them to the exit across 18 levels. |
+| Tunnel Crew | Lemmings-style puzzler — hand skills (dig, build, bash, mine, climb, float, block, bomb, pour cement, lay decks, stack stairs) to a walking crew and guide them to the exit across 22 levels with medals. |
+| Minesweeper | Two-phone Bluetooth minefield — co-op (shared lives) or versus (race for cells) on one shared board, with a practice bot. |
 | Key Reader | Scan NFC keys and manage saved entries. |
 
 The full list lives in [`GAME_CATALOG`](app/src/main/java/com/baraka/game/MainActivity.kt) —
