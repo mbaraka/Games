@@ -31,6 +31,7 @@ import com.baraka.game.trainsurvivor.systems.CAR_W
 import com.baraka.game.trainsurvivor.systems.COWCATCHER
 import com.baraka.game.trainsurvivor.systems.LOCO_W
 import com.baraka.game.trainsurvivor.systems.ParticleKind
+import com.baraka.game.trainsurvivor.systems.LANE_DY
 import com.baraka.game.trainsurvivor.systems.RAIL_Y
 import com.baraka.game.trainsurvivor.systems.TrainGame
 import com.baraka.game.trainsurvivor.systems.Zombie
@@ -118,8 +119,9 @@ private inline fun DrawScope.forRegions(g: TrainGame, block: DrawScope.(Biome) -
 /**
  * Draws one frame of the whole scene. [topOffset] shifts the camera down (garage preview crops to the train);
  * the world is scaled so [TrainGame.worldW] logical units span the canvas width.
+ * In a shared world [ally] is the second train: its lane is drawn [LANE_DY] above [g]'s.
  */
-fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boolean = true) {
+fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boolean = true, ally: TrainGame? = null) {
     val s = size.width / g.worldW
     val sunHeight = sin(2f * PI.toFloat() * g.dayCycle)
     val light = smooth((sunHeight + 0.25f) / 0.6f)
@@ -136,20 +138,15 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
     }) {
         forRegions(g) { biome -> RouteArtRegistry.artFor(biome).backdrop(this, g, light, sunset) }
         drawTransitionArt(g)
-        drawRails(g)
-        drawSpeedLines(g)
-        drawGhostTrain(g)
-        drawTrain(g, light)
-        val order = g.drawOrder
-        for (i in order.indices) {
-            drawZombie(order[i])
-            if (order[i].elite != null) drawEliteMarks(order[i], g.time)
+        if (ally != null) {
+            withTransform({ translate(0f, -LANE_DY) }) {
+                drawViaduct(ally)
+                drawLaneBody(ally, light, 1, front = false)
+            }
         }
-        drawCrate(g)
-        drawShells(g)
-        drawHazards(g)
-        if (g.rescueTime > 0f) drawStranded(g)
-        drawParticles(g, glow = false)
+        drawSpeedLines(g)
+        if (ally == null) drawGhostTrain(g)
+        drawLaneBody(g, light, if (ally != null) 0 else -1, front = true)
         forRegions(g) { biome ->
             val art = RouteArtRegistry.artFor(biome)
             art.foreground(this, g, light)
@@ -160,14 +157,60 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
             drawRect(Color(0xFF050A24).copy(alpha = art.darkness(night)), Offset(-200f, -1200f), Size(g.worldW + 400f, 2400f))
             art.afterDarkness(this, g)
         }
-        drawGlow(g, RouteArtRegistry.artFor(g.biome).glowNight(night))
-        drawParticles(g, glow = true)
-        for (i in g.texts.indices) {
-            val t = g.texts[i]
-            outlinedText(t.text, t.x, t.y, t.size, t.color, t.life.coerceIn(0f, 1f))
+        if (ally != null) {
+            withTransform({ translate(0f, -LANE_DY) }) {
+                drawGlow(ally, RouteArtRegistry.artFor(ally.biome).glowNight(night), 1)
+                drawParticles(ally, glow = true, laneFilter = 1)
+                drawLaneTexts(ally, 1)
+            }
         }
+        val frontLane = if (ally != null) 0 else -1
+        drawGlow(g, RouteArtRegistry.artFor(g.biome).glowNight(night), frontLane)
+        drawParticles(g, glow = true, laneFilter = frontLane)
+        drawLaneTexts(g, frontLane)
     }
     if (showHud) drawHud(g)
+}
+
+/** Everything that lives in one lane: rails, train, its zombies, shells, hazards and effects. [laneFilter] is -1 when there is only one lane. */
+private fun DrawScope.drawLaneBody(rig: TrainGame, light: Float, laneFilter: Int, front: Boolean) {
+    drawRails(rig)
+    drawTrain(rig, light)
+    val order = rig.drawOrder
+    for (i in order.indices) {
+        val z = order[i]
+        if (laneFilter >= 0 && z.lane != laneFilter) continue
+        drawZombie(z)
+        if (z.elite != null) drawEliteMarks(z, rig.time)
+    }
+    if (front) drawCrate(rig)
+    drawShells(rig)
+    drawHazards(rig)
+    if (rig.rescueTime > 0f) drawStranded(rig)
+    drawParticles(rig, glow = false, laneFilter = laneFilter)
+}
+
+private fun DrawScope.drawLaneTexts(rig: TrainGame, laneFilter: Int) {
+    for (i in rig.texts.indices) {
+        val t = rig.texts[i]
+        if (laneFilter >= 0 && t.lane != laneFilter) continue
+        outlinedText(t.text, t.x, t.y, t.size, t.color, t.life.coerceIn(0f, 1f))
+    }
+}
+
+/** The raised deck the second lane runs on: a gravel bed beside the rails (where its zombies walk) and pillars down to the ground. */
+private fun DrawScope.drawViaduct(rig: TrainGame) {
+    val top = RAIL_Y + 14f
+    box(Color(0xFF3C4148), -200f, top, rig.worldW + 400f, 66f)
+    box(Color(0xFF5A6068), -200f, top, rig.worldW + 400f, 5f)
+    box(Color(0xFF2B2F35), -200f, top + 66f, rig.worldW + 400f, 10f)
+    val spacing = 210f
+    var x = -(rig.scroll % spacing) - spacing
+    while (x < rig.worldW + spacing) {
+        box(Color(0xFF353A41), x, top + 76f, 26f, HORIZON + LANE_DY - (top + 76f) + 40f)
+        box(Color(0xFF454B53), x - 5f, top + 76f, 36f, 8f)
+        x += spacing
+    }
 }
 
 // ------------------------------------------------------------------ environment
@@ -1175,9 +1218,10 @@ private fun shirtDark(type: ZombieType): Int = if (type == ZombieType.BLOATER) 0
 
 // ------------------------------------------------------------------ effects
 
-private fun DrawScope.drawParticles(g: TrainGame, glow: Boolean) {
+private fun DrawScope.drawParticles(g: TrainGame, glow: Boolean, laneFilter: Int = -1) {
     for (pi in g.particles.indices) {
         val p = g.particles[pi]
+        if (laneFilter >= 0 && p.lane != laneFilter) continue
         val t = (p.life / p.maxLife).coerceIn(0f, 1f)
         val isGlow = p.kind == ParticleKind.FIRE || p.kind == ParticleKind.SPARK
         if (isGlow != glow) continue
@@ -1202,7 +1246,7 @@ private fun DrawScope.drawParticles(g: TrainGame, glow: Boolean) {
     }
 }
 
-private fun DrawScope.drawGlow(g: TrainGame, night: Float) {
+private fun DrawScope.drawGlow(g: TrainGame, night: Float, laneFilter: Int = -1) {
     if (night > 0.05f) {
         // Headlamp cone, lit windows, glowing zombie eyes: only visible once the sky darkens.
         val lampX = g.locoLeft + g.shape.locoW + 2f
@@ -1213,6 +1257,7 @@ private fun DrawScope.drawGlow(g: TrainGame, night: Float) {
         TrainShapeArtRegistry.artFor(g.shape).paintWindows(this, g, Color(0xFFFFC96B).copy(alpha = 0.9f * night))
         for (zi in g.zombies.indices) {
             val z = g.zombies[zi]
+            if (laneFilter >= 0 && z.lane != laneFilter) continue
             val dir = z.facing.toFloat()
             val ex = z.x + dir * 6f * z.type.size
             val ey = z.y - (if (z.type.aimHeight < 20f) z.type.aimHeight * 1.5f else 45f) * z.type.size
@@ -1242,6 +1287,7 @@ private fun DrawScope.drawGlow(g: TrainGame, night: Float) {
     }
     for (ti in g.tracers.indices) {
         val t = g.tracers[ti]
+        if (laneFilter >= 0 && t.lane != laneFilter) continue
         val a = (t.life / 0.1f).coerceIn(0.3f, 1f)
         if (t.jagged) {
             var px = t.x1

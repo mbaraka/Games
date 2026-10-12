@@ -19,6 +19,8 @@ class PartnerState {
     var ourPassengerAway = 0f
     var silence = 0f
     val away get() = silence > 4f
+    /** The partner runs a different build of the game, so some of what we send is ignored on their side. */
+    var versionMismatch = false
 }
 
 /** Which phone does what: the host runs shared timers; the engine emits signals and this class carries them over a [CoopLink]. */
@@ -139,7 +141,7 @@ class CoopSession(val game: TrainGame, val link: CoopLink<CoopMsg>, val role: Co
                 game.forceEnd() // two trains, one fate: the run ends for both
             }
             CoopMsg.Bye -> partner.connected = false
-            is CoopMsg.Hello -> {}
+            is CoopMsg.Hello -> if (m.version != COOP_PROTOCOL) partner.versionMismatch = true
         }
     }
 }

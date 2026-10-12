@@ -22,7 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.baraka.game.trainsurvivor.coop.CoopSession
+import com.baraka.game.trainsurvivor.coop.PartnerState
 import com.baraka.game.trainsurvivor.model.HazardKind
 import com.baraka.game.trainsurvivor.systems.TrainGame
 
@@ -41,9 +41,9 @@ private val ALERT_CYAN = Color(0xFF80DEEA)
 
 /** The partner's train in one thin line: distance, route and health. */
 @Composable
-internal fun CoopPartnerStrip(session: CoopSession, tick: MutableLongState, modifier: Modifier) {
+internal fun CoopPartnerStrip(partner: PartnerState, tick: MutableLongState, modifier: Modifier) {
     tick.longValue
-    val p = session.partner
+    val p = partner
     Row(
         modifier = modifier.background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 3.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -68,12 +68,16 @@ internal fun CoopPartnerStrip(session: CoopSession, tick: MutableLongState, modi
 
 /** One line at the top edge with the most urgent co-op message, if there is one. */
 @Composable
-internal fun CoopAlert(game: TrainGame, session: CoopSession, tick: MutableLongState, modifier: Modifier) {
+internal fun CoopAlert(game: TrainGame, partner: PartnerState, tick: MutableLongState, modifier: Modifier) {
     tick.longValue
-    val p = session.partner
+    val p = partner
     val text: String
     val color: Color
     when {
+        p.versionMismatch -> {
+            text = "PARTNER HAS A DIFFERENT VERSION - update both phones"
+            color = ALERT_RED
+        }
         game.lockedBy != null -> {
             text = if (game.jammed) "GUNS JAMMED - your partner can clear it" else "GATE CLOSED - your partner can open it"
             color = ALERT_RED
@@ -83,7 +87,7 @@ internal fun CoopAlert(game: TrainGame, session: CoopSession, tick: MutableLongS
             color = ALERT_GOLD
         }
         game.partnerRescueTime > 0f && p.connected -> {
-            text = "PARTNER NEEDS A RESCUE (${game.partnerRescueTime.toInt() + 1}s) - tap the arrow on a crew chip"
+            text = if (game.gangwayLevel > 0) "PARTNER NEEDS A RESCUE (${game.partnerRescueTime.toInt() + 1}s) - tap SEND on a crew chip" else "PARTNER NEEDS A RESCUE - you need the Gangway upgrade to help"
             color = ALERT_GOLD
         }
         game.comboCount > 0 && game.boss != null -> {
@@ -101,9 +105,9 @@ internal fun CoopAlert(game: TrainGame, session: CoopSession, tick: MutableLongS
 
 /** Round co-op action buttons (give coins, send repair, send tow), stacked above the ability buttons. */
 @Composable
-internal fun CoopDock(game: TrainGame, session: CoopSession, tick: MutableLongState, modifier: Modifier) {
+internal fun CoopDock(game: TrainGame, partner: PartnerState, tick: MutableLongState, modifier: Modifier) {
     tick.longValue
-    val p = session.partner
+    val p = partner
     if (!p.connected || p.down) return
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.End) {
         if (game.towLevel > 0) {
@@ -118,10 +122,10 @@ internal fun CoopDock(game: TrainGame, session: CoopSession, tick: MutableLongSt
 
 /** A large button that only exists while the partner is locked and we can free them. */
 @Composable
-internal fun CoopHelpButton(game: TrainGame, session: CoopSession, tick: MutableLongState, modifier: Modifier) {
+internal fun CoopHelpButton(game: TrainGame, partner: PartnerState, tick: MutableLongState, modifier: Modifier) {
     tick.longValue
     val help = game.partnerHelp ?: return
-    if (!session.partner.connected || session.partner.down) return
+    if (!partner.connected || partner.down) return
     val label = (if (help == HazardKind.SIGNAL_JAM) "CLEAR PARTNER'S JAM " else "OPEN PARTNER'S GATE ") + (game.partnerHelpTime.toInt() + 1) + "s"
     Text(
         label,

@@ -71,7 +71,9 @@ fun <M> CoopLobbyScreen(
     practiceNote: String,
     simulate: () -> CoopLink<M>,
     onReady: (CoopLaunch<M>) -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    /** False hides pairing, hosting and joining (only practice is offered). */
+    networkEnabled: Boolean = true
 ) {
     val context = LocalContext.current
     val main = remember { Handler(Looper.getMainLooper()) }
@@ -170,7 +172,7 @@ fun <M> CoopLobbyScreen(
         Text(status, color = AMBER, fontSize = 13.sp, fontWeight = FontWeight.Bold)
 
         // Portrait lobby: the two steps on top, then a tall list of phones nearby, then practice.
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (networkEnabled) Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Column(modifier = Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Step 1 (hosting phone): make it visible", color = TEXT, fontWeight = FontWeight.Bold)
                 Text("The joining phone can only see this phone while it is visible, so press this on the host, then press Host below. You can also pair in the system Bluetooth settings.", color = MUTED, fontSize = 11.sp)
@@ -213,7 +215,7 @@ fun <M> CoopLobbyScreen(
             }
         }
         // Phones found nearby: one tall vertical list that takes all the spare height.
-        Column(
+        if (networkEnabled) Column(
             modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp).background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {

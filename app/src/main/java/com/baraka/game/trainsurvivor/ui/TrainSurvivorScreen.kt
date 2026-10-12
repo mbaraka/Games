@@ -69,6 +69,7 @@ import com.baraka.game.coop.CoopLobbyScreen
 import com.baraka.game.coop.CoopSide
 import com.baraka.game.trainsurvivor.coop.CoopMsg
 import com.baraka.game.trainsurvivor.coop.CoopSession
+import com.baraka.game.trainsurvivor.coop.SharedRun
 import com.baraka.game.trainsurvivor.coop.SimulatedLink
 import com.baraka.game.trainsurvivor.coop.TRAIN_COOP
 import com.baraka.game.trainsurvivor.systems.CoopRole
@@ -114,6 +115,9 @@ fun TrainSurvivorScreen() {
     var settings by remember { mutableStateOf(repository.loadSettings()) }
     var inRun by remember { mutableStateOf(false) }
     var lobby by remember { mutableStateOf(false) }
+    var coopMenu by remember { mutableStateOf(false) }
+    var sharedLobby by remember { mutableStateOf(false) }
+    var sharedPractice by remember { mutableStateOf(false) }
     var coop by remember { mutableStateOf<CoopLaunch<CoopMsg>?>(null) }
 
     val audio = remember { TrainAudio() }
@@ -152,7 +156,25 @@ fun TrainSurvivorScreen() {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?"
     }
 
-    if (lobby && !inRun) {
+    if (coopMenu && !inRun) {
+        CoopModeScreen(
+            onLinked = { coopMenu = false; lobby = true },
+            onShared = { coopMenu = false; sharedLobby = true },
+            onClose = { coopMenu = false }
+        )
+    } else if (sharedLobby && !inRun) {
+        CoopLobbyScreen(
+            spec = TRAIN_COOP,
+            heading = "SHARED WORLD",
+            intro = "Both trains fight in ONE world: double the zombies, every gun reaches both tracks, and you can help each other directly. " +
+                "Your train is on the lower track; your partner's is the upper one.",
+            practiceNote = "Practice with a partner bot on your own phone. The Bluetooth version of shared worlds is coming next.",
+            simulate = { SimulatedLink() },
+            networkEnabled = false,
+            onReady = { sharedLobby = false; sharedPractice = true; coop = null; inRun = true },
+            onClose = { sharedLobby = false }
+        )
+    } else if (lobby && !inRun) {
         CoopLobbyScreen(
             spec = TRAIN_COOP,
             heading = "CO-OP  -  TWO TRAINS",
@@ -166,6 +188,7 @@ fun TrainSurvivorScreen() {
     } else if (inRun) {
         RunScreen(
             coop = coop,
+            sharedPractice = sharedPractice,
             repository = repository,
             settings = settings,
             onSettingsChange = onSettingsChange,
@@ -173,7 +196,7 @@ fun TrainSurvivorScreen() {
             audio = audio,
             playCue = playCue,
             onSaved = { save = it },
-            onExit = { coop?.link?.close(); coop = null; inRun = false }
+            onExit = { coop?.link?.close(); coop = null; sharedPractice = false; inRun = false }
         )
     } else {
         GarageScreen(
@@ -186,8 +209,8 @@ fun TrainSurvivorScreen() {
                 repository.save(it)
                 playCue(TrainSoundCue.UPGRADE)
             },
-            onDepart = { coop = null; inRun = true },
-            onCoop = { lobby = true },
+            onDepart = { coop = null; sharedPractice = false; inRun = true },
+            onCoop = { coopMenu = true },
             debugSections = garageDebugSections(
                 save = save,
                 onSave = { save = it; repository.save(it) },
@@ -200,6 +223,7 @@ fun TrainSurvivorScreen() {
 @Composable
 private fun RunScreen(
     coop: CoopLaunch<CoopMsg>?,
+    sharedPractice: Boolean,
     repository: TrainSaveRepository,
     settings: GameSettings,
     onSettingsChange: (GameSettings) -> Unit,
@@ -218,7 +242,9 @@ private fun RunScreen(
     var timeScale by remember { mutableFloatStateOf(1f) }
     val tick = remember { mutableLongStateOf(0L) }
     val stats = remember { FrameStats() }
-    val game = remember(runId) { TrainGame(repository.load()).also { it.onSound = playCue; it.godMode = godMode } }
+    val sharedRun = remember(runId) { if (sharedPractice) SharedRun.practice(repository.load()) else null }
+    val game = remember(runId) { (sharedRun?.lead ?: TrainGame(repository.load())).also { it.onSound = playCue; it.godMode = godMode } }
+    sharedRun?.ally?.let { it.onSound = playCue; it.godMode = godMode }
     val session = remember(game) { coop?.let { CoopSession(game, it.link, if (it.side == CoopSide.HOST) CoopRole.HOST else CoopRole.GUEST) } }
     // Two trains keep running when this player pauses: the partner cannot be frozen.
     val frozen = paused && session == null
@@ -321,7 +347,7 @@ private fun RunScreen(
                     game.shakeEnabled = currentSettings.screenShake
                     val step = real.coerceAtMost(0.05f) * currentTimeScale
                     session?.update(step)
-                    game.update(step)
+                    if (sharedRun != null) sharedRun.update(step) else game.update(step)
                 }
                 last = now
                 tick.longValue++
@@ -360,7 +386,7 @@ private fun RunScreen(
                 }
         ) {
             tick.longValue
-            drawTrainScene(game)
+            drawTrainScene(game, ally = sharedRun?.ally)
         }
 
         Box(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(12.dp)) {
@@ -381,11 +407,12 @@ private fun RunScreen(
                     AbilityButton(tick, "BLAST", Color(0xFFB71C1C), { game.dynamiteReady }, { 1f - game.dynamiteCooldown / game.dynamiteCooldownMax }, { game.dynamiteCooldown }) { game.useDynamite() }
                 }
                 JunctionPanel(game, tick, Modifier.align(Alignment.BottomCenter))
-                if (session != null) {
-                    CoopPartnerStrip(session, tick, Modifier.align(Alignment.TopStart))
-                    CoopAlert(game, session, tick, Modifier.align(Alignment.TopCenter))
-                    CoopDock(game, session, tick, Modifier.align(Alignment.BottomEnd).padding(bottom = 84.dp))
-                    CoopHelpButton(game, session, tick, Modifier.align(Alignment.BottomCenter).padding(bottom = if (game.junction != null && game.junction?.chosen == null) 104.dp else 10.dp))
+                val partner = session?.partner ?: sharedRun?.partner
+                if (partner != null) {
+                    CoopPartnerStrip(partner, tick, Modifier.align(Alignment.TopStart))
+                    CoopAlert(game, partner, tick, Modifier.align(Alignment.TopCenter))
+                    CoopDock(game, partner, tick, Modifier.align(Alignment.BottomEnd).padding(bottom = 84.dp))
+                    CoopHelpButton(game, partner, tick, Modifier.align(Alignment.BottomCenter).padding(bottom = if (game.junction != null && game.junction?.chosen == null) 104.dp else 10.dp))
                 }
                 Column(modifier = Modifier.align(Alignment.CenterStart).padding(top = 44.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     RoundButton(label = if (crewVisible) "\u25C0" else "\u25B6", modifier = Modifier, size = 30, onClick = { crewVisible = !crewVisible })

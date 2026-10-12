@@ -8,7 +8,8 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.util.UUID
 
-const val COOP_PROTOCOL = 1
+/** Bumped whenever messages are added, so two phones with different builds can warn each other instead of silently ignoring messages. */
+const val COOP_PROTOCOL = 2
 
 /** Everything two trains say to each other. Small, so a Bluetooth link carries it easily. */
 sealed class CoopMsg {

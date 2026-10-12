@@ -285,12 +285,18 @@ upgrades, combo shots when both trains hit the shared boss within 2 s, rescue ev
 passenger can fetch), and **co-op-only content**: a `Biome` with `coopOnly = true` (Twin Bridge, Echo Mine) only appears
 at junctions while a partner is connected; `PartnerLock` hazards (`SIGNAL_JAM`, `GATE_LOCK`) can only be cleared by the
 partner; a `ZombieType` with `partnerOnly = true` takes 10% from your own guns and full damage from your partner's.
-**Shared-world maps** (`Biome.sharedWorld = true`, see `systems/SharedWorld.kt`): both trains fight one battlefield. Each phone
-still simulates its own train and zombies, but streams its zombies to the partner (`CoopMsg.Zombies`, ~10 Hz), who sees
-them on the far track beside the ghost train and shoots them across the gap with `fireAssist`; the damage goes back as
-`CoopMsg.Hits` and the owner applies it (the helper earns half the kill coins). **To add a shared map**: add a `Biome` entry
-with `sharedWorld = true` (and usually `coopOnly = true`) plus its `RouteArt` - nothing else, the streaming, the far
-track, the assist shooting and the practice partner are generic.
+**Shared world** (a run mode, not a map flag; `coop/SharedRun.kt`): two trains in ONE simulation. `TrainGame(save, lead = ...)`
+makes the second train: it shares the lead's zombies, effects and clock, follows its route/crate/horde (`syncWorld`) and spawns
+its own zombies in lane 1, so the world holds double the zombies by construction. Zombies carry a `lane` and only the train
+of that lane runs their AI; guns, Blast, flak and tesla reach both lanes (`laneDy` converts frames); flames, mortar and
+spikes stay in their own lane. Effects are tagged with a lane (`fxLane`) and drawn in that lane's frame. The renderer draws
+lane 1 `LANE_DY` above lane 0 on a viaduct (`drawTrainScene(..., ally = ...)`). `SharedRun.bridge` turns each train's
+`CoopSignal`s into direct calls on the other. Any map/route works in a shared world: nothing in the content knows about
+it. Practice mode drives the second train with a bot (`allyBrain`); the Bluetooth version (host streams a snapshot, guest
+renders and sends inputs) is the next stage. When adding engine code, remember a rig only owns its lane's zombies:
+filter loops with `z.lane == lane` and use `rigOf(z)` for the zombie's own train.
+**Protocol versions**: bump `COOP_PROTOCOL` in `trainsurvivor/coop/CoopLink.kt` whenever a `CoopMsg` is added; phones that differ
+warn the player ("different version") instead of silently ignoring messages.
 Co-op-only paints unlock through `Livery.coopDistance` against `SaveData.coopBest`. The engine never touches the network:
 add shared behaviour as a `CoopSignal` plus a `CoopMsg`, and handle it in `CoopSession`.
 
