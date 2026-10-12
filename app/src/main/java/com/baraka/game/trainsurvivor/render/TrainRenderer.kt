@@ -31,6 +31,7 @@ import com.baraka.game.trainsurvivor.systems.CAR_W
 import com.baraka.game.trainsurvivor.systems.COWCATCHER
 import com.baraka.game.trainsurvivor.systems.LOCO_W
 import com.baraka.game.trainsurvivor.systems.ParticleKind
+import com.baraka.game.trainsurvivor.systems.FAR_SCALE
 import com.baraka.game.trainsurvivor.systems.RAIL_Y
 import com.baraka.game.trainsurvivor.systems.TrainGame
 import com.baraka.game.trainsurvivor.systems.Zombie
@@ -139,6 +140,7 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
         drawRails(g)
         drawSpeedLines(g)
         drawGhostTrain(g)
+        drawSharedZombies(g)
         drawTrain(g, light)
         val order = g.drawOrder
         for (i in order.indices) {
@@ -1552,4 +1554,21 @@ private fun DrawScope.drawStranded(g: TrainGame) {
         drawArc(Color(0xFF66FF8A), -90f, 360f * g.rescueFraction, false, Offset(x - 34f, y - 84f), Size(68f, 68f), style = Stroke(5f))
     }
     outlinedText("SOS " + g.rescueTime.toInt() + "s", x, y - 98f, 14f, 0xFFFFD54F.toInt())
+}
+
+/** The partner's zombies on a shared-world map: drawn small on the far track, between their train and ours. */
+private fun DrawScope.drawSharedZombies(g: TrainGame) {
+    if (!g.sharedActive) return
+    val list = g.shared.mirrored
+    for (i in list.indices) {
+        val z = list[i]
+        withTransform({
+            translate(z.x, z.y)
+            scale(FAR_SCALE, FAR_SCALE, Offset.Zero)
+            translate(-z.x, -z.y)
+        }) {
+            drawZombie(z)
+            if (z.elite != null) drawEliteMarks(z, g.time)
+        }
+    }
 }

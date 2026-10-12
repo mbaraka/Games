@@ -4,12 +4,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
+import com.baraka.game.trainsurvivor.systems.FAR_GROUND
+import com.baraka.game.trainsurvivor.systems.FAR_SCALE
 import com.baraka.game.trainsurvivor.systems.TrainGame
 import kotlin.math.sin
 
-/** Scale and ground line of the partner's train: a smaller train on its own track across the gap, behind yours. */
-private const val GHOST_SCALE = 0.5f
-private const val GHOST_GROUND = 438f
 
 /**
  * Draws the partner's train on a second, parallel track (co-op routes only). It is built from what the partner sends:
@@ -18,23 +17,23 @@ private const val GHOST_GROUND = 438f
  */
 internal fun DrawScope.drawGhostTrain(g: TrainGame) {
     val ghost = g.ghost
-    if (!ghost.active || !g.biome.coopOnly) return
+    if (!ghost.active || !g.biome.sharedWorld) return
     val shape = ghost.shape
     val livery = ghost.livery
     val count = ghost.count
     val len = shape.locoW + (count - 1) * (shape.carW + shape.carGap)
-    val left = (g.worldW - len * GHOST_SCALE) / 2f + g.worldW * 0.08f
+    val left = g.farCenterX - len * FAR_SCALE / 2f
     val away = ghost.away
 
     // The far track: a rail with sleepers across the whole view.
-    drawLine(Color(0xFF263238), Offset(-50f, GHOST_GROUND + 2f), Offset(g.worldW + 50f, GHOST_GROUND + 2f), 3f)
+    drawLine(Color(0xFF263238), Offset(-50f, FAR_GROUND + 2f), Offset(g.worldW + 50f, FAR_GROUND + 2f), 3f)
     var tx = -((g.scroll * 0.55f) % 24f)
     while (tx < g.worldW + 24f) {
-        box(Color(0xFF3E2F28), tx, GHOST_GROUND + 3f, 8f, 3f)
+        box(Color(0xFF3E2F28), tx, FAR_GROUND + 3f, 8f, 3f)
         tx += 24f
     }
 
-    withTransform({ translate(left, GHOST_GROUND); scale(GHOST_SCALE, GHOST_SCALE, Offset.Zero) }) {
+    withTransform({ translate(left, FAR_GROUND); scale(FAR_SCALE, FAR_SCALE, Offset.Zero) }) {
         val bob = sin(g.time * 7f) * 0.8f
         // Chassis and wheels
         box(Color(0xFF1A1A1F), 0f, -14f + bob, len, 6f)

@@ -285,6 +285,12 @@ upgrades, combo shots when both trains hit the shared boss within 2 s, rescue ev
 passenger can fetch), and **co-op-only content**: a `Biome` with `coopOnly = true` (Twin Bridge, Echo Mine) only appears
 at junctions while a partner is connected; `PartnerLock` hazards (`SIGNAL_JAM`, `GATE_LOCK`) can only be cleared by the
 partner; a `ZombieType` with `partnerOnly = true` takes 10% from your own guns and full damage from your partner's.
+**Shared-world maps** (`Biome.sharedWorld = true`, see `systems/SharedWorld.kt`): both trains fight one battlefield. Each phone
+still simulates its own train and zombies, but streams its zombies to the partner (`CoopMsg.Zombies`, ~10 Hz), who sees
+them on the far track beside the ghost train and shoots them across the gap with `fireAssist`; the damage goes back as
+`CoopMsg.Hits` and the owner applies it (the helper earns half the kill coins). **To add a shared map**: add a `Biome` entry
+with `sharedWorld = true` (and usually `coopOnly = true`) plus its `RouteArt` - nothing else, the streaming, the far
+track, the assist shooting and the practice partner are generic.
 Co-op-only paints unlock through `Livery.coopDistance` against `SaveData.coopBest`. The engine never touches the network:
 add shared behaviour as a `CoopSignal` plus a `CoopMsg`, and handle it in `CoopSession`.
 

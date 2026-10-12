@@ -82,7 +82,12 @@ enum class Biome(
     val gravityMult: Float = 1f,
     val hazards: List<HazardKind> = emptyList(),
     /** Only appears in two-phone co-op runs. */
-    val coopOnly: Boolean = false
+    val coopOnly: Boolean = false,
+    /**
+     * A shared-world map: both trains fight on one battlefield. Each phone's zombies are streamed to the partner, who sees
+     * them on the far track and can shoot them across the gap (see systems/SharedWorld.kt). Implies a partner is needed.
+     */
+    val sharedWorld: Boolean = false
 ) {
     PLAINS(
         "Open Plains", "Calm and safe: fewer, weaker zombies and the train repairs itself",
@@ -185,15 +190,18 @@ enum class Biome(
         2.0f, 1.2f, 1.2f, 1.2f, 0xFF26C6DA, ZombieType.TWIN_BULWARK,
         commonSpawns(walker = 0.7f, runner = 1f, brute = 1.2f, bloater = 0.6f, bat = 0.8f, balloon = 0.5f, clown = 0.3f) +
             signature(ZombieType.STRIKER, 10f, weight = 4f, perSecond = 1f / 60f),
-        hazards = listOf(HazardKind.SIGNAL_JAM), coopOnly = true
+        hazards = listOf(HazardKind.SIGNAL_JAM), coopOnly = true, sharedWorld = true
     ),
     ECHO_MINE(
         "Echo Mine (CO-OP)", "Co-op only: a mine with a crushing gate. Your partner must open it. The Mirror Warden only falls to your partner's fire.",
         2.0f, 1.3f, 1.3f, 1.2f, 0xFFAB47BC, ZombieType.MIRROR_WARDEN,
         commonSpawns(walker = 0.8f, runner = 0.8f, brute = 1f, bloater = 0.8f, bat = 2f, balloon = 0f, clown = 0.2f) +
             signature(ZombieType.RAT, 8f, weight = 5f) + signature(ZombieType.STRIKER, 25f, weight = 3f, perSecond = 1f / 70f),
-        hazards = listOf(HazardKind.GATE_LOCK), coopOnly = true
+        hazards = listOf(HazardKind.GATE_LOCK), coopOnly = true, sharedWorld = true
     );
+
+    /** True when the route only makes sense with a partner connected. */
+    val needsPartner: Boolean get() = coopOnly || sharedWorld
 
     /** The enemies listed as this route's own (shown on junction cards and in the Field Guide). */
     val signatureEnemies: List<ZombieType> get() = spawns.filter { it.signature }.map { it.type }

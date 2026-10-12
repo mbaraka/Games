@@ -32,6 +32,10 @@ sealed class CoopMsg {
     /** The sender cleared the receiver's lock. */
     object HelpGiven : CoopMsg()
     object Tow : CoopMsg()
+    /** Shared-world maps: the sender's zombies (positions relative to their train, in their world height). */
+    class Zombies(val ids: IntArray, val types: IntArray, val xs: IntArray, val ys: IntArray, val hp: IntArray, val flags: IntArray) : CoopMsg()
+    /** Shared-world maps: hits the sender scored on the receiver's zombies (by zombie id). */
+    class Hits(val ids: IntArray, val damage: FloatArray) : CoopMsg()
     /** The sender's train for the partner's second-track view: shape, paint, health percent per seat, guns that fired. */
     class Ghost(val shape: Int, val livery: Int, val hp: IntArray, val shotMask: Int) : CoopMsg()
     object RescueCall : CoopMsg()
@@ -58,6 +62,16 @@ sealed class CoopMsg {
             is HelpNeeded -> { o.writeByte(14); o.writeByte(kind) }
             HelpGiven -> o.writeByte(15)
             Tow -> o.writeByte(16)
+            is Zombies -> {
+                o.writeByte(20); o.writeByte(ids.size)
+                for (n in ids.indices) {
+                    o.writeInt(ids[n]); o.writeByte(types[n]); o.writeShort(xs[n]); o.writeShort(ys[n]); o.writeByte(hp[n]); o.writeByte(flags[n])
+                }
+            }
+            is Hits -> {
+                o.writeByte(21); o.writeByte(ids.size)
+                for (n in ids.indices) { o.writeInt(ids[n]); o.writeFloat(damage[n]) }
+            }
             is Ghost -> {
                 o.writeByte(19); o.writeByte(shape); o.writeByte(livery); o.writeByte(hp.size)
                 for (v in hp) o.writeByte(v)
@@ -86,6 +100,21 @@ sealed class CoopMsg {
             14 -> HelpNeeded(i.readUnsignedByte())
             15 -> HelpGiven
             16 -> Tow
+            20 -> {
+                val n = i.readUnsignedByte().coerceAtMost(64)
+                val ids = IntArray(n); val types = IntArray(n); val xs = IntArray(n); val ys = IntArray(n); val hp = IntArray(n); val flags = IntArray(n)
+                for (k in 0 until n) {
+                    ids[k] = i.readInt(); types[k] = i.readUnsignedByte(); xs[k] = i.readShort().toInt(); ys[k] = i.readShort().toInt()
+                    hp[k] = i.readUnsignedByte(); flags[k] = i.readUnsignedByte()
+                }
+                Zombies(ids, types, xs, ys, hp, flags)
+            }
+            21 -> {
+                val n = i.readUnsignedByte().coerceAtMost(64)
+                val ids = IntArray(n); val damage = FloatArray(n)
+                for (k in 0 until n) { ids[k] = i.readInt(); damage[k] = i.readFloat() }
+                Hits(ids, damage)
+            }
             19 -> {
                 val shape = i.readUnsignedByte(); val livery = i.readUnsignedByte(); val n = i.readUnsignedByte()
                 val hp = IntArray(n.coerceIn(0, 8)) { i.readUnsignedByte() }
@@ -101,6 +130,7 @@ sealed class CoopMsg {
 /** A pretend partner for trying co-op on one phone (and for the debug tools): it drifts along, lends a passenger now and then. */
 class SimulatedLink : SimulatedPartner<CoopMsg>() {
     private var clock = 0f
+    private var zombieTimer = 0f
     private var stateTimer = 0f
     private var lendTimer = 12f
     private var hp = 1f
@@ -108,8 +138,11 @@ class SimulatedLink : SimulatedPartner<CoopMsg>() {
     private var junctionA = 0
 
     private var helpIn = -1f
+    private val hitsTaken = HashMap<Int, Int>()
+    private val fakeRespawn = FloatArray(6)
 
     override fun send(msg: CoopMsg) {
+        if (msg is CoopMsg.Hits) for (id in msg.ids) hitsTaken[id] = (hitsTaken[id] ?: 0) + 1 // three hits and a pretend zombie falls
         if (msg is CoopMsg.HelpNeeded) helpIn = 2.5f // the pretend partner clears your lock after a moment
         if (msg is CoopMsg.Junction) {
             junctionPending = 3f // the pretend partner takes the first route a moment later
@@ -132,6 +165,21 @@ class SimulatedLink : SimulatedPartner<CoopMsg>() {
         if (lendTimer <= 0f) {
             lendTimer = 50f
             deliver(CoopMsg.Passenger(1, CrewSlot(owned = 0b111, selected = -1, power = 3, armor = 0), 18f))
+        }
+        // A pretend crowd on the partner's track for shared-world maps: six walkers that close in and respawn when shot.
+        zombieTimer += dt
+        if (zombieTimer >= 0.1f) {
+            zombieTimer = 0f
+            val ids = IntArray(6) { 1000 + it }
+            val live = (0 until 6).filter { (hitsTaken[1000 + it] ?: 0) < 3 }
+            for (k in 0 until 6) if ((hitsTaken[1000 + k] ?: 0) >= 3) { fakeRespawn[k] += 0.1f; if (fakeRespawn[k] > 4f) { fakeRespawn[k] = 0f; hitsTaken.remove(1000 + k) } }
+            val n = live.size
+            deliver(CoopMsg.Zombies(
+                IntArray(n) { ids[live[it]] }, IntArray(n) { com.baraka.game.trainsurvivor.model.ZombieType.WALKER.ordinal },
+                IntArray(n) { val k = live[it]; ((if (k % 2 == 0) 1 else -1) * (420f - ((clock * 18f + k * 55f) % 330f))).toInt() },
+                IntArray(n) { com.baraka.game.trainsurvivor.systems.RAIL_Y.toInt() + 24 + (live[it] % 3) * 10 },
+                IntArray(n) { 100 - (hitsTaken[1000 + live[it]] ?: 0) * 30 }, IntArray(n) { if (live[it] % 2 == 0) 0b10 else 0 }
+            ))
         }
         stateTimer += dt
         if (stateTimer >= 0.25f) {

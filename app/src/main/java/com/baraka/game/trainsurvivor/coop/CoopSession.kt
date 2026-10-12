@@ -4,6 +4,8 @@ import com.baraka.game.coop.CoopLink
 import com.baraka.game.trainsurvivor.model.Biome
 import com.baraka.game.trainsurvivor.model.ZombieType
 import com.baraka.game.trainsurvivor.systems.CoopRole
+import com.baraka.game.trainsurvivor.systems.RAIL_Y
+import com.baraka.game.trainsurvivor.systems.SHARED_MAX
 import com.baraka.game.trainsurvivor.systems.CoopSignal
 import com.baraka.game.trainsurvivor.systems.TrainGame
 
@@ -26,6 +28,13 @@ class CoopSession(val game: TrainGame, val link: CoopLink<CoopMsg>, val role: Co
     val partner = PartnerState()
     private var sendTimer = 0f
     private var ghostTimer = 0f
+    private var sharedTimer = 0f
+    private val snapIds = IntArray(SHARED_MAX)
+    private val snapTypes = IntArray(SHARED_MAX)
+    private val snapXs = IntArray(SHARED_MAX)
+    private val snapYs = IntArray(SHARED_MAX)
+    private val snapHp = IntArray(SHARED_MAX)
+    private val snapFlags = IntArray(SHARED_MAX)
 
     init {
         game.coopRole = role
@@ -56,6 +65,18 @@ class CoopSession(val game: TrainGame, val link: CoopLink<CoopMsg>, val role: Co
             val n = game.slotCount
             val hp = IntArray(n) { (game.carFraction(it) * 100f).toInt() }
             link.send(CoopMsg.Ghost(game.shape.ordinal, game.livery.ordinal, hp, game.takeShotMask()))
+        }
+        if (game.sharedActive && !game.over) {
+            sharedTimer += dt
+            if (sharedTimer >= 0.1f) {
+                sharedTimer = 0f
+                val n = game.fillSnapshot(snapIds, snapTypes, snapXs, snapYs, snapHp, snapFlags)
+                link.send(CoopMsg.Zombies(snapIds.copyOf(n), snapTypes.copyOf(n), snapXs.copyOf(n), snapYs.copyOf(n), snapHp.copyOf(n), snapFlags.copyOf(n)))
+                if (game.shared.hasHits) {
+                    val (ids, damage) = game.shared.takeHits()
+                    link.send(CoopMsg.Hits(ids, damage))
+                }
+            }
         }
         sendTimer += dt
         if (sendTimer >= 0.25f) {
@@ -131,6 +152,8 @@ class CoopSession(val game: TrainGame, val link: CoopLink<CoopMsg>, val role: Co
             is CoopMsg.HelpNeeded -> game.partnerNeedsHelp(m.kind)
             CoopMsg.HelpGiven -> game.unlockTrain(true)
             CoopMsg.Tow -> game.receiveTow()
+            is CoopMsg.Zombies -> if (game.sharedActive) game.shared.apply(m.ids, m.types, m.xs, m.ys, m.hp, m.flags, game.farCenterX, RAIL_Y)
+            is CoopMsg.Hits -> game.applyRemoteHits(m.ids, m.damage)
             is CoopMsg.Ghost -> game.ghost.apply(m.shape, m.livery, m.hp, m.shotMask)
             CoopMsg.RescueCall -> game.partnerRescueCall()
             is CoopMsg.RescueDone -> game.partnerRescueDone(m.bonus)
