@@ -158,11 +158,14 @@ enum class Biome(
             signature(ZombieType.LEAPING_SHARK, 30f, weight = 3f, perSecond = 1f / 80f),
         hazards = listOf(HazardKind.TENTACLES)
     ),
-    CITY_RUINS(
-        "City Ruins", "Zombies drop from overpasses; riot zombies carry shields",
-        1.55f, 1.2f, 1.1f, 1.2f, 0xFF90A4AE, ZombieType.JUGGERNAUT,
-        commonSpawns(runner = 1.2f, brute = 1.4f, bloater = 0.8f, bat = 0.5f, balloon = 0f, clown = 0.2f) + signature(ZombieType.RIOT, 25f),
-        hazards = listOf(HazardKind.OVERPASS_DROPS)
+    JURASSIC(
+        "Jurassic Valley", "A prehistoric jungle under a smoking volcano: compy swarms, leaping raptors, pterodactyls, spitters, charging triceratops, a rare brontosaurus - and the T-Rex. Meteors rain down.",
+        1.75f, 1.25f, 1.15f, 1.25f, 0xFF7CB342, ZombieType.TREX,
+        commonSpawns(walker = 0.4f, runner = 0.5f, brute = 0.6f, bloater = 0.6f, bat = 0f, balloon = 0f, clown = 0f) +
+            signature(ZombieType.COMPY, 6f, weight = 6f) + signature(ZombieType.RAPTOR, 14f, weight = 5f, perSecond = 1f / 60f) +
+            signature(ZombieType.PTERODACTYL, 22f, weight = 3.5f, perSecond = 1f / 70f) + signature(ZombieType.SPITTER, 30f, weight = 3f) +
+            signature(ZombieType.TRICERATOPS, 45f, weight = 2.5f, perSecond = 1f / 80f) + signature(ZombieType.BRONTOSAURUS, 80f, weight = 0.6f, perSecond = 1f / 200f),
+        hazards = listOf(HazardKind.METEORS)
     ),
     DEEP_SEA(
         "Deep Sea Tube", "A pressure tunnel on the ocean floor: piranha swarms, jellyfish, leaks and kraken tentacles",

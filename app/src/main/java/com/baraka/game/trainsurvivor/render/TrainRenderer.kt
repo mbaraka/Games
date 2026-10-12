@@ -1419,7 +1419,7 @@ private inline fun DrawScope.withTransformLeft(x: Float, block: DrawScope.() -> 
 internal var palette: Livery = Livery.CLASSIC
 
 /** Humanoids drawn with the broad torso and thick arms. */
-private val BULKY = setOf(ZombieType.BRUTE, ZombieType.YETI, ZombieType.STRONGMAN, ZombieType.MAGMA_GOLEM, ZombieType.YETI_KING, ZombieType.MAGMA_TITAN, ZombieType.JUGGERNAUT)
+private val BULKY = setOf(ZombieType.BRUTE, ZombieType.YETI, ZombieType.STRONGMAN, ZombieType.MAGMA_GOLEM, ZombieType.YETI_KING, ZombieType.MAGMA_TITAN)
 
 /** Boss versions of the animal enemies are drawn with their smaller cousin's body. */
 private val CREATURE_KIND = mapOf(

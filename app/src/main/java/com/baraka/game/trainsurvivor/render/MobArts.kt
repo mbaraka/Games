@@ -55,6 +55,7 @@ internal fun registerMobLooks() {
 internal fun registerMobArts() {
     registerRouteMobs()
     registerSeaAndSunMobs()
+    registerDinoMobs()
     registerPortraitSizes()
     registerBossArts()
 }

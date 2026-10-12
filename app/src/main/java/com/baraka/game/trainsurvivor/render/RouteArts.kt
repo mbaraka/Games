@@ -30,7 +30,7 @@ internal fun registerRouteArts() {
     RouteArtRegistry.register(Biome.GHOST_TOWN, GhostTownArt)
     RouteArtRegistry.register(Biome.CARNIVAL, CarnivalArt)
     RouteArtRegistry.register(Biome.SEA_BRIDGE, SeaBridgeArt)
-    RouteArtRegistry.register(Biome.CITY_RUINS, CityRuinsArt)
+    RouteArtRegistry.register(Biome.JURASSIC, JurassicArt)
     RouteArtRegistry.register(Biome.DEEP_SEA, DeepSeaArt)
     RouteArtRegistry.register(Biome.SOLAR, SolarArt)
     RouteArtRegistry.register(Biome.TWIN_BRIDGE, TwinBridgeArt)
@@ -599,79 +599,4 @@ private object SeaBridgeArt : RouteArt {
     }
 
     override fun trainKit(s: DrawScope, g: TrainGame, alpha: Float) = with(s) { tintTrain(g, Color(0xFF26C6DA).copy(alpha = 0.1f), alpha) }
-}
-
-// ------------------------------------------------------------------ City Ruins
-
-private object CityRuinsArt : RouteArt {
-    override fun backdrop(s: DrawScope, g: TrainGame, light: Float, sunset: Float) {
-        with(s) {
-            fillSky(g, Color(0xFF6D6A66), Color(0xFFC3B8A8))
-            drawCircle(Brush.radialGradient(listOf(Color(0xFFFFB37A).copy(alpha = 0.55f), Color.Transparent), center = Offset(g.worldW * 0.3f, 210f), radius = 120f), 120f, Offset(g.worldW * 0.3f, 210f))
-            drawCircle(Color(0xFFFFC9A0).copy(alpha = 0.7f), 34f, Offset(g.worldW * 0.3f, 210f))
-            scenery(g, 120f, 0.1f, 0f) { x, r ->
-                val bw = 60f + r * 50f
-                val bh = 110f + r * 190f
-                box(Color(0xFF4A4A52), x, HORIZON - bh, bw, bh + 12f)
-                path.rewind(); path.moveTo(x + bw * 0.3f, HORIZON - bh); path.lineTo(x + bw * 0.6f, HORIZON - bh - 18f * r); path.lineTo(x + bw, HORIZON - bh); path.close()
-                drawPath(path, Color(0xFF4A4A52))
-            }
-            scenery(g, 150f, 0.25f, 0f) { x, r ->
-                val bw = 70f + r * 50f
-                val bh = 90f + r * 160f
-                box(Color(0xFF343439), x, HORIZON - bh, bw, bh + 12f)
-                path.rewind(); path.moveTo(x, HORIZON - bh); path.lineTo(x + bw * 0.4f, HORIZON - bh - 22f); path.lineTo(x + bw * 0.55f, HORIZON - bh + 10f); path.lineTo(x + bw, HORIZON - bh - 6f); path.lineTo(x + bw, HORIZON - bh); path.close()
-                drawPath(path, Color(0xFF343439))
-                for (row in 0..2) for (col in 0..1) {
-                    if (hash((x / 7f).toInt() + row * 3 + col) > 0.6f) box(Color(0xFFFFD27F).copy(alpha = 0.7f), x + 10f + col * 26f, HORIZON - bh + 14f + row * 30f, 12f, 16f)
-                    else box(Color(0xFF1E1E22), x + 10f + col * 26f, HORIZON - bh + 14f + row * 30f, 12f, 16f)
-                }
-            }
-            fillGround(g, Color(0xFF4A4A4F), Color(0xFF28282C))
-            var x = -wrap(g.scroll, 90f) - 90f
-            while (x < g.worldW + 90f) {
-                box(Color(0xFFE0C060), x, 620f, 44f, 5f)
-                x += 90f
-            }
-            scenery(g, 300f, 0.55f, 0.15f) { px, r ->
-                val base = RAIL_Y - 4f
-                if (r < 0.4f) {
-                    drawLine(Color(0xFF263238), Offset(px, base), Offset(px, base - 80f), 4f)
-                    box(Color(0xFF263238), px, base - 80f, 22f, 5f)
-                    drawCircle(Color(0xFFFFD27F).copy(alpha = 0.7f), 4f, Offset(px + 20f, base - 74f))
-                } else if (r < 0.7f) {
-                    rbox(Color(0xFF3A2C28), px, base - 28f, 70f, 22f, 8f)
-                    rbox(Color(0xFF2B211E), px + 14f, base - 40f, 38f, 16f, 6f)
-                    drawCircle(Color(0xFF111111), 8f, Offset(px + 14f, base - 4f))
-                    drawCircle(Color(0xFF111111), 8f, Offset(px + 56f, base - 4f))
-                } else {
-                    for (k in 0..3) drawOval(Color(0xFF59595F), Offset(px + k * 14f, base - 14f - (k % 2) * 10f), Size(30f, 18f))
-                }
-            }
-        }
-    }
-
-    override fun foreground(s: DrawScope, g: TrainGame, light: Float) {
-        with(s) {
-            scenery(g, 300f, 1.35f, 0.25f) { x, r ->
-                val y = 655f + r * 35f
-                drawOval(Color(0xFF45454B), Offset(x, y), Size(50f + r * 30f, 22f))
-                drawOval(Color(0xFF1E1E22), Offset(x + 60f, y + 4f), Size(24f, 16f), style = Stroke(5f))
-            }
-        }
-    }
-
-    override fun weather(s: DrawScope, g: TrainGame) {
-        with(s) {
-            val span = g.worldW + 200f
-            for (i in 0 until 60) {
-                val x = wrap(hash(i) * span - g.time * (10f + hash(i + 2) * 16f), span) - 100f
-                val y = wrap(hash(i + 7) * 740f + g.time * (18f + hash(i + 4) * 14f), 740f) - 20f
-                drawCircle(Color(0xFF8A8A8F).copy(alpha = 0.55f), 1f + hash(i + 6) * 1.6f, Offset(x, y))
-            }
-            for (k in 0..1) drawOval(Color(0xFF55555B).copy(alpha = 0.16f), Offset(g.worldW * (0.2f + k * 0.5f) + sin(g.time * 0.3f + k) * 20f, 250f), Size(120f, 250f))
-        }
-    }
-
-    override fun trainKit(s: DrawScope, g: TrainGame, alpha: Float) = with(s) { tintTrain(g, Color(0xFF2B2B2F).copy(alpha = 0.16f), alpha) }
 }
