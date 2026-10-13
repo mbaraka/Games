@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,6 +40,7 @@ import com.baraka.game.knightsurvivor.model.KnightDesign
 import com.baraka.game.knightsurvivor.model.PlayerState
 import com.baraka.game.knightsurvivor.model.WeaponKind
 import com.baraka.game.knightsurvivor.render.drawKnightIcon
+import com.baraka.game.ui.debug.DebugKit
 import com.baraka.game.ui.theme.GameColors
 
 private enum class SettingsTab(val label: String) {
@@ -136,6 +138,10 @@ private fun GeneralSettingsPanel(
     difficulty: Difficulty,
     onDifficultyChanged: (Difficulty) -> Unit
 ) {
+    val context = LocalContext.current
+    var versionTaps by remember { mutableStateOf(0) }
+    var devUnlocked by remember { mutableStateOf(DebugKit.isUnlocked(context)) }
+
     Column(modifier = Modifier.fillMaxSize()) {
         Text(text = "Sound", color = GameColors.TextMuted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
@@ -163,6 +169,28 @@ private fun GeneralSettingsPanel(
             color = GameColors.TextDisabled,
             fontSize = 11.sp
         )
+
+        Spacer(Modifier.height(24.dp))
+
+        Text(text = "About", color = GameColors.TextMuted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "Knight Survivor  -  version ${com.baraka.game.BuildConfig.KNIGHT_SURVIVOR_VERSION}",
+            color = GameColors.TextDisabled,
+            fontSize = 13.sp,
+            modifier = Modifier.fillMaxWidth().clickable {
+                if (!devUnlocked) {
+                    versionTaps++
+                    if (versionTaps >= 7) {
+                        DebugKit.unlock(context)
+                        devUnlocked = true
+                    }
+                }
+            }
+        )
+        if (devUnlocked) {
+            Text(text = "Developer mode is on.", color = GameColors.Accent, fontSize = 12.sp)
+        }
     }
 }
 

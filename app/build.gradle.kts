@@ -28,6 +28,7 @@ fun gameBuild(vararg paths: String): Int =
     git(*(arrayOf("rev-list", "--count", "HEAD", "--") + paths))?.toIntOrNull() ?: 0
 
 val trainSurvivorBuild = gameBuild("app/src/main/java/com/baraka/game/trainsurvivor", "app/src/main/java/com/baraka/game/coop")
+val knightSurvivorBuild = gameBuild("app/src/main/java/com/baraka/game/knightsurvivor", "app/src/main/java/com/baraka/game/coop")
 
 android {
     namespace = "com.baraka.game"
@@ -41,6 +42,8 @@ android {
         versionName = appVersionName
         buildConfigField("int", "TRAIN_SURVIVOR_BUILD", "$trainSurvivorBuild")
         buildConfigField("String", "TRAIN_SURVIVOR_VERSION", "\"1.$trainSurvivorBuild\"")
+        buildConfigField("int", "KNIGHT_SURVIVOR_BUILD", "$knightSurvivorBuild")
+        buildConfigField("String", "KNIGHT_SURVIVOR_VERSION", "\"1.$knightSurvivorBuild\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -106,10 +109,10 @@ dependencies {
     // 3D Game Engine - LibGDX (Core dependencies only)
     implementation("com.badlogicgames.gdx:gdx:1.12.0")
     implementation("com.badlogicgames.gdx:gdx-backend-android:1.12.0")
-    
+
     // Additional 3D support
     implementation("com.google.android.material:material:1.11.0")
-    
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
