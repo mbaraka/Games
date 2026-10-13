@@ -40,12 +40,6 @@
         </activity>
 
         <activity
-            android:name=".PixelCollectorGame"
-            android:exported="false"
-            android:label="Pixel Collector"
-            android:theme="@style/Theme.Game" />
-
-        <activity
             android:name=".basedefender.BaseDefenderGame"
             android:exported="false"
             android:label="Base Defender"
@@ -55,12 +49,6 @@
             android:name=".memorymatch.MemoryMatchGame"
             android:exported="false"
             android:label="Memory Match"
-            android:theme="@style/Theme.Game" />
-
-        <activity
-            android:name=".rhythmrunner.RhythmRunnerGame"
-            android:exported="false"
-            android:label="Rhythm Runner"
             android:theme="@style/Theme.Game" />
 
         <activity

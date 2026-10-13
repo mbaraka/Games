@@ -68,7 +68,6 @@ import com.baraka.game.minesweeper.MinesweeperActivity
 import com.baraka.game.missilecommand.MissileCommandActivity
 import com.baraka.game.numbercorridor.NumberCorridorActivity
 import com.baraka.game.numbercruncher.NumberCruncherGame
-import com.baraka.game.rhythmrunner.RhythmRunnerGame
 import com.baraka.game.roadrush.RoadRushActivity
 import com.baraka.game.snake.SnakeActivity
 import com.baraka.game.snakeladder.SnakeLadderActivity
@@ -208,26 +207,12 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         activityClass = BaseDefenderGame::class.java
     ),
     GameCatalogEntry(
-        id = "pixel_collector",
-        title = "Pixel Collector",
-        description = "Collect green pixels while avoiding red obstacles!",
-        color = Color(0xFF4CAF50),
-        activityClass = PixelCollectorGame::class.java
-    ),
-    GameCatalogEntry(
         id = "battleship",
         title = "Battleship",
         description = "Local 2 players or vs computer — place fleets, then take turns firing.",
         color = Color(0xFF0277BD),
         activityClass = BattleShipActivity::class.java,
         multiplayer = true
-    ),
-    GameCatalogEntry(
-        id = "rhythm_runner",
-        title = "Rhythm Runner",
-        description = "Run, jump, and collect to the beat!",
-        color = Color(0xFF9C27B0),
-        activityClass = RhythmRunnerGame::class.java
     ),
     GameCatalogEntry(
         id = "train_survivor",

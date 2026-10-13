@@ -3,7 +3,6 @@
 ## Project Overview
 This is an Android game hub built with Jetpack Compose. The project contains:
 - MainActivity: Game selection menu
-- PixelCollectorGame: A 2D pixel collection game
 - Future games can be added as separate activities
 
 ## Code Style & Standards
