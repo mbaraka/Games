@@ -53,7 +53,8 @@ object HazardRegistry {
         HazardKind.TENTACLES -> Tentacles()
         HazardKind.OVERPASS_DROPS -> OverpassDrops()
         HazardKind.SOLAR_FLARES -> SolarFlares()
-        HazardKind.SIGNAL_JAM, HazardKind.GATE_LOCK -> PartnerLock(kind)
+        HazardKind.SIGNAL_JAM, HazardKind.GATE_LOCK, HazardKind.COLLAPSE -> PartnerLock(kind)
+        HazardKind.SWITCHES -> TrackSwitch()
     }
 }
 
@@ -444,4 +445,37 @@ class PartnerLock(override val kind: HazardKind) : Hazard() {
             }
         }
     }
+}
+
+/**
+ * Shared worlds: every half minute or so the two trains swap tracks after a three second warning. The lead train runs the
+ * switch for both; the zombies stay on their tracks, so each train suddenly faces the other's crowd.
+ */
+class TrackSwitch : Hazard() {
+    override val kind = HazardKind.SWITCHES
+    private var timer = 28f
+
+    override fun trigger() {
+        timer = 0f
+    }
+
+    override fun update(g: TrainGame, dt: Float) {
+        if (g.lead != null || g.over) return
+        val other = g.buddy ?: return
+        if (g.switchWarning > 0f) {
+            g.switchWarning -= dt
+            other.switchWarning = g.switchWarning
+            if (g.switchWarning <= 0f) g.swapTracks()
+        } else if (!retiring) {
+            timer -= dt
+            if (timer <= 0f) {
+                timer = 30f + 14f * g.rng.nextFloat()
+                g.switchWarning = 3f
+                other.switchWarning = 3f
+                g.sound(TrainSoundCue.HORDE)
+            }
+        }
+    }
+
+    override fun writeState(out: DataOutputStream) {}
 }

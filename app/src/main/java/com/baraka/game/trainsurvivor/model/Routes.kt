@@ -9,6 +9,8 @@ enum class HazardKind(val displayName: String, val description: String) {
     OVERPASS_DROPS("Overpass drops", "Zombies drop from overpasses onto your roofs."),
     SIGNAL_JAM("Signal jam", "Co-op: every so often your guns jam. Only your PARTNER can clear it, from their screen - and you clear theirs."),
     GATE_LOCK("Track gate", "Co-op: a gate drops across your rails and your train crawls until your PARTNER opens it."),
+    SWITCHES("Track switches", "Shared worlds: every so often the two trains swap tracks. The zombies stay behind, so you suddenly face your partner's half."),
+    COLLAPSE("Track collapse", "Co-op: a stretch of viaduct falls away, debris crushes a wagon and the train crawls until your PARTNER repairs the track."),
     SOLAR_FLARES("Solar flares", "A flare hits after a short warning: tap to raise the shields or every wagon is burned. Flying enemies burn either way.")
 }
 
@@ -20,9 +22,14 @@ data class Spawn(
     val perSecond: Float = 0f,
     val scale: Float = 1f,
     /** Signature enemies belong to the route's landscape; they are listed on the route cards and in the Field Guide. */
-    val signature: Boolean = false
+    val signature: Boolean = false,
+    /** Shared worlds: only spawns on this track (0 = lower, 1 = upper); -1 = on either. */
+    val lane: Int = -1
 ) {
     fun weightAt(time: Float): Float = if (time >= from) scale * (base + perSecond * time) else 0f
+
+    /** The spawn weight for a train on track [laneId]. */
+    fun weightFor(time: Float, laneId: Int): Float = if (lane >= 0 && lane != laneId) 0f else weightAt(time)
 }
 
 /**
@@ -49,8 +56,8 @@ fun commonSpawns(
 )
 
 /** A route's own enemy: shows up often there and nowhere else. */
-fun signature(type: ZombieType, from: Float, weight: Float = 5f, perSecond: Float = 1f / 50f) =
-    Spawn(type, from, weight, perSecond, 1f, signature = true)
+fun signature(type: ZombieType, from: Float, weight: Float = 5f, perSecond: Float = 1f / 50f, lane: Int = -1) =
+    Spawn(type, from, weight, perSecond, 1f, signature = true, lane = lane)
 
 /**
  * A stretch of track the player can route onto at a junction.
@@ -82,7 +89,11 @@ enum class Biome(
     val gravityMult: Float = 1f,
     val hazards: List<HazardKind> = emptyList(),
     /** Only appears in two-phone co-op runs. */
-    val coopOnly: Boolean = false
+    val coopOnly: Boolean = false,
+    /** Needs a shared world (two trains in one simulation): uses tracks, lane spawns or track swaps. */
+    val sharedOnly: Boolean = false,
+    /** The boss of the upper track in a shared world (the lower track uses [boss]). */
+    val bossUpper: ZombieType? = null
 ) {
     PLAINS(
         "Open Plains", "Calm and safe: fewer, weaker zombies and the train repairs itself",
@@ -196,10 +207,36 @@ enum class Biome(
         commonSpawns(walker = 0.8f, runner = 0.8f, brute = 1f, bloater = 0.8f, bat = 2f, balloon = 0f, clown = 0.2f) +
             signature(ZombieType.RAT, 8f, weight = 5f) + signature(ZombieType.STRIKER, 25f, weight = 3f, perSecond = 1f / 70f),
         hazards = listOf(HazardKind.GATE_LOCK), coopOnly = true
+    ),
+    SWITCHYARD(
+        "Switchyard (SHARED)", "Shared worlds only: a rail yard where the two trains swap tracks. Hoppers jump between the tracks, Signalmen throw the switch early, and the Runaway Engine hops too.",
+        2.0f, 1.3f, 1.2f, 1.25f, 0xFFFFC107, ZombieType.RUNAWAY_ENGINE,
+        commonSpawns(walker = 0.7f, runner = 1f, brute = 1f, bloater = 0.6f, bat = 0.6f, balloon = 0f, clown = 0f) +
+            signature(ZombieType.HOPPER, 8f, weight = 5f, perSecond = 1f / 60f) + signature(ZombieType.SIGNALMAN, 30f, weight = 0.8f, perSecond = 1f / 300f),
+        hazards = listOf(HazardKind.SWITCHES), sharedOnly = true
+    ),
+    BROKEN_VIADUCT(
+        "Broken Viaduct (CO-OP)", "Co-op only: a crumbling concrete viaduct. Spans collapse under the train and only your partner can repair the track. The Demolisher smashes wagons.",
+        2.0f, 1.3f, 1.2f, 1.25f, 0xFFB0BEC5, ZombieType.DEMOLISHER,
+        commonSpawns(walker = 0.8f, runner = 1f, brute = 1.3f, bloater = 0.8f, bat = 0.4f, balloon = 0f, clown = 0f) +
+            signature(ZombieType.RIOT, 12f, weight = 3f) + signature(ZombieType.DRONE, 28f, weight = 2f, perSecond = 1f / 90f),
+        hazards = listOf(HazardKind.COLLAPSE), coopOnly = true
+    ),
+    FAULT_LINE(
+        "Fault Line (SHARED)", "Shared worlds only: the lower track faces the ground horde, the upper track an air raid. Guns reach both, so cover each other's weak side.",
+        2.1f, 1.3f, 1.2f, 1.25f, 0xFFE57373, ZombieType.TITAN,
+        listOf(
+            Spawn(ZombieType.WALKER, 0f, 10f, lane = 0), Spawn(ZombieType.RUNNER, 10f, 5f, 1f / 30f, lane = 0),
+            Spawn(ZombieType.BRUTE, 35f, 1f, 1f / 45f, lane = 0), Spawn(ZombieType.BLOATER, 30f, 3f, lane = 0),
+            Spawn(ZombieType.RIOT, 45f, 1.5f, 1f / 90f, lane = 0, signature = true), Spawn(ZombieType.GUNSLINGER, 22f, 3f, lane = 0, signature = true),
+            Spawn(ZombieType.BAT, 0f, 8f, lane = 1), Spawn(ZombieType.BALLOON, 15f, 4f, 1f / 80f, lane = 1),
+            Spawn(ZombieType.DRONE, 25f, 3f, 1f / 60f, lane = 1, signature = true)
+        ),
+        sharedOnly = true, bossUpper = ZombieType.GARGOYLE
     );
 
     /** True when the route only makes sense with a partner connected. */
-    val needsPartner: Boolean get() = coopOnly
+    val needsPartner: Boolean get() = coopOnly || sharedOnly
 
     /** The enemies listed as this route's own (shown on junction cards and in the Field Guide). */
     val signatureEnemies: List<ZombieType> get() = spawns.filter { it.signature }.map { it.type }

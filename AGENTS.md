@@ -24,7 +24,11 @@ launches many small games. Each game is its own Activity in its own package unde
 - `adb` is not on PATH on the dev machine. It lives at
   `%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe` (use it for `adb devices`, etc.).
 - **Only install on the user's device when they ask.** Compiling is always fine.
-- Local builds are version `1.0.0` (the default) - that is expected, see below.
+- **Version numbers climb by themselves.** A local build is the latest git tag plus the commits since it
+  (e.g. tag `v1.2.0` and 17 commits later = `1.2.0+17`, shown in the game's Settings screen), so every commit is a new,
+  higher version and any installed build says which update it is. Release builds (CI passes `-PappMajor/-PappMinor/-PappPatch`
+  from the tag) are exactly the tag, with no suffix. This is computed at the top of `app/build.gradle.kts`; do not edit
+  a version by hand.
 - Prefer verifying with a build over writing unit tests (the owner asked for no tests in
   this app). If tests are ever needed, see the Gradle test-runner PATH note in the
   owner's memory notes: `testDebugUnitTest` breaks on this machine's PATH, compilation
@@ -306,6 +310,11 @@ replay it in `replayFx`; **a new hazard**: implement `Hazard.writeState/readStat
 code, a `remote?.let` line at the top of the method and a case in `SharedHostSession.applyAction`. The run screen only talks to
 a `SharedDriver` (`PracticeDriver` bot, `HostDriver`, `GuestDriver`, `LoopbackDriver` = host and guest in one process, which
 tests the whole network path on one phone). Both players see the same scene: the host's train is the lower track.
+**Maps for two trains**: a `Biome` can be `coopOnly` (needs a partner: linked or shared), `sharedOnly` (needs a shared world:
+Switchyard, Fault Line), give each track its own enemies with `Spawn(..., lane = 0|1)` (lower/upper track) and its own boss
+with `bossUpper`. `ZombieType.hops` lets a zombie jump to the other track and `switcher` makes it throw the track switch;
+the `SWITCHES` hazard swaps the two trains' tracks (`TrainGame.swapTracks`: `lane` is a var, so always use `lane`, never
+assume the lead is on track 0). `COLLAPSE` is a partner-lock hazard like the jam and the gate.
 **Protocol versions**: bump `COOP_PROTOCOL` in `trainsurvivor/coop/CoopLink.kt` whenever a `CoopMsg` is added; phones that differ
 warn the player ("different version") instead of silently ignoring messages.
 Co-op-only paints unlock through `Livery.coopDistance` against `SaveData.coopBest`. The engine never touches the network:

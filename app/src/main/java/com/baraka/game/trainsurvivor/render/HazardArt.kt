@@ -10,7 +10,10 @@ import com.baraka.game.trainsurvivor.systems.HullBreaches
 import com.baraka.game.trainsurvivor.systems.LavaGeysers
 import com.baraka.game.trainsurvivor.systems.MeteorShower
 import com.baraka.game.trainsurvivor.systems.OverpassDrops
+import com.baraka.game.trainsurvivor.model.HazardKind
 import com.baraka.game.trainsurvivor.systems.PartnerLock
+import com.baraka.game.trainsurvivor.systems.RAIL_Y
+import com.baraka.game.trainsurvivor.systems.TrackSwitch
 import com.baraka.game.trainsurvivor.systems.SolarFlares
 import com.baraka.game.trainsurvivor.systems.Tentacles
 import com.baraka.game.trainsurvivor.systems.TrainGame
@@ -32,6 +35,7 @@ internal fun DrawScope.drawHazards(g: TrainGame) {
             is OverpassDrops -> drawOverpass(h, g)
             is SolarFlares -> drawFlare(h, g)
             is PartnerLock -> drawPartnerLock(h, g)
+            is TrackSwitch -> drawTrackSwitch(g)
             is Tentacles -> {} // tentacles are ordinary enemies; see MobArts.kt
         }
     }
@@ -119,6 +123,10 @@ private fun DrawScope.drawFlare(h: SolarFlares, g: TrainGame) {
 /** Jam: sparks and a red lock over the guns. Gate: a striped barrier across the rails in front of the train. */
 private fun DrawScope.drawPartnerLock(h: PartnerLock, g: TrainGame) {
     if (g.lockedBy != h.kind) return
+    if (h.kind == HazardKind.COLLAPSE) {
+        drawCollapse(g)
+        return
+    }
     val pulse = 0.5f + 0.5f * sin(g.time * 8f)
     if (g.jammed) {
         for (i in 0 until g.slotCount) {
@@ -135,4 +143,30 @@ private fun DrawScope.drawPartnerLock(h: PartnerLock, g: TrainGame) {
         for (k in 0 until 5) box(if (k % 2 == 0) Color(0xFFFFC107) else Color(0xFF212121), x - 6f, 380f + k * 20f, 12f, 20f)
         drawCircle(Color(0xFFFF5252).copy(alpha = 0.3f + 0.3f * pulse), 18f, Offset(x, 370f))
     }
+}
+
+/** The viaduct has fallen away ahead of the train: a dark pit in the rails, broken rail ends, falling slabs and a warning sign. */
+private fun DrawScope.drawCollapse(g: TrainGame) {
+    val x0 = g.frontEnd + 36f
+    box(Color(0xFF0E1114), x0, RAIL_Y - 2f, 120f, 40f)
+    path.rewind(); path.moveTo(x0 - 14f, RAIL_Y - 1f); path.lineTo(x0 + 4f, RAIL_Y - 1f); path.lineTo(x0 - 6f, RAIL_Y + 14f); path.close()
+    drawPath(path, Color(0xFFAEB4BC))
+    path.rewind(); path.moveTo(x0 + 136f, RAIL_Y - 1f); path.lineTo(x0 + 116f, RAIL_Y - 1f); path.lineTo(x0 + 128f, RAIL_Y + 16f); path.close()
+    drawPath(path, Color(0xFFAEB4BC))
+    for (k in 0..5) {
+        val y = RAIL_Y - 170f + ((g.time * 110f + k * 53f) % 190f)
+        box(Color(0xFF7A706A), x0 + 6f + k * 19f, y, 14f + (k % 3) * 4f, 9f)
+    }
+    for (k in 0..2) drawCircle(Color(0xFFBCAAA4).copy(alpha = 0.35f), 16f + k * 9f, Offset(x0 + 30f + k * 32f, RAIL_Y - 14f - ((g.time * 30f + k * 20f) % 50f)))
+    path.rewind(); path.moveTo(x0 - 40f, RAIL_Y - 4f); path.lineTo(x0 - 22f, RAIL_Y - 44f); path.lineTo(x0 - 4f, RAIL_Y - 4f); path.close()
+    drawPath(path, Color(0xFFFFC107))
+    outlinedText("!", x0 - 22f, RAIL_Y - 12f, 24f, 0xFF212121.toInt())
+}
+
+/** Before a track switch: the rails flash gold and a countdown hangs over the scene. */
+private fun DrawScope.drawTrackSwitch(g: TrainGame) {
+    if (g.switchWarning <= 0f) return
+    val pulse = 0.5f + 0.5f * sin(g.time * 10f)
+    box(Color(0xFFFFC107).copy(alpha = 0.25f + 0.3f * pulse), -200f, RAIL_Y - 2f, g.worldW + 400f, 5f)
+    outlinedText("TRACKS SWITCH IN " + (g.switchWarning.toInt() + 1), g.worldW / 2f, 318f, 26f, 0xFFFFC107.toInt())
 }

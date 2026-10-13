@@ -44,7 +44,11 @@ enum class ZombieType(
     /** Spawns as a pack of this many. */
     val packSize: Int = 1,
     /** Co-op bosses: your own guns only scratch it (10%); your partner's fire cracks it. Solo it takes full damage. */
-    val partnerOnly: Boolean = false
+    val partnerOnly: Boolean = false,
+    /** Jumps between the two tracks of a shared world, so a gap in your partner's defence becomes your problem. */
+    val hops: Boolean = false,
+    /** Throws the track switch when it reaches a train (and is gone). */
+    val switcher: Boolean = false
 ) {
     WALKER("Walker", 30f, 38f, 5f, 2, 1.0f),
     RUNNER("Runner", 18f, 88f, 4f, 3, 0.9f),
@@ -110,6 +114,10 @@ enum class ZombieType(
     TRICERATOPS("Zombie Triceratops", 380f, 26f, 18f, 22, 1.9f, armor = 9f, aimHeight = 24f, lunges = true),
     BRONTOSAURUS("Zombie Brontosaurus", 1100f, 14f, 40f, 70, 3.4f, armor = 12f, aimHeight = 40f),
     TREX("Zombie T-Rex", 1900f, 22f, 34f, 280, 3.3f, boss = true, armor = 8f, aimHeight = 36f, lunges = true, specialEvery = 5.5f, smash = 38f, callout = "ROAR!"),
+    HOPPER("Rail Hopper", 40f, 105f, 7f, 7, 1.0f, aimHeight = 26f, hops = true),
+    SIGNALMAN("Signalman", 90f, 48f, 6f, 20, 1.1f, switcher = true),
+    RUNAWAY_ENGINE("Runaway Engine", 1700f, 30f, 36f, 260, 2.6f, boss = true, armor = 10f, aimHeight = 34f, lunges = true, hops = true, specialEvery = 5f, smash = 36f, callout = "DERAIL!"),
+    DEMOLISHER("Demolisher", 1700f, 20f, 32f, 230, 2.5f, boss = true, armor = 12f, specialEvery = 5f, smash = 34f, callout = "DEMOLISH!"),
     STRIKER("Striker", 70f, 120f, 9f, 8, 1.0f, armor = 3f, aimHeight = 26f),
     TWIN_BULWARK("Twin Bulwark", 1500f, 22f, 30f, 230, 2.4f, boss = true, armor = 8f, specialEvery = 7f, summon = STRIKER, summonCount = 3, callout = "STRIKERS!", partnerOnly = true),
     MIRROR_WARDEN("Mirror Warden", 1300f, 30f, 24f, 230, 2.3f, boss = true, armor = 6f, ranged = 320f, specialEvery = 6f, summon = STRIKER, summonCount = 2, callout = "ECHO!", partnerOnly = true),

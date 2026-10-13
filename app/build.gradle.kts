@@ -4,14 +4,27 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-// Versioning policy: MAJOR stays 1, MINOR bumps when a new game is added,
-// PATCH bumps for small fixes/tweaks. Override from CI with -PappMinor=N -PappPatch=N
-// (e.g. driven by a git tag like v1.4.2) so a tag push controls the shipped version.
-val appMajor = (project.findProperty("appMajor") as String?)?.toInt() ?: 1
-val appMinor = (project.findProperty("appMinor") as String?)?.toInt() ?: 0
-val appPatch = (project.findProperty("appPatch") as String?)?.toInt() ?: 0
-val appVersionName = "$appMajor.$appMinor.$appPatch"
-val appVersionCode = appMajor * 10_000 + appMinor * 100 + appPatch
+// Versioning policy: MAJOR stays 1, MINOR bumps when a new game is added, PATCH bumps for small fixes/tweaks.
+// Releases: CI passes -PappMajor/-PappMinor/-PappPatch from the git tag (v1.4.2), so the tag IS the version.
+// Local builds: the version is the latest tag plus the number of commits since it ("1.2.0+17"), so it goes up by one with
+// every commit and every installed build says exactly which update it is. versionCode follows (tag code + commits since).
+fun git(vararg args: String): String? = try {
+    val process = ProcessBuilder(listOf("git") + args).directory(rootDir).redirectErrorStream(true).start()
+    val output = process.inputStream.bufferedReader().readText().trim()
+    if (process.waitFor() == 0) output else null
+} catch (e: Exception) {
+    null
+}
+
+val releaseBuild = project.hasProperty("appMajor") || project.hasProperty("appMinor") || project.hasProperty("appPatch")
+val described = Regex("""v(\d+)\.(\d+)\.(\d+)-(\d+)-g[0-9a-f]+""").find(git("describe", "--tags", "--long", "--match", "v[0-9]*") ?: "")
+val tagParts = described?.groupValues?.drop(1)?.map { it.toInt() }
+val commitsSinceTag = if (releaseBuild) 0 else (tagParts?.get(3) ?: 0)
+val appMajor = (project.findProperty("appMajor") as String?)?.toInt() ?: tagParts?.get(0) ?: 1
+val appMinor = (project.findProperty("appMinor") as String?)?.toInt() ?: tagParts?.get(1) ?: 0
+val appPatch = (project.findProperty("appPatch") as String?)?.toInt() ?: tagParts?.get(2) ?: 0
+val appVersionName = "$appMajor.$appMinor.$appPatch" + if (commitsSinceTag > 0) "+$commitsSinceTag" else ""
+val appVersionCode = appMajor * 10_000 + appMinor * 100 + appPatch + commitsSinceTag
 
 android {
     namespace = "com.baraka.game"

@@ -61,6 +61,7 @@ class Zombie(val type: ZombieType, var x: Float, var y: Float, val side: Int, va
     var retarget = 0f
     /** Which train's lane this zombie belongs to: 0 = the lead train, 1 = the second train of a shared world. */
     var lane = 0
+    var hopTimer = 3f
     /** Countdown to this boss's next special move. */
     var special = 4f
     /** Separate timers so a boss can lunge, shoot and use its special at the same time. */
@@ -187,7 +188,12 @@ class TrainGame(
 
     // ---- shared world: two trains in one simulation (see SharedRun)
     /** 0 for a normal train and the lead train of a shared world; 1 for the second train. */
-    val lane: Int = if (lead == null) 0 else 1
+    var lane: Int = if (lead == null) 0 else 1
+        internal set
+    /** True when this train shares a world with another (see SharedRun). */
+    val isShared: Boolean get() = lead != null || ally != null
+    /** Seconds until the trains swap tracks (shown on both screens); set by the TrackSwitch hazard. */
+    var switchWarning = 0f
     /** The second train sharing this world (set on the lead). */
     var ally: TrainGame? = null
     /** The other train of a shared world, whichever this is. */
@@ -380,7 +386,7 @@ class TrainGame(
      * How fast the train is running: 1.0 at the start, rising to 2.6 by 2,900 m, then multiplied by the train's body and
      * Engine Tuning (capped at 4x). Faster means more distance and coins per second, more zombies and faster-closing zombies.
      */
-    val speedFactor get() = ((1f + min(1.6f, distance / 1800f)) * shape.speedMult * paint.speedMult * (1f + 0.08f * engineLevel)).coerceAtMost(4f) * (if (lockedBy == HazardKind.GATE_LOCK) 0.35f else 1f)
+    val speedFactor get() = ((1f + min(1.6f, distance / 1800f)) * shape.speedMult * paint.speedMult * (1f + 0.08f * engineLevel)).coerceAtMost(4f) * (if (lockedBy == HazardKind.GATE_LOCK || lockedBy == HazardKind.COLLAPSE) 0.35f else 1f)
 
     /** Zombies close in a little faster as the train speeds up. */
     private val zombiePace get() = 1f + 0.25f * (speedFactor - 1f)
@@ -593,7 +599,12 @@ class TrainGame(
         lockTime = 0f
         shake = max(shake, 0.5f)
         sound(TrainSoundCue.BOSS)
-        floatText(trainLeft + trainLength / 2f, 330f, if (kind == HazardKind.SIGNAL_JAM) "GUNS JAMMED! Ask your partner" else "GATE! Ask your partner", 2f, 0xFFFF8A65.toInt(), 22f)
+        floatText(trainLeft + trainLength / 2f, 330f, when (kind) { HazardKind.SIGNAL_JAM -> "GUNS JAMMED! Ask your partner"; HazardKind.COLLAPSE -> "TRACK COLLAPSED! Ask your partner"; else -> "GATE! Ask your partner" }, 2f, 0xFFFF8A65.toInt(), 22f)
+        if (kind == HazardKind.COLLAPSE) {
+            val slot = rng.nextInt(slotCount)
+            explosion(carCenterX(slot), 450f, 40f)
+            hurtCar(slot, 20f * danger.dmgMult)
+        }
         if (partnerPresent) onCoop?.invoke(CoopSignal.HelpNeeded(kind.ordinal))
     }
 
@@ -885,7 +896,7 @@ class TrainGame(
 
     /** A tap from the player of the second train, in the scene they see (their lane is drawn LANE_DY above the lead's). */
     fun tapFromGuest(lx: Float, ly: Float) {
-        if (!over && tapHazard(lx, ly + LANE_DY)) return
+        if (!over && tapHazard(lx, if (lane == 1) ly + LANE_DY else ly)) return
         tapCrate(lx, ly)
     }
 
@@ -1016,7 +1027,7 @@ class TrainGame(
 
     fun openJunction() {
         if (junction != null || transitioning) return
-        val options = Biome.entries.filter { it != biome && (!it.needsPartner || partnerPresent) }.shuffled(rng).toMutableList()
+        val options = Biome.entries.filter { it != biome && (!it.needsPartner || partnerPresent) && (!it.sharedOnly || isShared) }.shuffled(rng).toMutableList()
         // Co-op runs often offer one of the co-op-only routes.
         if (partnerPresent && rng.nextFloat() < 0.6f && !options[0].needsPartner && !options[1].needsPartner) {
             val special = options.firstOrNull { it.needsPartner }
@@ -1126,14 +1137,15 @@ class TrainGame(
     private fun pickType(): ZombieType {
         val spawns = biome.spawns
         var total = 0f
-        for (i in spawns.indices) total += spawns[i].weightAt(time)
+        for (i in spawns.indices) total += spawns[i].weightFor(time, lane)
         if (total <= 0f) return ZombieType.WALKER
         var roll = rng.nextFloat() * total
         for (i in spawns.indices) {
-            roll -= spawns[i].weightAt(time)
+            roll -= spawns[i].weightFor(time, lane)
             if (roll <= 0f) return spawns[i].type
         }
-        return spawns[spawns.size - 1].type
+        for (i in spawns.indices.reversed()) if (spawns[i].weightFor(time, lane) > 0f) return spawns[i].type
+        return ZombieType.WALKER
     }
 
     private fun spawnZombie(type: ZombieType, forcedSide: Int = 0) {
@@ -1161,7 +1173,7 @@ class TrainGame(
     }
 
     /** Spawns the boss of the current route (or [type], for the debug tools). */
-    fun spawnBoss(type: ZombieType = biome.boss) {
+    fun spawnBoss(type: ZombieType = if (lane == 1) biome.bossUpper ?: biome.boss else biome.boss) {
         if (boss != null) return
         val side = if (rng.nextBoolean()) 1 else -1
         val x = if (side > 0) worldW + 120f else -120f
@@ -1230,6 +1242,13 @@ class TrainGame(
                 z.flash = max(0f, z.flash - dt * 6f)
                 z.attacking = arrived && rank < MAX_ATTACKERS_PER_SIDE
                 if (z.attacking) attack(z, side, dt)
+                if (z.type.hops && buddy != null && !z.dead) {
+                    z.hopTimer -= dt
+                    if (z.hopTimer <= 0f && abs(z.x - end) < 280f) {
+                        z.hopTimer = 4f + rng.nextFloat() * 3f
+                        hopTrack(z)
+                    }
+                }
                 if (z.type.leaper && z.jumpState == 0 && abs(z.x - end) < 240f) startLeap(z)
             }
             side += 2
@@ -1489,7 +1508,39 @@ class TrainGame(
         if (texts.size < MAX_TEXTS) addText(FloatingText(x, y, text, life, color, size))
     }
 
+    /** A hopper leaps to the other train's track: sparks mark where it left and where it lands. */
+    private fun hopTrack(z: Zombie) {
+        val other = buddy ?: return
+        spark(z.x, z.y - 30f)
+        z.lane = other.lane
+        val previous = fxLane
+        fxLane = z.lane
+        spark(z.x, z.y - 30f)
+        fxLane = previous
+    }
+
+    /** Swaps which track each of the two trains runs on (the zombies stay on their tracks, so each train faces the other's crowd). */
+    fun swapTracks() {
+        val other = ally ?: return
+        val t = lane
+        lane = other.lane
+        other.lane = t
+        fxLane = lane
+        other.fxLane = other.lane
+        switchWarning = 0f
+        other.switchWarning = 0f
+        shake = max(shake, 0.8f)
+        sound(TrainSoundCue.HORDE)
+        floatText(worldW / 2f, 330f, "TRACKS SWITCHED!", 1.8f, 0xFFFFC107.toInt(), 28f)
+    }
+
     private fun attack(z: Zombie, side: Int, dt: Float) {
+        if (z.type.switcher) { // the Signalman throws the switch and is gone
+            z.dead = true
+            explosion(z.x, z.y - 20f, 30f)
+            (lead ?: this).swapTracks()
+            return
+        }
         val slot = if (side > 0) 0 else rearSlot()
         if (z.type == ZombieType.BLOATER) {
             // Bloaters burst on contact instead of clawing.

@@ -132,21 +132,24 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
     val shakeX = sin(g.time * 90f) * shakeAmount * 7f
     val shakeY = cos(g.time * 77f) * shakeAmount * 7f
 
+    // In a shared world the train on track 1 is drawn above the one on track 0, whichever of the two it is (tracks can swap).
+    val lower = if (ally != null && g.lane == 1) ally else g
+    val upper = if (ally == null) null else if (g.lane == 1) g else ally
     withTransform({
         scale(s, s, Offset.Zero)
         translate(shakeX, -topOffset + shakeY)
     }) {
         forRegions(g) { biome -> RouteArtRegistry.artFor(biome).backdrop(this, g, light, sunset) }
         drawTransitionArt(g)
-        if (ally != null) {
+        if (upper != null) {
             withTransform({ translate(0f, -LANE_DY) }) {
-                drawViaduct(ally)
-                drawLaneBody(ally, light, 1, front = false)
+                drawViaduct(upper)
+                drawLaneBody(upper, light, 1, front = false)
             }
         }
         drawSpeedLines(g)
         if (ally == null) drawGhostTrain(g)
-        drawLaneBody(g, light, if (ally != null) 0 else -1, front = true)
+        drawLaneBody(lower, light, if (upper != null) 0 else -1, front = true)
         forRegions(g) { biome ->
             val art = RouteArtRegistry.artFor(biome)
             art.foreground(this, g, light)
@@ -157,17 +160,17 @@ fun DrawScope.drawTrainScene(g: TrainGame, topOffset: Float = 0f, showHud: Boole
             drawRect(Color(0xFF050A24).copy(alpha = art.darkness(night)), Offset(-200f, -1200f), Size(g.worldW + 400f, 2400f))
             art.afterDarkness(this, g)
         }
-        if (ally != null) {
+        if (upper != null) {
             withTransform({ translate(0f, -LANE_DY) }) {
-                drawGlow(ally, RouteArtRegistry.artFor(ally.biome).glowNight(night), 1)
-                drawParticles(ally, glow = true, laneFilter = 1)
-                drawLaneTexts(ally, 1)
+                drawGlow(upper, RouteArtRegistry.artFor(upper.biome).glowNight(night), 1)
+                drawParticles(upper, glow = true, laneFilter = 1)
+                drawLaneTexts(upper, 1)
             }
         }
-        val frontLane = if (ally != null) 0 else -1
-        drawGlow(g, RouteArtRegistry.artFor(g.biome).glowNight(night), frontLane)
-        drawParticles(g, glow = true, laneFilter = frontLane)
-        drawLaneTexts(g, frontLane)
+        val frontLane = if (upper != null) 0 else -1
+        drawGlow(lower, RouteArtRegistry.artFor(lower.biome).glowNight(night), frontLane)
+        drawParticles(lower, glow = true, laneFilter = frontLane)
+        drawLaneTexts(lower, frontLane)
     }
     if (showHud) drawHud(hud)
 }
@@ -1419,7 +1422,7 @@ private inline fun DrawScope.withTransformLeft(x: Float, block: DrawScope.() -> 
 internal var palette: Livery = Livery.CLASSIC
 
 /** Humanoids drawn with the broad torso and thick arms. */
-private val BULKY = setOf(ZombieType.BRUTE, ZombieType.YETI, ZombieType.STRONGMAN, ZombieType.MAGMA_GOLEM, ZombieType.YETI_KING, ZombieType.MAGMA_TITAN)
+private val BULKY = setOf(ZombieType.BRUTE, ZombieType.YETI, ZombieType.STRONGMAN, ZombieType.MAGMA_GOLEM, ZombieType.YETI_KING, ZombieType.MAGMA_TITAN, ZombieType.DEMOLISHER)
 
 /** Boss versions of the animal enemies are drawn with their smaller cousin's body. */
 private val CREATURE_KIND = mapOf(

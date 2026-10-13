@@ -89,7 +89,7 @@ class SharedRun(val lead: TrainGame, val ally: TrainGame) {
         var near = 0
         for (i in a.zombies.indices) {
             val z = a.zombies[i]
-            if (!z.dead && z.lane == 1 && abs(z.x - a.trainLeft - a.trainLength / 2f) < 360f) near++
+            if (!z.dead && z.lane == a.lane && abs(z.x - a.trainLeft - a.trainLength / 2f) < 360f) near++
         }
         if (a.dynamiteReady && near >= 5) a.useDynamite()
         if (a.overdriveReady && near >= 3) a.useOverdrive()

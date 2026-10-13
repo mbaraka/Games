@@ -79,8 +79,16 @@ internal fun CoopAlert(game: TrainGame, partner: PartnerState, tick: MutableLong
             color = ALERT_RED
         }
         game.lockedBy != null -> {
-            text = if (game.jammed) "GUNS JAMMED - your partner can clear it" else "GATE CLOSED - your partner can open it"
+            text = when (game.lockedBy) {
+                HazardKind.SIGNAL_JAM -> "GUNS JAMMED - your partner can clear it"
+                HazardKind.COLLAPSE -> "TRACK COLLAPSED - your partner can repair it"
+                else -> "GATE CLOSED - your partner can open it"
+            }
             color = ALERT_RED
+        }
+        game.switchWarning > 0f -> {
+            text = "TRACKS SWITCH IN " + (game.switchWarning.toInt() + 1) + "s - the zombies stay behind!"
+            color = ALERT_GOLD
         }
         game.rescueTime > 0f -> {
             text = if (game.guestPresent) "RESCUING..." else "SURVIVOR STRANDED - ask your partner to send a passenger (${game.rescueTime.toInt() + 1}s)"
@@ -126,7 +134,7 @@ internal fun CoopHelpButton(game: TrainGame, partner: PartnerState, tick: Mutabl
     tick.longValue
     val help = game.partnerHelp ?: return
     if (!partner.connected || partner.down) return
-    val label = (if (help == HazardKind.SIGNAL_JAM) "CLEAR PARTNER'S JAM " else "OPEN PARTNER'S GATE ") + (game.partnerHelpTime.toInt() + 1) + "s"
+    val label = (when (help) { HazardKind.SIGNAL_JAM -> "CLEAR PARTNER'S JAM "; HazardKind.COLLAPSE -> "REPAIR PARTNER'S TRACK "; else -> "OPEN PARTNER'S GATE " }) + (game.partnerHelpTime.toInt() + 1) + "s"
     Text(
         label,
         color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold,

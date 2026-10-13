@@ -94,6 +94,8 @@ fun TrainGame.readWorld(input: DataInputStream) {
 // ------------------------------------------------------------------ one train
 
 fun TrainGame.writeRig(out: DataOutputStream) {
+    out.writeByte(lane)
+    out.writeFloat(switchWarning)
     out.writeBoolean(over)
     out.writeFloat(hp)
     for (i in 0 until slotCount) out.writeFloat(carHp[i])
@@ -136,6 +138,9 @@ fun TrainGame.writeRig(out: DataOutputStream) {
 }
 
 fun TrainGame.readRig(input: DataInputStream, zombieIndex: Map<Int, Zombie>) {
+    lane = input.readUnsignedByte()
+    fxLane = lane
+    switchWarning = input.readFloat()
     over = input.readBoolean()
     hp = input.readFloat()
     for (i in 0 until slotCount) carHp[i] = input.readFloat()
