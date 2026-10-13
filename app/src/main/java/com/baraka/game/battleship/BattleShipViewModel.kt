@@ -15,6 +15,9 @@ private const val GRID = 10
 /** Standard fleet: carrier, battleship, cruiser, submarine, destroyer. */
 internal val BattleShipFleetLengths = listOf(5, 4, 3, 3, 2)
 
+/** Ship names, same order as [BattleShipFleetLengths]; a ship's id is its index. */
+internal val BattleShipNames = listOf("Carrier", "Battleship", "Cruiser", "Submarine", "Destroyer")
+
 enum class BattleShipGameMode {
     LocalTwoPlayer,
     VsComputer
@@ -41,6 +44,9 @@ data class BattleShipUiState(
     val gameMode: BattleShipGameMode? = null,
     val player1Ships: List<Boolean> = List(GRID * GRID) { false },
     val player2Ships: List<Boolean> = List(GRID * GRID) { false },
+    /** Which ship (index into the fleet) sits on each cell, or -1 for water. */
+    val player1Ids: List<Int> = List(GRID * GRID) { -1 },
+    val player2Ids: List<Int> = List(GRID * GRID) { -1 },
     /** Player 1’s shots onto player 2’s grid. */
     val player1Shots: List<ShotKind?> = List(GRID * GRID) { null },
     /** Player 2’s shots onto player 1’s grid. */
@@ -149,9 +155,10 @@ class BattleShipViewModel : ViewModel() {
         _uiState.update { s ->
             when (s.gameMode) {
                 BattleShipGameMode.VsComputer -> {
-                    val cpuBoard = randomFleetBoard()
+                    val cpuIds = randomFleetIds()
                     s.copy(
-                        player2Ships = cpuBoard,
+                        player2Ships = cpuIds.map { it >= 0 },
+                        player2Ids = cpuIds,
                         phase = BattlePhase.HandoffAfterP2,
                         setupShipIndex = 0,
                         setupHorizontal = true,
@@ -180,20 +187,23 @@ class BattleShipViewModel : ViewModel() {
         }
     }
 
-    private fun randomFleetBoard(): List<Boolean> {
+    private fun randomFleetIds(): List<Int> {
         repeat(800) {
             val board = MutableList(GRID * GRID) { false }
+            val ids = MutableList(GRID * GRID) { -1 }
             var ok = true
-            for (len in BattleShipFleetLengths) {
+            for ((shipId, len) in BattleShipFleetLengths.withIndex()) {
                 var placed = false
-                repeat(300) {
+                var attempts = 0
+                while (!placed && attempts < 300) {
+                    attempts++
                     val horizontal = random.nextBoolean()
                     val row = random.nextInt(GRID)
                     val col = random.nextInt(GRID)
                     if (canPlace(board, row, col, len, horizontal)) {
                         placeShip(board, row, col, len, horizontal)
+                        stampIds(ids, row, col, len, horizontal, shipId)
                         placed = true
-                        return@repeat
                     }
                 }
                 if (!placed) {
@@ -201,9 +211,9 @@ class BattleShipViewModel : ViewModel() {
                     break
                 }
             }
-            if (ok) return board
+            if (ok) return ids
         }
-        return List(GRID * GRID) { false }
+        return List(GRID * GRID) { -1 }
     }
 
     fun tryPlaceShip(cellIndex: Int) {
@@ -221,15 +231,19 @@ class BattleShipViewModel : ViewModel() {
                 return@update s.copy(lastMessage = "Can’t place there — overlap or out of bounds.")
             }
             placeShip(board, row, col, len, s.setupHorizontal)
+            val ids = (if (s.phase == BattlePhase.SetupP1) s.player1Ids else s.player2Ids).toMutableList()
+            stampIds(ids, row, col, len, s.setupHorizontal, s.setupShipIndex)
             val nextIndex = s.setupShipIndex + 1
             when (s.phase) {
                 BattlePhase.SetupP1 -> s.copy(
                     player1Ships = board,
+                    player1Ids = ids,
                     setupShipIndex = nextIndex,
                     lastMessage = if (nextIndex >= BattleShipFleetLengths.size) null else "Place next ship (${BattleShipFleetLengths[nextIndex]} cells)."
                 )
                 BattlePhase.SetupP2 -> s.copy(
                     player2Ships = board,
+                    player2Ids = ids,
                     setupShipIndex = nextIndex,
                     lastMessage = if (nextIndex >= BattleShipFleetLengths.size) null else "Place next ship (${BattleShipFleetLengths[nextIndex]} cells)."
                 )
@@ -270,18 +284,22 @@ class BattleShipViewModel : ViewModel() {
             val cell = pickCpuCell(s)
             val hit = s.player1Ships[cell]
             val next = applyShooterTurn(s, 2, cell)
+            val sunkName = if (hit && shipSunk(s.player1Ids, next.player2Shots, s.player1Ids[cell])) {
+                BattleShipNames[s.player1Ids[cell]]
+            } else null
             if (hit) {
                 enqueueCpuNeighbors(cell)
             }
             _uiState.value = next.copy(
                 cpuThinking = false,
-                lastMessage = cpuShotMessage(hit, next.phase == BattlePhase.GameOver, next.winner)
+                lastMessage = cpuShotMessage(hit, sunkName, next.phase == BattlePhase.GameOver, next.winner)
             )
         }
     }
 
-    private fun cpuShotMessage(hit: Boolean, gameOver: Boolean, winner: Int?): String {
+    private fun cpuShotMessage(hit: Boolean, sunkName: String?, gameOver: Boolean, winner: Int?): String {
         if (gameOver && winner == 2) return "Computer wins — your fleet is destroyed!"
+        if (sunkName != null) return "Computer sank your $sunkName! Your turn."
         return if (hit) "Computer hit your ship! Your turn." else "Computer missed. Your turn."
     }
 
@@ -329,11 +347,12 @@ class BattleShipViewModel : ViewModel() {
                         lastMessage = winMessage(s, winnerPlayer = 1)
                     )
                 }
+                val sunk = if (hit && shipSunk(s.player2Ids, newShots, s.player2Ids[cellIndex])) {
+                    "You sank the ${BattleShipNames[s.player2Ids[cellIndex]]}! "
+                } else if (hit) "Hit! " else "Miss. "
                 val msg = when (s.gameMode) {
-                    BattleShipGameMode.VsComputer ->
-                        if (hit) "Hit! Computer’s turn." else "Miss. Computer’s turn."
-                    BattleShipGameMode.LocalTwoPlayer, null ->
-                        if (hit) "Hit! Pass to Player 2." else "Miss. Pass to Player 2."
+                    BattleShipGameMode.VsComputer -> sunk + "Computer’s turn."
+                    BattleShipGameMode.LocalTwoPlayer, null -> sunk + "Pass to Player 2."
                 }
                 s.copy(
                     player1Shots = newShots,
@@ -357,10 +376,12 @@ class BattleShipViewModel : ViewModel() {
                         lastMessage = winMessage(s, winnerPlayer = 2)
                     )
                 }
+                val sunk = if (hit && shipSunk(s.player1Ids, newShots, s.player1Ids[cellIndex])) {
+                    "Player 2 sank the ${BattleShipNames[s.player1Ids[cellIndex]]}! "
+                } else if (hit) "Hit! " else "Miss. "
                 val msg = when (s.gameMode) {
                     BattleShipGameMode.VsComputer -> ""
-                    BattleShipGameMode.LocalTwoPlayer, null ->
-                        if (hit) "Hit! Pass to Player 1." else "Miss. Pass to Player 1."
+                    BattleShipGameMode.LocalTwoPlayer, null -> sunk + "Pass to Player 1."
                 }
                 s.copy(
                     player2Shots = newShots,
@@ -402,6 +423,23 @@ class BattleShipViewModel : ViewModel() {
             } else {
                 for (r in row until row + len) board[r * GRID + col] = true
             }
+        }
+
+        fun stampIds(ids: MutableList<Int>, row: Int, col: Int, len: Int, horizontal: Boolean, id: Int) {
+            if (horizontal) {
+                for (c in col until col + len) ids[row * GRID + c] = id
+            } else {
+                for (r in row until row + len) ids[r * GRID + col] = id
+            }
+        }
+
+        /** True when every cell of ship [id] has been hit. */
+        fun shipSunk(ids: List<Int>, shots: List<ShotKind?>, id: Int): Boolean {
+            if (id < 0) return false
+            for (i in ids.indices) {
+                if (ids[i] == id && shots[i] != ShotKind.HIT) return false
+            }
+            return true
         }
 
         fun allShipsDestroyed(ships: List<Boolean>, shots: List<ShotKind?>): Boolean {

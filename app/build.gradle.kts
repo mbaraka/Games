@@ -31,6 +31,7 @@ val trainSurvivorBuild = gameBuild("app/src/main/java/com/baraka/game/trainsurvi
 val knightSurvivorBuild = gameBuild("app/src/main/java/com/baraka/game/knightsurvivor", "app/src/main/java/com/baraka/game/coop")
 val minesweeperBuild = gameBuild("app/src/main/java/com/baraka/game/minesweeper", "app/src/main/java/com/baraka/game/coop")
 val clashDecksBuild = gameBuild("app/src/main/java/com/baraka/game/clashdecks", "app/src/main/java/com/baraka/game/coop")
+val battleshipBuild = gameBuild("app/src/main/java/com/baraka/game/battleship")
 
 android {
     namespace = "com.baraka.game"
@@ -50,6 +51,7 @@ android {
         buildConfigField("String", "MINESWEEPER_VERSION", "\"1.$minesweeperBuild\"")
         buildConfigField("int", "CLASH_DECKS_BUILD", "$clashDecksBuild")
         buildConfigField("String", "CLASH_DECKS_VERSION", "\"1.$clashDecksBuild\"")
+        buildConfigField("String", "BATTLESHIP_VERSION", "\"1.$battleshipBuild\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
