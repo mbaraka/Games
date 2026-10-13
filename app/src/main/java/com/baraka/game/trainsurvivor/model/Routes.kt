@@ -208,6 +208,14 @@ enum class Biome(
             signature(ZombieType.RAT, 8f, weight = 5f) + signature(ZombieType.STRIKER, 25f, weight = 3f, perSecond = 1f / 70f),
         hazards = listOf(HazardKind.GATE_LOCK), coopOnly = true
     ),
+    WILDS(
+        "Elemental Wilds", "A bright meadow of elemental critters: every one has an element, so the right weapon matters. Fire, Electric and Earth guns hit hard against the right ones; plain bullets barely scratch spirits.",
+        1.85f, 1.2f, 1.15f, 1.2f, 0xFF26A69A, ZombieType.PRISM_DRAKE,
+        commonSpawns(walker = 0.3f, runner = 0.4f, brute = 0.4f, bloater = 0.5f, bat = 0f, balloon = 0f, clown = 0f) +
+            signature(ZombieType.CINDER_PUP, 6f, weight = 5f) + signature(ZombieType.SPARK_HARE, 12f, weight = 4f, perSecond = 1f / 60f) +
+            signature(ZombieType.TIDE_SLUG, 20f, weight = 3f) + signature(ZombieType.THORNBACK, 30f, weight = 3f, perSecond = 1f / 70f) +
+            signature(ZombieType.WISP, 24f, weight = 3.5f, perSecond = 1f / 70f) + signature(ZombieType.BOULDER_BEETLE, 45f, weight = 2.5f, perSecond = 1f / 80f)
+    ),
     SWITCHYARD(
         "Switchyard (SHARED)", "Shared worlds only: a rail yard where the two trains swap tracks. Hoppers jump between the tracks, Signalmen throw the switch early, and the Runaway Engine hops too.",
         2.0f, 1.3f, 1.2f, 1.25f, 0xFFFFC107, ZombieType.RUNAWAY_ENGINE,

@@ -901,6 +901,7 @@ private fun DrawScope.drawZombie(z: Zombie) {
     val customArt = MobArtRegistry[type]
     if (customArt != null) {
         customArt.draw(this, z, dir)
+        drawElementBadge(z)
         return
     }
     val walk = sin(z.anim)

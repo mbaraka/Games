@@ -267,6 +267,12 @@ renderer come from the shape (`carLeft`, `gunX`, `locoLeft`...), so nothing else
 **New livery** - add a `Livery` entry (colours, price, `glow`, and a small `perk` with its multiplier: damage, speed, health,
 repair, coins or ability cooldowns). Paint is never cosmetic-only. It appears in the Garage's Look tab.
 
+**Elements** (`model/Elements.kt`, used by the Elemental Wilds): every hit has a `DamageKind` (guns are PHYSICAL; Rocket/Flamethrower/Dynamite
+FIRE, Laser/Tesla ELECTRIC, Cannon/Mortar EARTH: `WeaponType.kind`, `TrainGame.strikeKind`), and a `ZombieType` can have an `element`
+that takes 75% more from its weak kinds and 50% less from what it resists. `weaponScore` knows the matchups, so AUTO picks the right
+gun. A new element is one `Element` entry; a boss that changes element sets `shifts = true`. Set `strikeKind` around any new damage
+loop that should have a kind and reset it to PHYSICAL after.
+
 **New weapon / upgrade / elite trait / danger level** - add the enum entry. Weapons and upgrades appear in the
 shop and Field Guide automatically; an upgrade also needs its effect wired where `TrainGame` reads its level;
 a weapon with new behaviour needs a branch in `TrainGame.fire` plus art in `drawWeapon`.

@@ -48,7 +48,11 @@ enum class ZombieType(
     /** Jumps between the two tracks of a shared world, so a gap in your partner's defence becomes your problem. */
     val hops: Boolean = false,
     /** Throws the track switch when it reaches a train (and is gone). */
-    val switcher: Boolean = false
+    val switcher: Boolean = false,
+    /** An elemental enemy (see model/Elements.kt): takes more or less damage depending on the weapon's damage kind. */
+    val element: Element? = null,
+    /** Changes element every few seconds (the Prism Drake). */
+    val shifts: Boolean = false
 ) {
     WALKER("Walker", 30f, 38f, 5f, 2, 1.0f),
     RUNNER("Runner", 18f, 88f, 4f, 3, 0.9f),
@@ -118,6 +122,13 @@ enum class ZombieType(
     SIGNALMAN("Signalman", 90f, 48f, 6f, 20, 1.1f, switcher = true),
     RUNAWAY_ENGINE("Runaway Engine", 1700f, 30f, 36f, 260, 2.6f, boss = true, armor = 10f, aimHeight = 34f, lunges = true, hops = true, specialEvery = 5f, smash = 36f, callout = "DERAIL!"),
     DEMOLISHER("Demolisher", 1700f, 20f, 32f, 230, 2.5f, boss = true, armor = 12f, specialEvery = 5f, smash = 34f, callout = "DEMOLISH!"),
+    CINDER_PUP("Cinder Pup", 40f, 112f, 6f, 5, 0.95f, aimHeight = 14f, packSize = 3, element = Element.FIRE),
+    TIDE_SLUG("Tide Slug", 170f, 20f, 12f, 14, 1.4f, aimHeight = 20f, element = Element.WATER),
+    THORNBACK("Thornback", 260f, 30f, 14f, 18, 1.6f, armor = 5f, aimHeight = 26f, element = Element.GRASS),
+    SPARK_HARE("Spark Hare", 30f, 135f, 5f, 6, 0.9f, aimHeight = 16f, leaper = true, element = Element.ELECTRIC),
+    WISP("Wisp", 55f, 62f, 6f, 9, 1.0f, flying = true, erratic = true, element = Element.SPIRIT),
+    BOULDER_BEETLE("Boulder Beetle", 340f, 24f, 16f, 20, 1.5f, armor = 8f, aimHeight = 22f, element = Element.EARTH),
+    PRISM_DRAKE("Prism Drake", 1800f, 40f, 30f, 290, 2.8f, boss = true, armor = 6f, aimHeight = 36f, lunges = true, specialEvery = 6f, smash = 30f, callout = "PRISM!", shifts = true, element = Element.FIRE),
     STRIKER("Striker", 70f, 120f, 9f, 8, 1.0f, armor = 3f, aimHeight = 26f),
     TWIN_BULWARK("Twin Bulwark", 1500f, 22f, 30f, 230, 2.4f, boss = true, armor = 8f, specialEvery = 7f, summon = STRIKER, summonCount = 3, callout = "STRIKERS!", partnerOnly = true),
     MIRROR_WARDEN("Mirror Warden", 1300f, 30f, 24f, 230, 2.3f, boss = true, armor = 6f, ranged = 320f, specialEvery = 6f, summon = STRIKER, summonCount = 2, callout = "ECHO!", partnerOnly = true),

@@ -4,6 +4,8 @@ import com.baraka.game.trainsurvivor.data.TrainSoundCue
 import com.baraka.game.trainsurvivor.model.AUTO_WEAPON
 import com.baraka.game.trainsurvivor.model.Biome
 import com.baraka.game.trainsurvivor.model.CrewSlot
+import com.baraka.game.trainsurvivor.model.DamageKind
+import com.baraka.game.trainsurvivor.model.Element
 import com.baraka.game.trainsurvivor.model.DangerLevel
 import com.baraka.game.trainsurvivor.model.EliteTrait
 import com.baraka.game.trainsurvivor.model.HazardKind
@@ -61,6 +63,11 @@ class Zombie(val type: ZombieType, var x: Float, var y: Float, val side: Int, va
     var retarget = 0f
     /** Which train's lane this zombie belongs to: 0 = the lead train, 1 = the second train of a shared world. */
     var lane = 0
+    /** Elemental enemies: the element it is attuned to right now (null = its type's own), and feedback for the next damage number (1 = weak, 2 = resisted). */
+    var element: Element? = null
+    var shiftTimer = 4f
+    var feedback = 0
+    fun elementNow(): Element? = element ?: type.element
     var hopTimer = 3f
     /** Countdown to this boss's next special move. */
     var special = 4f
@@ -377,6 +384,8 @@ class TrainGame(
     private val scratch = ArrayList<Zombie>(16)
     private val struck = ArrayList<Zombie>(8)
     internal var shooter = -1
+    /** The damage kind of the hit being dealt right now (set around damage loops; PHYSICAL otherwise). */
+    internal var strikeKind = DamageKind.PHYSICAL
 
     /** Coins banked when the run ends: kill coins plus 1 per 25 m travelled. */
     val finalCoins get() = runCoins + (distance / 25f * save.prestigeMultiplier * danger.coinMult).toInt()
@@ -852,7 +861,9 @@ class TrainGame(
             fxLane = z.lane
             explosion(z.x, z.y - 20f, 22f)
             fxLane = lane
+            strikeKind = DamageKind.FIRE
             damageZombie(z, damage)
+            strikeKind = DamageKind.PHYSICAL
         }
     }
 
@@ -1275,11 +1286,13 @@ class TrainGame(
         z.numberTimer = 0.25f
         val crit = z.pendingCrit
         z.pendingCrit = false
+        val matchup = z.feedback
+        z.feedback = 0
         if (!damageNumbers || texts.size >= MAX_TEXTS || z.dead) return
         addText(
             FloatingText(
-                z.x + (rng.nextFloat() - 0.5f) * 16f, z.y - 34f * z.type.size - 12f, amount.toString(), 0.7f,
-                if (crit) 0xFFFFA726.toInt() else 0xFFFFFFFF.toInt(), if (crit) 24f else 16f
+                z.x + (rng.nextFloat() - 0.5f) * 16f, z.y - 34f * z.type.size - 12f, if (matchup == 1) "$amount!" else amount.toString(), 0.7f,
+                if (matchup == 1) 0xFF76FF03.toInt() else if (matchup == 2) 0xFF90A4AE.toInt() else if (crit) 0xFFFFA726.toInt() else 0xFFFFFFFF.toInt(), if (crit || matchup == 1) 24f else 16f
             )
         )
     }
@@ -1482,6 +1495,17 @@ class TrainGame(
     /** Bosses use their type's special: summon helpers, or smash the car they are clawing (see ZombieType). */
     private fun updateBossSpecial(z: Zombie, dt: Float) {
         val type = z.type
+        if (type.shifts) {
+            z.shiftTimer -= dt
+            if (z.shiftTimer <= 0f) {
+                z.shiftTimer = 5f
+                val all = Element.entries
+                val next = all[(((z.elementNow()?.ordinal ?: 0) + 1 + rng.nextInt(all.size - 1)) % all.size)]
+                z.element = next
+                spark(z.x, z.y - 60f * type.size)
+                floatText(z.x, z.y - 130f, next.displayName.uppercase() + "!", 0.9f, next.color.toInt(), 24f)
+            }
+        }
         if (type.specialEvery <= 0f) return
         z.special -= dt
         if (z.special > 0f) return
@@ -1562,6 +1586,12 @@ class TrainGame(
         if (z.dead) return
         var dealt = if (silent) amount else armored(amount, z)
         if (!silent && z.elite != null && z.has(EliteTrait.BULLETPROOF) && shooter >= 0) dealt *= 0.3f
+        val element = z.elementNow()
+        if (!silent && element != null) {
+            val m = element.multiplier(strikeKind)
+            dealt *= m
+            if (m > 1.2f) z.feedback = 1 else if (m < 0.8f) z.feedback = 2
+        }
         val shown = dealt
         if (!silent && z.shield > 0f) {
             val absorbed = min(z.shield, dealt)
@@ -1726,6 +1756,9 @@ class TrainGame(
         return if (armor <= 0f) damage else max(damage * 0.25f, damage - armor)
     }
 
+    /** How much a hit of [kind] is worth against [z]'s element (1 for ordinary enemies). */
+    private fun matchup(z: Zombie, kind: DamageKind): Float = z.elementNow()?.multiplier(kind) ?: 1f
+
     /** Bulletproof elites shrug off gun damage; train weapons and abilities are unaffected. */
     private fun gunFactor(z: Zombie): Float = if (z.elite != null && z.has(EliteTrait.BULLETPROOF)) 0.3f else 1f
 
@@ -1830,6 +1863,7 @@ class TrainGame(
         )
 
         shooter = slot
+        strikeKind = weapon.kind
         // Piercing: the next zombies further along the line of fire take most of the damage too.
         struck.clear()
         if (weapon.pierce > 1) {
@@ -1858,6 +1892,7 @@ class TrainGame(
             }
         }
         shooter = -1
+        strikeKind = DamageKind.PHYSICAL
     }
 
     // ---------------------------------------------------------------- weapon switching
@@ -1925,7 +1960,7 @@ class TrainGame(
         }
         if (target == null) return 0f
         val damage = damageFor(slot, weapon)
-        var total = min(armored(damage, target) * gunFactor(target), target.hp + target.shield)
+        var total = min(armored(damage, target) * gunFactor(target) * matchup(target, weapon.kind), target.hp + target.shield)
         if (weapon.splashRadius > 0f || weapon.pierce > 1) {
             val dir = if (target.x >= gx) 1 else -1
             var pierced = 0
@@ -1935,9 +1970,9 @@ class TrainGame(
                 if (weapon.groundOnly && o.flying) continue
                 val dx = o.x - target.x
                 if (weapon.splashRadius > 0f && abs(dx) <= weapon.splashRadius) {
-                    total += 0.6f * min(armored(damage, o) * gunFactor(o), o.hp + o.shield)
+                    total += 0.6f * min(armored(damage, o) * gunFactor(o) * matchup(o, weapon.kind), o.hp + o.shield)
                 } else if (weapon.pierce > 1 && pierced < weapon.pierce - 1 && dx * dir > 0f && abs(dx) < 260f) {
-                    total += 0.8f * min(armored(damage, o) * gunFactor(o), o.hp + o.shield)
+                    total += 0.8f * min(armored(damage, o) * gunFactor(o) * matchup(o, weapon.kind), o.hp + o.shield)
                     pierced++
                 }
             }
@@ -2046,11 +2081,13 @@ class TrainGame(
             current = next
         }
         shooter = -1
+        strikeKind = DamageKind.ELECTRIC
         for (k in scratch.indices) {
             val z = scratch[k]
             spark(z.x, targetY(z))
             damageZombie(z, damage)
         }
+        strikeKind = DamageKind.PHYSICAL
     }
 
     /** Flamethrower: scorches ground zombies in front of the cowcatcher a few times a second. */
@@ -2058,6 +2095,7 @@ class TrainGame(
         var any = false
         val dmg = (5f + 3.5f * flameLevel) * (if (buffTime > 0f) 1.3f else 1f)
         shooter = -1
+        strikeKind = DamageKind.FIRE
         for (k in zombies.indices) {
             val z = zombies[k]
             if (z.dead || z.lane != lane || z.flying || z.type.fireImmune || z.x < flameX - 12f || z.x > flameX + flameReach) continue
@@ -2065,6 +2103,7 @@ class TrainGame(
             damageZombie(z, dmg)
             if (rng.nextFloat() < 0.3f) spark(z.x, z.y - 20f)
         }
+        strikeKind = DamageKind.PHYSICAL
         if (any) {
             flameFlash = 0.2f
             flameCooldown = 0.12f
@@ -2123,10 +2162,12 @@ class TrainGame(
         shake = max(shake, 0.3f)
         val dmg = (70f + 45f * mortarLevel) * (if (buffTime > 0f) 1.3f else 1f)
         shooter = -1
+        strikeKind = DamageKind.EARTH
         for (k in zombies.indices) {
             val z = zombies[k]
             if (!z.dead && z.lane == lane && !z.flying && abs(z.x - s.tx) <= 130f) damageZombie(z, dmg)
         }
+        strikeKind = DamageKind.PHYSICAL
     }
 
     // ---------------------------------------------------------------- repair crew

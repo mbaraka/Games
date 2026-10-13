@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import com.baraka.game.trainsurvivor.model.Biome
 import com.baraka.game.trainsurvivor.model.DangerLevel
 import com.baraka.game.trainsurvivor.model.EliteTrait
+import com.baraka.game.trainsurvivor.model.Element
 import com.baraka.game.trainsurvivor.model.TrainUpgrade
 import com.baraka.game.trainsurvivor.model.WeaponType
 import com.baraka.game.trainsurvivor.model.ZombieType
@@ -98,6 +99,13 @@ private val zombieNotes: Map<ZombieType, ZombieNote> = mapOf(
     ZombieType.FROST_QUEEN to ZombieNote("Boss of the Frozen Tundra", "A flying ice queen that FREEZEs two frost wraiths into the fight every few seconds.", "Flak Turret and long-range guns - the blizzard cuts your range."),
     ZombieType.OUTLAW_KING to ZombieNote("Boss of Ghost Town", "A gunslinging boss that stands far back, shoots the train and calls in gunslingers.", "Outrange him: Sniper, Laser and Rocket."),
     ZombieType.MEGALODON to ZombieNote("Boss of the Sea Bridge", "A giant shark that BREACHes onto a wagon roof and bites down.", "Shoot it before it jumps, then focus it on the roof."),
+    ZombieType.CINDER_PUP to ZombieNote("Elemental Wilds, from ~6 s", "A fire hound with a flaming mane that hunts in threes. Element: FIRE. ${Element.FIRE.summary}.", "Earth guns put it out fast: Cannon and Mortar."),
+    ZombieType.SPARK_HARE to ZombieNote("Elemental Wilds, from ~12 s", "A hopping hare crackling with lightning that leaps onto your roofs. Element: ELECTRIC. ${Element.ELECTRIC.summary}.", "Cannon and Mortar; skip the Laser and Tesla."),
+    ZombieType.TIDE_SLUG to ZombieNote("Elemental Wilds, from ~20 s", "A slow dripping water blob. Element: WATER. ${Element.WATER.summary}.", "Laser and Tesla shock it; Flamethrower and Rocket are wasted."),
+    ZombieType.THORNBACK to ZombieNote("Elemental Wilds, from ~30 s", "An armored, vine-wrapped boar with thorns. Element: GRASS. ${Element.GRASS.summary}.", "Burn it: Flamethrower, Rocket and Dynamite."),
+    ZombieType.WISP to ZombieNote("Elemental Wilds, from ~24 s", "A flitting spirit flame that flies. Element: SPIRIT. ${Element.SPIRIT.summary}.", "Laser, Tesla and fire; plain guns barely hurt it."),
+    ZombieType.BOULDER_BEETLE to ZombieNote("Elemental Wilds, from ~45 s", "A heavy rock beetle, armor 8. Element: EARTH. ${Element.EARTH.summary}.", "Fire cracks it: Flamethrower, Rocket and Dynamite; avoid Cannon and Mortar."),
+    ZombieType.PRISM_DRAKE to ZombieNote("Boss of the Elemental Wilds", "A crystal drake that changes element every few seconds, so its weakness keeps moving. Watch its colour and badge.", "Keep your weapons on AUTO: it picks the right one for the element in front of it."),
     ZombieType.HOPPER to ZombieNote("Switchyard (shared worlds)", "A rail hopper with a grappling hook that jumps between the two tracks, so a gap in your partner's defence becomes your problem.", "Kill it before it hops; your guns reach both tracks."),
     ZombieType.SIGNALMAN to ZombieNote("Switchyard (shared worlds), rare", "Carries a lantern and throws the track switch the moment it reaches a train, swapping the two trains' tracks.", "Shoot it down before it arrives, or be ready to face your partner's crowd."),
     ZombieType.RUNAWAY_ENGINE to ZombieNote("Boss of the Switchyard", "A ghost locomotive that lunges, hops between the tracks and smashes the wagon it reaches. Armor 10.", "Big hits from both trains; watch it hop and be ready on whichever track it lands."),
@@ -224,7 +232,8 @@ private fun WeaponGuide(time: androidx.compose.runtime.MutableFloatState) {
                 Text(
                     "${weapon.damage.toInt()} dmg  -  range ${weapon.range.toInt()}" +
                         (if (weapon.pierce > 1) "  -  pierces ${weapon.pierce}" else "") +
-                        (if (weapon.splashRadius > 0f) "  -  splash ${weapon.splashRadius.toInt()}" else ""),
+                        (if (weapon.splashRadius > 0f) "  -  splash ${weapon.splashRadius.toInt()}" else "") +
+                        (if (weapon.kind != com.baraka.game.trainsurvivor.model.DamageKind.PHYSICAL) "  -  ${weapon.kind.displayName} damage" else ""),
                     color = Color(0xFFD0D6E0), fontSize = 11.sp
                 )
                 Text(

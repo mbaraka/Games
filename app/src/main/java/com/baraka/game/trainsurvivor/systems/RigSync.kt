@@ -3,6 +3,7 @@ package com.baraka.game.trainsurvivor.systems
 import com.baraka.game.trainsurvivor.data.TrainSoundCue
 import com.baraka.game.trainsurvivor.model.Biome
 import com.baraka.game.trainsurvivor.model.EliteTrait
+import com.baraka.game.trainsurvivor.model.Element
 import com.baraka.game.trainsurvivor.model.HazardKind
 import com.baraka.game.trainsurvivor.model.WeaponType
 import com.baraka.game.trainsurvivor.model.ZombieType
@@ -214,6 +215,7 @@ fun TrainGame.writeZombies(out: DataOutputStream) {
             z.lane or (if (z.attacking) 2 else 0) or (if (z.facing > 0) 4 else 0) or (elite shl 3) or (if (z.flash > 0.3f) 64 else 0) or (if (z.shield > 0f) 128 else 0)
         )
         out.writeByte(z.jumpState)
+        out.writeByte((z.elementNow()?.ordinal ?: -1) + 1)
         out.writeShort(z.x.toInt())
         out.writeShort(z.y.toInt())
         out.writeByte((z.hp / z.maxHp * 100f).toInt().coerceIn(1, 100))
@@ -228,6 +230,7 @@ fun TrainGame.readZombies(input: DataInputStream, index: HashMap<Int, Zombie>, s
         val type = ZombieType.entries[input.readUnsignedByte().coerceAtMost(ZombieType.entries.lastIndex)]
         val flags = input.readUnsignedByte()
         val jump = input.readUnsignedByte()
+        val elementByte = input.readUnsignedByte() - 1
         val x = input.readShort().toFloat()
         val y = input.readShort().toFloat()
         val hpPct = input.readUnsignedByte()
@@ -249,6 +252,7 @@ fun TrainGame.readZombies(input: DataInputStream, index: HashMap<Int, Zombie>, s
         if (flags and 64 != 0) z.flash = 1f
         z.shield = if (flags and 128 != 0) 1f else 0f
         z.jumpState = jump
+        z.element = if (elementByte >= 0) Element.entries.getOrNull(elementByte) else null
         z.hp = hpPct.toFloat()
         z.netStamp = stamp
     }

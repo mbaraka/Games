@@ -31,6 +31,7 @@ internal fun registerRouteArts() {
     RouteArtRegistry.register(Biome.CARNIVAL, CarnivalArt)
     RouteArtRegistry.register(Biome.SEA_BRIDGE, SeaBridgeArt)
     RouteArtRegistry.register(Biome.JURASSIC, JurassicArt)
+    RouteArtRegistry.register(Biome.WILDS, WildsArt)
     RouteArtRegistry.register(Biome.SWITCHYARD, SwitchyardArt)
     RouteArtRegistry.register(Biome.BROKEN_VIADUCT, BrokenViaductArt)
     RouteArtRegistry.register(Biome.FAULT_LINE, FaultLineArt)

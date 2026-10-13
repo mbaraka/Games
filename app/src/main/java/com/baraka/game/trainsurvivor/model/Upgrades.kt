@@ -12,16 +12,18 @@ enum class WeaponType(
     val blurb: String,
     val groundOnly: Boolean = false,
     /** Heat added per shot (1.0 is full). Rapid-fire weapons overheat and lock out until they cool. */
-    val heatPerShot: Float = 0f
+    val heatPerShot: Float = 0f,
+    /** What kind of damage its hits deal; elemental enemies take more or less of it (see model/Elements.kt). */
+    val kind: DamageKind = DamageKind.PHYSICAL
 ) {
     PISTOL("Pistol", 10f, 0.55f, 330f, 0f, 1, 0, "Reliable sidearm"),
     SMG("SMG", 7f, 0.16f, 340f, 0f, 1, 150, "Rapid fire, great against weak swarms", heatPerShot = 0.05f),
     SHOTGUN("Shotgun", 45f, 0.9f, 230f, 70f, 1, 400, "Hits groups up close"),
     RIFLE("Sniper Rifle", 60f, 0.85f, 560f, 0f, 3, 900, "Long range, pierces 3"),
     MINIGUN("Minigun", 13f, 0.07f, 400f, 0f, 1, 2000, "Bullet hose that overheats", heatPerShot = 0.03f),
-    CANNON("Cannon", 180f, 1.6f, 480f, 120f, 1, 4500, "Explosive shells (ground only)", groundOnly = true),
-    ROCKET("Rocket Launcher", 190f, 1.9f, 540f, 150f, 1, 8000, "Big blasts, hits flyers too"),
-    LASER("Laser Rifle", 42f, 0.22f, 620f, 0f, 5, 14000, "Piercing beam, very long range, overheats", heatPerShot = 0.1f)
+    CANNON("Cannon", 180f, 1.6f, 480f, 120f, 1, 4500, "Explosive shells (ground only)", groundOnly = true, kind = DamageKind.EARTH),
+    ROCKET("Rocket Launcher", 190f, 1.9f, 540f, 150f, 1, 8000, "Big blasts, hits flyers too", kind = DamageKind.FIRE),
+    LASER("Laser Rifle", 42f, 0.22f, 620f, 0f, 5, 14000, "Piercing beam, very long range, overheats", heatPerShot = 0.1f, kind = DamageKind.ELECTRIC)
 }
 
 enum class TrainUpgrade(
