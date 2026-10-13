@@ -12,8 +12,8 @@ import java.io.DataOutputStream
 import java.util.UUID
 import kotlin.random.Random
 
-/** Bump whenever a [MineMsg] is added or changed; phones on different versions warn instead of silently misbehaving. */
-const val MINE_PROTOCOL = 1
+/** The game build number (automatic, see AGENTS.md): phones on different builds warn instead of silently misbehaving. */
+const val MINE_PROTOCOL = com.baraka.game.BuildConfig.MINESWEEPER_BUILD
 
 /** Everything two phones say to each other. The host owns the board; the guest only asks and watches. */
 sealed class MineMsg {

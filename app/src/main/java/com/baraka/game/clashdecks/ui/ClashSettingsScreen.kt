@@ -65,5 +65,15 @@ fun ClashSettingsScreen(
             )
             SoundToggleRow(enabled = soundEnabled, onEnabledChanged = onSoundEnabledChanged)
         }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            // Clash Decks' own version — one per update to this game's own code (see
+            // app/build.gradle.kts' gameBuild), not the whole app's version. Also what
+            // ClashCoopLink.CLASH_COOP_PROTOCOL sends so two phones on different builds
+            // can tell each other apart.
+            "Clash Decks — version ${com.baraka.game.BuildConfig.CLASH_DECKS_VERSION}",
+            color = GameColors.TextMuted,
+            fontSize = 12.sp
+        )
     }
 }

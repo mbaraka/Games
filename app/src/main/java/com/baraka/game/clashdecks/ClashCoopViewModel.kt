@@ -72,6 +72,7 @@ class ClashCoopViewModel(application: Application) : AndroidViewModel(applicatio
         this.localName = localName
         val newSession = ClashCoopSession(link, role, localName)
         session = newSession
+        newSession.onVersionMismatch = { _ui.update { it.copy(partnerVersionMismatch = true) } }
         when (role) {
             CoopRole.HOST -> {
                 newSession.onRemotePlayCard = { cardId -> hostApplyRemoteCard(cardId) }

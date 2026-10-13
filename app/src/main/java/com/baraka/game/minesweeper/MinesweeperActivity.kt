@@ -10,7 +10,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
 import com.baraka.game.coop.CoopLobbyScreen
 import com.baraka.game.minesweeper.coop.MINE_COOP
 import com.baraka.game.minesweeper.coop.SimulatedMineLink
@@ -37,10 +36,7 @@ private enum class MineScreen { MENU, SETTINGS, LOBBY, GAME }
 
 @Composable
 private fun MinesweeperRoot(vm: MineViewModel, onExit: () -> Unit) {
-    val context = LocalContext.current
-    val versionName = remember {
-        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?"
-    }
+    val versionName = com.baraka.game.BuildConfig.MINESWEEPER_VERSION
     // Survive an Activity recreation mid-game: if the view model still has a board, go straight back to it.
     var screen by remember { mutableStateOf(if (vm.snap != null) MineScreen.GAME else MineScreen.MENU) }
 

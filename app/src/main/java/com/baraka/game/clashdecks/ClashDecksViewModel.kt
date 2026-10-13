@@ -31,7 +31,9 @@ data class ClashUiModel(
     val cpuThinking: Boolean = false,
     /** The most recent batch of effects to animate; replaced on every state transition. */
     val effects: List<VfxEmission> = emptyList(),
-    val soundEnabled: Boolean = true
+    val soundEnabled: Boolean = true,
+    /** Co-op only: the partner reported a different [com.baraka.game.clashdecks.coop.CLASH_COOP_PROTOCOL] — they're on a different build. Always false in single-player. */
+    val partnerVersionMismatch: Boolean = false
 )
 
 /**

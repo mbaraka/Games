@@ -14,7 +14,8 @@ import java.io.DataOutputStream
 import java.util.UUID
 import kotlin.random.Random
 
-const val CLASH_COOP_PROTOCOL = 2 // bumped: Hello now also carries the sender's chosen name
+/** Clash Decks' own per-game build number (commits touching clashdecks/ or the shared coop/ layer) — automatic, same as Train Survivor's COOP_PROTOCOL, so two phones on different builds warn instead of silently misreading each other's messages. Nothing to bump by hand. */
+const val CLASH_COOP_PROTOCOL = com.baraka.game.BuildConfig.CLASH_DECKS_BUILD
 
 /** Everything two phones say to each other over a duel — small and infrequent (once per card play or turn), so a whole [DuelState] snapshot per sync is simplest and never a bandwidth concern. */
 sealed class ClashCoopMsg {

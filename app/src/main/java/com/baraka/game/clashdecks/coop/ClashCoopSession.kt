@@ -18,6 +18,8 @@ class ClashCoopSession(private val link: ClashCoopLink, val role: CoopRole, loca
     var onRematchRequested: (() -> Unit)? = null
     /** Fired once the partner's [ClashCoopMsg.Hello] arrives with their chosen name (blank if they never set one). */
     var onPartnerHello: ((String) -> Unit)? = null
+    /** Fired once if the partner's [CLASH_COOP_PROTOCOL] doesn't match ours — they're on a different build of the game. */
+    var onVersionMismatch: (() -> Unit)? = null
 
     val connected: Boolean get() = link.connected
 
@@ -49,7 +51,10 @@ class ClashCoopSession(private val link: ClashCoopLink, val role: CoopRole, loca
 
     private fun handle(message: ClashCoopMsg) {
         when (message) {
-            is ClashCoopMsg.Hello -> onPartnerHello?.invoke(message.name)
+            is ClashCoopMsg.Hello -> {
+                if (message.version != CLASH_COOP_PROTOCOL) onVersionMismatch?.invoke()
+                onPartnerHello?.invoke(message.name)
+            }
             is ClashCoopMsg.DuelSync -> onStateReceived?.invoke(message.state)
             is ClashCoopMsg.PlayCard -> onRemotePlayCard?.invoke(message.cardId)
             ClashCoopMsg.EndTurn -> onRemoteEndTurn?.invoke()

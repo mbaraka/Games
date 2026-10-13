@@ -29,6 +29,8 @@ fun gameBuild(vararg paths: String): Int =
 
 val trainSurvivorBuild = gameBuild("app/src/main/java/com/baraka/game/trainsurvivor", "app/src/main/java/com/baraka/game/coop")
 val knightSurvivorBuild = gameBuild("app/src/main/java/com/baraka/game/knightsurvivor", "app/src/main/java/com/baraka/game/coop")
+val minesweeperBuild = gameBuild("app/src/main/java/com/baraka/game/minesweeper", "app/src/main/java/com/baraka/game/coop")
+val clashDecksBuild = gameBuild("app/src/main/java/com/baraka/game/clashdecks", "app/src/main/java/com/baraka/game/coop")
 
 android {
     namespace = "com.baraka.game"
@@ -44,6 +46,10 @@ android {
         buildConfigField("String", "TRAIN_SURVIVOR_VERSION", "\"1.$trainSurvivorBuild\"")
         buildConfigField("int", "KNIGHT_SURVIVOR_BUILD", "$knightSurvivorBuild")
         buildConfigField("String", "KNIGHT_SURVIVOR_VERSION", "\"1.$knightSurvivorBuild\"")
+        buildConfigField("int", "MINESWEEPER_BUILD", "$minesweeperBuild")
+        buildConfigField("String", "MINESWEEPER_VERSION", "\"1.$minesweeperBuild\"")
+        buildConfigField("int", "CLASH_DECKS_BUILD", "$clashDecksBuild")
+        buildConfigField("String", "CLASH_DECKS_VERSION", "\"1.$clashDecksBuild\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

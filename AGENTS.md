@@ -26,7 +26,7 @@ launches many small games. Each game is its own Activity in its own package unde
 - **Only install on the user's device when they ask.** Compiling is always fine.
 - **App version vs game version.** The app version (`1.0.0` locally; the tag on releases) belongs to the whole hub, which holds
   many games. Each game that wants one has its OWN version, computed in `app/build.gradle.kts` as the number of commits that
-  touched that game's code (Train Survivor: `1.<n>`, in `BuildConfig.TRAIN_SURVIVOR_VERSION`, shown in its Settings screen).
+  touched that game's code (Train Survivor: `1.<n>`, in `BuildConfig.TRAIN_SURVIVOR_VERSION`, shown in its Settings screen; Minesweeper: `1.<n>`, in `BuildConfig.MINESWEEPER_VERSION`, also its co-op protocol number).
   It goes up by one with every commit to that game and never because of another game. Do not edit it by hand; to give another
   game a version add a `gameBuild(...)` line and two `buildConfigField`s there.
 - Prefer verifying with a build over writing unit tests (the owner asked for no tests in
