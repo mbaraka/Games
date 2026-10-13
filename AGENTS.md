@@ -24,11 +24,11 @@ launches many small games. Each game is its own Activity in its own package unde
 - `adb` is not on PATH on the dev machine. It lives at
   `%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe` (use it for `adb devices`, etc.).
 - **Only install on the user's device when they ask.** Compiling is always fine.
-- **Version numbers climb by themselves.** A local build is the latest git tag plus the commits since it
-  (e.g. tag `v1.2.0` and 17 commits later = `1.2.0+17`, shown in the game's Settings screen), so every commit is a new,
-  higher version and any installed build says which update it is. Release builds (CI passes `-PappMajor/-PappMinor/-PappPatch`
-  from the tag) are exactly the tag, with no suffix. This is computed at the top of `app/build.gradle.kts`; do not edit
-  a version by hand.
+- **App version vs game version.** The app version (`1.0.0` locally; the tag on releases) belongs to the whole hub, which holds
+  many games. Each game that wants one has its OWN version, computed in `app/build.gradle.kts` as the number of commits that
+  touched that game's code (Train Survivor: `1.<n>`, in `BuildConfig.TRAIN_SURVIVOR_VERSION`, shown in its Settings screen).
+  It goes up by one with every commit to that game and never because of another game. Do not edit it by hand; to give another
+  game a version add a `gameBuild(...)` line and two `buildConfigField`s there.
 - Prefer verifying with a build over writing unit tests (the owner asked for no tests in
   this app). If tests are ever needed, see the Gradle test-runner PATH note in the
   owner's memory notes: `testDebugUnitTest` breaks on this machine's PATH, compilation
@@ -315,8 +315,8 @@ Switchyard, Fault Line), give each track its own enemies with `Spawn(..., lane =
 with `bossUpper`. `ZombieType.hops` lets a zombie jump to the other track and `switcher` makes it throw the track switch;
 the `SWITCHES` hazard swaps the two trains' tracks (`TrainGame.swapTracks`: `lane` is a var, so always use `lane`, never
 assume the lead is on track 0). `COLLAPSE` is a partner-lock hazard like the jam and the gate.
-**Protocol versions**: bump `COOP_PROTOCOL` in `trainsurvivor/coop/CoopLink.kt` whenever a `CoopMsg` is added; phones that differ
-warn the player ("different version") instead of silently ignoring messages.
+**Versions**: `COOP_PROTOCOL` is Train Survivor's build number (automatic, see the game version in Build and install), so phones on
+different builds warn the player ("different version") instead of silently ignoring messages. Nothing to bump by hand.
 Co-op-only paints unlock through `Livery.coopDistance` against `SaveData.coopBest`. The engine never touches the network:
 add shared behaviour as a `CoopSignal` plus a `CoopMsg`, and handle it in `CoopSession`.
 

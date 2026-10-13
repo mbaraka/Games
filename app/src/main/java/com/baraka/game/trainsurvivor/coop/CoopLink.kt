@@ -8,8 +8,8 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.util.UUID
 
-/** Bumped whenever messages are added, so two phones with different builds can warn each other instead of silently ignoring messages. */
-const val COOP_PROTOCOL = 4
+/** Train Survivor's build number: two phones on different builds warn each other instead of silently ignoring messages. */
+const val COOP_PROTOCOL = com.baraka.game.BuildConfig.TRAIN_SURVIVOR_BUILD
 
 /** Everything two trains say to each other. Small, so a Bluetooth link carries it easily. */
 sealed class CoopMsg {

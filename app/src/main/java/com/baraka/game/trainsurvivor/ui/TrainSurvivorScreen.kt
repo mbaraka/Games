@@ -158,9 +158,8 @@ fun TrainSurvivorScreen() {
     }
 
     val onSettingsChange: (GameSettings) -> Unit = { settings = it; repository.saveSettings(it) }
-    val versionName = remember {
-        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?"
-    }
+    // Train Survivor has its own version (one per update to this game), not the version of the whole app.
+    val versionName = com.baraka.game.BuildConfig.TRAIN_SURVIVOR_VERSION
 
     if (coopMenu && !inRun) {
         CoopModeScreen(
