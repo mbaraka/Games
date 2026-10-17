@@ -66,6 +66,14 @@
             android:theme="@style/Theme.Game" />
 
         <activity
+            android:name=".dreadnought.DreadnoughtActivity"
+            android:exported="false"
+            android:label="Dreadnought"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@style/Theme.Game" />
+
+        <activity
             android:name=".keyreader.KeyReaderActivity"
             android:exported="false"
             android:label="Key Reader"

@@ -61,6 +61,7 @@ import com.baraka.game.basedefender.BaseDefenderGame
 import com.baraka.game.battleship.BattleShipActivity
 import com.baraka.game.breakout.BreakoutActivity
 import com.baraka.game.clashdecks.ClashDecksActivity
+import com.baraka.game.dreadnought.DreadnoughtActivity
 import com.baraka.game.keyreader.KeyReaderActivity
 import com.baraka.game.knightsurvivor.KnightSurvivorActivity
 import com.baraka.game.memorymatch.MemoryMatchGame
@@ -221,6 +222,13 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         color = Color(0xFF8B0000),
         activityClass = TrainSurvivorActivity::class.java,
         multiplayer = true
+    ),
+    GameCatalogEntry(
+        id = "dreadnought",
+        title = "Dreadnought",
+        description = "Command a battleship - steer, aim your turrets, lead your shots and sink waves of destroyers, submarines, cruisers and carriers.",
+        color = Color(0xFF2E5E7E),
+        activityClass = DreadnoughtActivity::class.java
     ),
     GameCatalogEntry(
         id = "tunnel_crew",
