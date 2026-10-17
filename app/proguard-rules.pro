@@ -19,3 +19,19 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Keep readable stack traces in crash reports.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
+# LibGDX (used by Zombie Survival) relies on reflection and JNI; keep it intact.
+-keep class com.badlogic.gdx.** { *; }
+-keep interface com.badlogic.gdx.** { *; }
+-dontwarn com.badlogic.gdx.**
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Keep every game Activity's name even though they're already reachable via the
+# manifest and GAME_CATALOG — guards against obfuscating the Intent target class name.
+-keep public class * extends android.app.Activity

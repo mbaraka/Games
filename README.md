@@ -10,7 +10,12 @@ No ads, no accounts, no tracking. Just simple, fun games.
 
 | Game | Description |
 |---|---|
-| Road Rush | Atari-style vertical racer — shift lanes to dodge oncoming traffic before you run out of lives. |
+| Road Rush | Retro arcade-style vertical racer — shift lanes to dodge oncoming traffic before you run out of lives. |
+| Brick Blitz | Retro arcade-style paddle & ball — smash every brick, catch power-ups, climb the levels. |
+| Star Invasion | Retro arcade-style alien shooter — hold the line behind your bunkers as the formation marches down. |
+| Silo Defense | Retro arcade-style defense — tap to detonate interceptors and save your cities from the falling missiles. |
+| Snake | Retro arcade-style classic — swipe to turn, eat fruit, don't hit the walls or yourself. |
+| Rock Blaster | Retro arcade-style vector shooter — rotate, thrust and blast drifting rocks that split as you hit them. |
 | Knight Survivor | Arena survivor — auto-attack hordes, level up, and outlast the clock! |
 | Number Corridor | Forward-scrolling shooter — blast obstacle walls, grab +/-/x/÷ buff walls for damage, fire rate, and squad size. |
 | Clash Decks | Card duel vs computer — Attack, Defense, Support, and status-effect tactics. |
@@ -18,7 +23,7 @@ No ads, no accounts, no tracking. Just simple, fun games.
 | Number Cruncher | Combine numbers to reach the target. |
 | Snakes & Ladders | 2D board — 2–6 players, each human or CPU. |
 | Base Defender | Defend your base — aim and shoot at incoming enemies. |
-| Battleship | Local 2 players or vs computer — place fleets, then take turns firing. |
+| Fleet Duel | Local 2 players or vs computer — place fleets, then take turns firing. |
 | Dreadnought | Top-down naval combat in landscape — steer a battleship, aim rotating turrets and lead your shots to sink waves of destroyers, torpedo boats, submarines, cruisers, carriers and a flagship boss; refit between waves and in the harbour. |
 | Train Survivor | Side-view train defense — fight ground and flying zombies and bosses, pick routes, earn coins, upgrade the train and its named survivors. Two-phone Bluetooth co-op: two trains, double zombies, lend passengers across a Gangway. |
 | Tunnel Crew | Lemmings-style puzzler — hand skills (dig, build, bash, mine, climb, float, block, bomb, pour cement, lay decks, stack stairs) to a walking crew and guide them to the exit across 22 levels with medals. |

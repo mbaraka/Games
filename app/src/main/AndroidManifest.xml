@@ -81,6 +81,12 @@
             android:theme="@style/Theme.Game" />
 
         <activity
+            android:name=".licenses.OpenSourceLicensesActivity"
+            android:exported="false"
+            android:label="Open Source Licenses"
+            android:theme="@style/Theme.Game" />
+
+        <activity
             android:name=".snakeladder.SnakeLadderActivity"
             android:exported="false"
             android:label="Snakes &amp; Ladders"
@@ -89,7 +95,7 @@
         <activity
             android:name=".battleship.BattleShipActivity"
             android:exported="false"
-            android:label="Battleship"
+            android:label="Fleet Duel"
             android:theme="@style/Theme.Game" />
 
         <activity
@@ -130,21 +136,21 @@
         <activity
             android:name=".breakout.BreakoutActivity"
             android:exported="false"
-            android:label="Breakout"
+            android:label="Brick Blitz"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
 
         <activity
             android:name=".spaceinvaders.SpaceInvadersActivity"
             android:exported="false"
-            android:label="Space Invaders"
+            android:label="Star Invasion"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
 
         <activity
             android:name=".missilecommand.MissileCommandActivity"
             android:exported="false"
-            android:label="Missile Command"
+            android:label="Silo Defense"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
 
@@ -158,7 +164,7 @@
         <activity
             android:name=".asteroids.AsteroidsActivity"
             android:exported="false"
-            android:label="Asteroids"
+            android:label="Rock Blaster"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
 

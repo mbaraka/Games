@@ -117,42 +117,42 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
     GameCatalogEntry(
         id = "road_rush",
         title = "Road Rush",
-        description = "Atari-style vertical racer — shift lanes to dodge oncoming traffic before you run out of lives.",
+        description = "Retro arcade-style vertical racer — shift lanes to dodge oncoming traffic before you run out of lives.",
         color = Color(0xFFE53935),
         activityClass = RoadRushActivity::class.java
     ),
     GameCatalogEntry(
         id = "breakout",
-        title = "Breakout",
-        description = "Atari-style paddle & ball — smash every brick, catch power-ups, climb the levels.",
+        title = "Brick Blitz",
+        description = "Retro arcade-style paddle & ball — smash every brick, catch power-ups, climb the levels.",
         color = Color(0xFF4FC3F7),
         activityClass = BreakoutActivity::class.java
     ),
     GameCatalogEntry(
         id = "space_invaders",
-        title = "Space Invaders",
-        description = "Atari-style alien shooter — hold the line behind your bunkers as the formation marches down.",
+        title = "Star Invasion",
+        description = "Retro arcade-style alien shooter — hold the line behind your bunkers as the formation marches down.",
         color = Color(0xFF66BB6A),
         activityClass = SpaceInvadersActivity::class.java
     ),
     GameCatalogEntry(
         id = "missile_command",
-        title = "Missile Command",
-        description = "Atari-style defense — tap to detonate interceptors and save your cities from the falling missiles.",
+        title = "Silo Defense",
+        description = "Retro arcade-style defense — tap to detonate interceptors and save your cities from the falling missiles.",
         color = Color(0xFFFF7043),
         activityClass = MissileCommandActivity::class.java
     ),
     GameCatalogEntry(
         id = "snake",
         title = "Snake",
-        description = "Atari-style classic — swipe to turn, eat fruit, don't hit the walls or yourself.",
+        description = "Retro arcade-style classic — swipe to turn, eat fruit, don't hit the walls or yourself.",
         color = Color(0xFF66BB6A),
         activityClass = SnakeActivity::class.java
     ),
     GameCatalogEntry(
         id = "asteroids",
-        title = "Asteroids",
-        description = "Atari-style vector shooter — rotate, thrust and blast drifting rocks that split as you hit them.",
+        title = "Rock Blaster",
+        description = "Retro arcade-style vector shooter — rotate, thrust and blast drifting rocks that split as you hit them.",
         color = Color(0xFF9E9E9E),
         activityClass = AsteroidsActivity::class.java
     ),
@@ -209,7 +209,7 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
     ),
     GameCatalogEntry(
         id = "battleship",
-        title = "Battleship",
+        title = "Fleet Duel",
         description = "Local 2 players or vs computer — place fleets, then take turns firing.",
         color = Color(0xFF0277BD),
         activityClass = BattleShipActivity::class.java,
@@ -430,6 +430,17 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
                     }
                 }
             }
+
+            Text(
+                text = "Open Source Licenses",
+                color = GameColors.TextSecondary,
+                fontSize = 13.sp,
+                modifier = Modifier
+                    .clickable {
+                        context.startActivity(Intent(context, com.baraka.game.licenses.OpenSourceLicensesActivity::class.java))
+                    }
+                    .padding(top = 8.dp)
+            )
 
             Spacer(modifier = Modifier.height(48.dp))
 
