@@ -48,7 +48,7 @@ fun MissileCommandStartOverlay(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text("Missile Command", color = GameColors.TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text("Silo Defense", color = GameColors.TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold)
             Text(
                 "Tap anywhere to detonate an interceptor there. Protect your cities — ammo is limited each wave.",
                 color = GameColors.TextSecondary,

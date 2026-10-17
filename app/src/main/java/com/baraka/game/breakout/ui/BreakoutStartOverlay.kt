@@ -48,7 +48,7 @@ fun BreakoutStartOverlay(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text("Breakout", color = GameColors.TextPrimary, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+            Text("Brick Blitz", color = GameColors.TextPrimary, fontSize = 32.sp, fontWeight = FontWeight.Bold)
             Text(
                 "Drag to move the paddle, tap to launch. Clear every brick to climb a level.",
                 color = GameColors.TextSecondary,

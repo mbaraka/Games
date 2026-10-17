@@ -48,7 +48,7 @@ fun AsteroidsStartOverlay(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text("Asteroids", color = GameColors.TextPrimary, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+            Text("Rock Blaster", color = GameColors.TextPrimary, fontSize = 34.sp, fontWeight = FontWeight.Bold)
             Text(
                 "◀ ▶ rotate, ▲ thrust, 🔥 fire. Big rocks split into smaller, faster ones — clear the field to advance.",
                 color = GameColors.TextSecondary,

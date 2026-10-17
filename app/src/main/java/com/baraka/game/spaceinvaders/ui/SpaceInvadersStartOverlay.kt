@@ -48,7 +48,7 @@ fun SpaceInvadersStartOverlay(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text("Space Invaders", color = GameColors.TextPrimary, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text("Star Invasion", color = GameColors.TextPrimary, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             Text(
                 "Drag to move, tap to fire. Clear the formation before it reaches you — it only gets faster.",
                 color = GameColors.TextSecondary,

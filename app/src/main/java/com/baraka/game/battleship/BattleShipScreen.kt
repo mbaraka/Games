@@ -74,7 +74,7 @@ fun BattleShipScreen(
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "Battleship",
+                    text = "Fleet Duel",
                     color = GameColors.TextPrimary,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold
