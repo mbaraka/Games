@@ -33,16 +33,16 @@ SCOPES = ["https://www.googleapis.com/auth/androidpublisher"]
 VALID_TRACKS = ["internal", "alpha", "beta", "production"]
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# Matches the naming convention app/build.gradle.kts uses for its versioned bundle output
-# in app/release/, e.g. "baraka-0.1.0-1-release.aab" -> versionName=0.1.0 (versionCode comes
-# from the upload response instead, since that's the authoritative value Play actually accepted).
+# Matches the common app/build.gradle.kts convention of naming versioned bundle output
+# "<name>-<versionName>-<versionCode>-<buildType>.aab" (e.g. "baraka-0.1.0-1-release.aab"),
+# regardless of the app-specific prefix - versionName is only used for the git tag below;
+# versionCode comes from the upload response instead, since that's the value Play accepted.
 AAB_NAME_RE = re.compile(r"^.+-(?P<version_name>[\d][\w.]*)-\d+-[A-Za-z]+\.aab$")
 
-# Default release notes shown to testers/users if none are given on the command line.
-# Keyed by Play Console locale code - add more languages here as needed.
-DEFAULT_NOTES = {
-    "en-US": "Bug fixes and improvements.",
-}
+# Fallback default release notes/tag prefix if the config file doesn't set its own - see
+# play_upload_config.example.json for the per-app "default_notes" and "tag_prefix" keys.
+FALLBACK_NOTES = {"en-US": "Bug fixes and improvements."}
+FALLBACK_TAG_PREFIX = "v"
 
 
 def load_config(config_path: Path) -> dict:
@@ -55,7 +55,7 @@ def load_config(config_path: Path) -> dict:
     return json.loads(config_path.read_text(encoding="utf-8"))
 
 
-def tag_release(aab_name: str, version_code: int, track: str) -> None:
+def tag_release(aab_name: str, version_code: int, track: str, tag_prefix: str) -> None:
     """Tags the current commit so every published release has a permanent git marker.
 
     Only called after an actual --commit publish. A failure here is a warning, not a fatal
@@ -63,7 +63,7 @@ def tag_release(aab_name: str, version_code: int, track: str) -> None:
     """
     match = AAB_NAME_RE.match(aab_name)
     version_name = match.group("version_name") if match else "unknown"
-    tag = f"play-v{version_name}-{version_code}"
+    tag = f"{tag_prefix}{version_name}-{version_code}"
     message = f"Released {version_name} (versionCode {version_code}) to Play Console track '{track}'"
 
     status = subprocess.run(
@@ -137,6 +137,8 @@ def main():
     config = load_config(args.config)
     package_name = config["package_name"]
     service_account_json = Path(config["service_account_json"])
+    default_notes = config.get("default_notes", FALLBACK_NOTES)
+    tag_prefix = config.get("tag_prefix", FALLBACK_TAG_PREFIX)
 
     service = get_service(service_account_json)
     edits = service.edits()
@@ -154,9 +156,9 @@ def main():
         version_code = bundle_response["versionCode"]
         print(f"Uploaded as versionCode {version_code}")
 
-        notes_en = args.notes or DEFAULT_NOTES["en-US"]
+        notes_en = args.notes or default_notes.get("en-US", FALLBACK_NOTES["en-US"])
         release_notes = [{"language": "en-US", "text": notes_en}]
-        for lang, text in DEFAULT_NOTES.items():
+        for lang, text in default_notes.items():
             if lang != "en-US":
                 release_notes.append({"language": lang, "text": text})
 
@@ -182,7 +184,7 @@ def main():
             result = edits.commit(packageName=package_name, editId=edit_id).execute()
             print(f"COMMITTED. Edit id: {result['id']}")
             print(f"versionCode {version_code} is now live on track '{args.track}'.")
-            tag_release(args.aab.name, version_code, args.track)
+            tag_release(args.aab.name, version_code, args.track, tag_prefix)
         else:
             edits.delete(packageName=package_name, editId=edit_id).execute()
             print()

@@ -1,4 +1,8 @@
 {
   "package_name": "com.baraka.game",
-  "service_account_json": "D:/Project/Game/scripts/play-service-account.json"
+  "service_account_json": "D:/Project/Game/scripts/play-service-account.json",
+  "tag_prefix": "play-v",
+  "default_notes": {
+    "en-US": "Bug fixes and improvements."
+  }
 }
