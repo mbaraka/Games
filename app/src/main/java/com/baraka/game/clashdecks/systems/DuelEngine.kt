@@ -163,8 +163,10 @@ object DuelEngine {
                 val target = if (toSelf) me else s.inactive
                 val cleared = target.copy(statuses = target.statuses.filterNot { it.kind.isDebuff })
                 val next = if (toSelf) s.withActive(cleared) else s.withInactive(cleared)
+                val targetSide = if (toSelf) s.activeSide else s.inactiveSide
                 next.log("${target.beVerb()} cleansed of debuffs.", LogKind.STATUS)
                     .sound(DuelSound.BUFF)
+                    .vfx(DuelVfx.Cleansed(targetSide))
             }
 
             is Effect.Shatter -> {
@@ -180,6 +182,7 @@ object DuelEngine {
             is Effect.ReflectNextHit ->
                 s.withActive(me.copy(reflectPending = me.reflectPending + effect.amount))
                     .log("${me.does("ready")} a riposte.", LogKind.NEUTRAL)
+                    .vfx(DuelVfx.ReflectReady(s.activeSide))
         }
     }
 

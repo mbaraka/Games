@@ -125,16 +125,21 @@ class ClashDecksViewModel(application: Application) : AndroidViewModel(applicati
                 var state = _ui.value.duel ?: break
                 if (state.winner != null || state.activeIsPlayer) break
 
-                delay(650)
-                state = _ui.value.duel ?: break
+                // Plan first, *then* decide whether there's anything worth a "thinking"
+                // pause for — an empty hand/no affordable card used to burn a fixed 650ms
+                // doing nothing before immediately ending the turn anyway.
                 val plan = CpuStrategy.chooseTurn(state, _ui.value.difficulty, rng)
-                for (cardId in plan) {
-                    state = DuelEngine.playCard(state, cardId, rng)
-                    applyState(state)
+                if (plan.isNotEmpty()) {
+                    delay(650)
+                    state = _ui.value.duel ?: break
+                    for (cardId in plan) {
+                        state = DuelEngine.playCard(state, cardId, rng)
+                        applyState(state)
+                        if (state.winner != null) break
+                        delay(700)
+                    }
                     if (state.winner != null) break
-                    delay(700)
                 }
-                if (state.winner != null) break
 
                 state = DuelEngine.endTurn(state, rng)
                 applyState(state)

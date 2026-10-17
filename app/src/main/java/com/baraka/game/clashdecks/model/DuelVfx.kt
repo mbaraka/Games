@@ -20,6 +20,10 @@ sealed interface DuelVfx {
     data class StatusApplied(override val side: VfxSide, val kind: StatusKind) : DuelVfx
     data class BlockShattered(override val side: VfxSide, val amount: Int) : DuelVfx
     data class Frozen(override val side: VfxSide) : DuelVfx
+    /** Cleanse: all of [side]'s debuffs just got stripped. */
+    data class Cleansed(override val side: VfxSide) : DuelVfx
+    /** Riposte: [side] just charged a reflect — nothing happened to them yet, so this needed its own cue rather than silently returning no vfx. */
+    data class ReflectReady(override val side: VfxSide) : DuelVfx
 
     /** [side] is whoever played the card. */
     data class CardPlayed(override val side: VfxSide, val type: CardType) : DuelVfx

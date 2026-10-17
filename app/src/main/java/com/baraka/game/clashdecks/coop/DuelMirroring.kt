@@ -46,6 +46,8 @@ private fun DuelVfx.flipped(): DuelVfx {
         is DuelVfx.StatusApplied -> copy(side = flippedSide)
         is DuelVfx.BlockShattered -> copy(side = flippedSide)
         is DuelVfx.Frozen -> copy(side = flippedSide)
+        is DuelVfx.Cleansed -> copy(side = flippedSide)
+        is DuelVfx.ReflectReady -> copy(side = flippedSide)
         is DuelVfx.CardPlayed -> copy(side = flippedSide)
     }
 }
