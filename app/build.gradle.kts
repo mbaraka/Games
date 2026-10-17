@@ -30,7 +30,7 @@ val appVersionName = "$appMajor.$appMinor.$appPatch"
 // versionCode is a separate, hand-bumped counter (1, 2, 3, ...) - Play just needs each upload's
 // code to be strictly higher than the last one, so there's no need to derive it from
 // versionName. Bump this by one every time you cut a new Play release.
-val appVersionCode = 2
+val appVersionCode = 3
 
 // Per-game versions. The app holds several games, so a game's version is NOT the app version: it is the number of commits that
 // touched that game's code, so it goes up by one with every update to that game (and only that game). Games with co-op also

@@ -116,6 +116,14 @@ def main():
         "what it WOULD do, then discards the draft edit - nothing is published.",
     )
     parser.add_argument(
+        "--draft",
+        action="store_true",
+        help="Stage the release as a draft instead of completed/in-progress. Needed the first "
+        "time a track (e.g. a brand-new closed testing track with no testers/countries set "
+        "yet) hasn't been activated - Play rejects a 'completed' release on an inactive "
+        "track. Finish the rollout manually in the Play Console afterward.",
+    )
+    parser.add_argument(
         "--config",
         type=Path,
         default=Path(__file__).parent / "play_upload_config.json",
@@ -152,16 +160,17 @@ def main():
             if lang != "en-US":
                 release_notes.append({"language": lang, "text": text})
 
+        status = "draft" if args.draft else ("completed" if args.rollout >= 1.0 else "inProgress")
         track_body = {
             "releases": [
                 {
                     "versionCodes": [str(version_code)],
-                    "status": "completed" if args.rollout >= 1.0 else "inProgress",
+                    "status": status,
                     "releaseNotes": release_notes,
                 }
             ]
         }
-        if args.rollout < 1.0:
+        if not args.draft and args.rollout < 1.0:
             track_body["releases"][0]["userFraction"] = args.rollout
 
         edits.tracks().update(
