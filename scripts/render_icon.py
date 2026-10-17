@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Renders the app's actual adaptive icon (app/src/main/res/drawable/ic_launcher_background.xml
-+ ic_launcher_foreground.xml - a dark gaming-themed controller design) as real raster images,
-at high-res supersample then downscaled, so every output is clean rather than regenerated
++ ic_launcher_foreground.xml - a retro arcade-cabinet silhouette) as real raster images, at
+high-res supersample then downscaled, so every output is clean rather than regenerated
 mipmap bitmaps that just went stale after someone last redrew the vector icon.
 
 Writes:
@@ -10,8 +10,8 @@ Writes:
   - app/src/main/res/mipmap-*/ic_launcher_round.webp (circle-masked, same fallback use)
   - store-assets/app_icon_512.png (Play Console's standalone 512x512 PNG, no alpha)
 
-The shapes below are a hand-transcription of the two vector drawables' <path> data (both on a
-108x108 viewport) - keep them in sync if the vector drawables ever change.
+The shapes below are a hand-transcription of the vector drawables' <path> data (108x108
+viewport) - keep them in sync if the vector drawables ever change.
 """
 
 from pathlib import Path
@@ -21,11 +21,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SUPERSAMPLE = 864  # 108 * 8, divisible cleanly down to every output size below
 VIEWPORT = 108
 
-BG_DARK = (30, 30, 30, 255)      # #1E1E1E
-BG_STRIPE = (42, 42, 42, 255)    # #2A2A2A
-GREEN = (76, 175, 80, 255)       # #4CAF50
-ORANGE = (255, 87, 34, 255)      # #FF5722
-WHITE = (255, 255, 255, 255)
+BG = (16, 12, 26, 255)        # #100C1A
+CABINET = (237, 237, 242, 255)  # #EDEDF2
+CYAN = (34, 211, 238, 255)      # #22D3EE
+PURPLE = (124, 58, 237, 255)    # #7C3AED
+SCREEN = (20, 10, 46, 255)      # #140A2E
+PANEL = (35, 31, 51, 255)       # #231F33
+ORANGE = (255, 94, 58, 255)     # #FF5E3A
+BASE = (75, 70, 92, 255)        # #4B465C
 
 
 def s(v: float) -> float:
@@ -33,36 +36,28 @@ def s(v: float) -> float:
 
 
 def render_square() -> Image.Image:
-    img = Image.new("RGBA", (SUPERSAMPLE, SUPERSAMPLE), BG_DARK)
+    img = Image.new("RGBA", (SUPERSAMPLE, SUPERSAMPLE), BG)
     d = ImageDraw.Draw(img)
 
-    # ic_launcher_background.xml: dark canvas with a subtle lighter frame
-    d.rectangle([s(0), s(0), s(108), s(8)], fill=BG_STRIPE)
-    d.rectangle([s(0), s(100), s(108), s(108)], fill=BG_STRIPE)
-    d.rectangle([s(0), s(0), s(8), s(108)], fill=BG_STRIPE)
-    d.rectangle([s(100), s(0), s(108), s(108)], fill=BG_STRIPE)
+    # Cabinet body (trapezoid, wider at the base)
+    d.polygon([(s(31), s(16)), (s(77), s(16)), (s(85), s(90)), (s(23), s(90))], fill=CABINET)
 
-    # ic_launcher_foreground.xml: dark circle "badge", then a green game controller with
-    # orange D-pad/buttons, plus four corner pixel accents and a white center hub dot.
-    d.ellipse([s(6), s(6), s(102), s(102)], fill=BG_DARK)
+    # Marquee stripe
+    d.rectangle([s(31), s(16), s(77), s(21)], fill=CYAN)
 
-    d.rounded_rectangle([s(26), s(40), s(82), s(68)], radius=s(4), fill=GREEN)
-    d.rounded_rectangle([s(18), s(44), s(26), s(64)], radius=s(4), fill=GREEN)
-    d.rounded_rectangle([s(82), s(44), s(90), s(64)], radius=s(4), fill=GREEN)
+    # Screen glow + screen
+    d.rounded_rectangle([s(33), s(24), s(75), s(54)], radius=s(3), fill=PURPLE)
+    d.rounded_rectangle([s(37), s(28), s(71), s(50)], radius=s(2), fill=SCREEN)
 
-    # D-pad: an L/plus-ish silhouette made of the two source rects, not their merged bbox.
-    d.rectangle([s(36), s(42), s(52), s(50)], fill=ORANGE)
-    d.rectangle([s(36), s(50), s(44), s(58)], fill=ORANGE)
+    # Control panel + buttons
+    d.rounded_rectangle([s(20), s(64), s(88), s(72)], radius=s(2), fill=PANEL)
+    d.ellipse([s(24.6), s(64.8), s(31), s(71.2)], fill=ORANGE)
+    d.ellipse([s(35.6), s(64.8), s(42), s(71.2)], fill=ORANGE)
+    d.ellipse([s(66), s(64.8), s(72.4), s(71.2)], fill=CYAN)
+    d.ellipse([s(77), s(64.8), s(83.4), s(71.2)], fill=CYAN)
 
-    d.ellipse([s(58), s(46), s(66), s(54)], fill=ORANGE)
-    d.ellipse([s(70), s(46), s(78), s(54)], fill=ORANGE)
-
-    d.rectangle([s(20), s(20), s(24), s(24)], fill=GREEN)
-    d.rectangle([s(84), s(20), s(88), s(24)], fill=ORANGE)
-    d.rectangle([s(20), s(84), s(24), s(88)], fill=GREEN)
-    d.rectangle([s(84), s(84), s(88), s(88)], fill=ORANGE)
-
-    d.ellipse([s(54), s(52), s(58), s(56)], fill=WHITE)
+    # Base
+    d.rectangle([s(23), s(90), s(85), s(94)], fill=BASE)
 
     return img
 

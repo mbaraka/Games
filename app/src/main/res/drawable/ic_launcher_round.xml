@@ -1,71 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    
-    <!-- Round background -->
+
+    <!-- Retro arcade-cabinet silhouette: white cabinet body, cyan marquee stripe, a
+         glowing purple screen, and a control panel with four buttons. -->
+
+    <!-- Cabinet body (trapezoid, wider at the base) -->
     <path
-        android:fillColor="#1E1E1E"
-        android:pathData="M54,54m-54,0a54,54 0,1 1,108 0a54,54 0,1 1,-108 0"/>
-    
-    <!-- Subtle border -->
+        android:fillColor="#EDEDF2"
+        android:pathData="M31,16 L77,16 L85,90 L23,90 Z"/>
+
+    <!-- Marquee stripe -->
     <path
-        android:fillColor="#2A2A2A"
-        android:pathData="M54,54m-52,0a52,52 0,1 1,104 0a52,52 0,1 1,-104 0"/>
-    
-    <!-- Main background -->
+        android:fillColor="#22D3EE"
+        android:pathData="M31,16 L77,16 L77,21 L31,21 Z"/>
+
+    <!-- Screen glow -->
     <path
-        android:fillColor="#1E1E1E"
-        android:pathData="M54,54m-48,0a48,48 0,1 1,96 0a48,48 0,1 1,-96 0"/>
-    
-    <!-- Game controller base -->
+        android:fillColor="#7C3AED"
+        android:pathData="M36,24 L72,24 Q75,24 75,27 L75,51 Q75,54 72,54 L36,54 Q33,54 33,51 L33,27 Q33,24 36,24 Z"/>
+
+    <!-- Screen -->
     <path
-        android:fillColor="#4CAF50"
-        android:pathData="M30,40 L78,40 Q82,40 82,44 L82,64 Q82,68 78,68 L30,68 Q26,68 26,64 L26,44 Q26,40 30,40 Z"/>
-    
-    <!-- Left grip -->
+        android:fillColor="#140A2E"
+        android:pathData="M39,28 L69,28 Q71,28 71,30 L71,48 Q71,50 69,50 L39,50 Q37,50 37,48 L37,30 Q37,28 39,28 Z"/>
+
+    <!-- Control panel -->
     <path
-        android:fillColor="#4CAF50"
-        android:pathData="M26,44 L22,44 Q18,44 18,48 L18,60 Q18,64 22,64 L26,64 L26,44 Z"/>
-    
-    <!-- Right grip -->
+        android:fillColor="#231F33"
+        android:pathData="M22,64 L86,64 Q88,64 88,66 L88,70 Q88,72 86,72 L22,72 Q20,72 20,70 L20,66 Q20,64 22,64 Z"/>
+
+    <!-- Buttons -->
     <path
-        android:fillColor="#4CAF50"
-        android:pathData="M82,44 L86,44 Q90,44 90,48 L90,60 Q90,64 86,64 L82,64 L82,44 Z"/>
-    
-    <!-- D-pad -->
+        android:fillColor="#FF5E3A"
+        android:pathData="M31,68 A3.2,3.2 0 1,1 24.6,68 A3.2,3.2 0 1,1 31,68 Z"/>
     <path
-        android:fillColor="#FF5722"
-        android:pathData="M44,50 L44,58 L36,58 L36,50 Z"/>
+        android:fillColor="#FF5E3A"
+        android:pathData="M42,68 A3.2,3.2 0 1,1 35.6,68 A3.2,3.2 0 1,1 42,68 Z"/>
     <path
-        android:fillColor="#FF5722"
-        android:pathData="M36,50 L52,50 L52,42 L36,42 Z"/>
-    
-    <!-- Action buttons -->
+        android:fillColor="#22D3EE"
+        android:pathData="M72.4,68 A3.2,3.2 0 1,1 66,68 A3.2,3.2 0 1,1 72.4,68 Z"/>
     <path
-        android:fillColor="#FF5722"
-        android:pathData="M58,50 A4,4 0 1,1 66,50 A4,4 0 1,1 58,50"/>
+        android:fillColor="#22D3EE"
+        android:pathData="M83.4,68 A3.2,3.2 0 1,1 77,68 A3.2,3.2 0 1,1 83.4,68 Z"/>
+
+    <!-- Base -->
     <path
-        android:fillColor="#FF5722"
-        android:pathData="M70,50 A4,4 0 1,1 78,50 A4,4 0 1,1 70,50"/>
-    
-    <!-- Pixel elements representing games -->
-    <path
-        android:fillColor="#4CAF50"
-        android:pathData="M20,20 L24,20 L24,24 L20,24 Z"/>
-    <path
-        android:fillColor="#FF5722"
-        android:pathData="M84,20 L88,20 L88,24 L84,24 Z"/>
-    <path
-        android:fillColor="#4CAF50"
-        android:pathData="M20,84 L24,84 L24,88 L20,88 Z"/>
-    <path
-        android:fillColor="#FF5722"
-        android:pathData="M84,84 L88,84 L88,88 L84,88 Z"/>
-    
-    <!-- Center hub indicator -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,54 A2,2 0 1,1 58,54 A2,2 0 1,1 54,54"/>
+        android:fillColor="#4B465C"
+        android:pathData="M23,90 L85,90 L85,94 L23,94 Z"/>
 </vector>
