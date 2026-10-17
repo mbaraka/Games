@@ -1,3 +1,6 @@
+import java.util.Properties
+import org.gradle.api.tasks.Copy
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,14 +8,29 @@ plugins {
     alias(libs.plugins.aboutlibraries)
 }
 
-// Versioning policy: MAJOR stays 1, MINOR bumps when a new game is added,
-// PATCH bumps for small fixes/tweaks. Override from CI with -PappMinor=N -PappPatch=N
-// (e.g. driven by a git tag like v1.4.2) so a tag push controls the shipped version.
-val appMajor = (project.findProperty("appMajor") as String?)?.toInt() ?: 1
-val appMinor = (project.findProperty("appMinor") as String?)?.toInt() ?: 0
+// Release signing, read from the gitignored local.properties (same file Android Studio
+// already keeps sdk.dir in) so a local `bundleRelease`/`assembleRelease` can be signed
+// without exporting shell env vars first. CI (when re-enabled) still works via the
+// RELEASE_KEYSTORE_* env vars as a fallback - see RELEASING.md.
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+// Versioning policy (Play Store track): versionName is MAJOR.MINOR.PATCH - MAJOR bumps when
+// the app is substantially overhauled, MINOR when a new game is added, PATCH for small
+// fixes/tweaks. Override from CI with -PappMajor=N -PappMinor=N -PappPatch=N if needed.
+val appMajor = (project.findProperty("appMajor") as String?)?.toInt() ?: 0
+val appMinor = (project.findProperty("appMinor") as String?)?.toInt() ?: 1
 val appPatch = (project.findProperty("appPatch") as String?)?.toInt() ?: 0
 val appVersionName = "$appMajor.$appMinor.$appPatch"
-val appVersionCode = appMajor * 10_000 + appMinor * 100 + appPatch
+
+// versionCode is a separate, hand-bumped counter (1, 2, 3, ...) - Play just needs each upload's
+// code to be strictly higher than the last one, so there's no need to derive it from
+// versionName. Bump this by one every time you cut a new Play release.
+val appVersionCode = 1
 
 // Per-game versions. The app holds several games, so a game's version is NOT the app version: it is the number of commits that
 // touched that game's code, so it goes up by one with every update to that game (and only that game). Games with co-op also
@@ -60,15 +78,23 @@ android {
     }
 
     signingConfigs {
-        // Only registered when a release keystore is supplied (e.g. via CI secrets),
-        // so local debug builds work with zero setup. See RELEASING.md.
-        val keystorePath = System.getenv("RELEASE_KEYSTORE_PATH")
+        // Only registered when a release keystore is supplied (local.properties for a
+        // local build, or the RELEASE_KEYSTORE_* env vars for CI), so a plain debug
+        // build still works with zero setup. See RELEASING.md.
+        val keystorePath = localProperties.getProperty("RELEASE_KEYSTORE_FILE")
+            ?: System.getenv("RELEASE_KEYSTORE_PATH")
         if (!keystorePath.isNullOrBlank()) {
             create("release") {
-                storeFile = file(keystorePath)
-                storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
-                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+                // rootProject.file(), not file(): local.properties lives at the project
+                // root, so a relative RELEASE_KEYSTORE_FILE resolves from there, not from
+                // this app module's own directory.
+                storeFile = rootProject.file(keystorePath)
+                storePassword = localProperties.getProperty("RELEASE_KEYSTORE_PASSWORD")
+                    ?: System.getenv("RELEASE_KEYSTORE_PASSWORD")
+                keyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS")
+                    ?: System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD")
+                    ?: System.getenv("RELEASE_KEY_PASSWORD")
             }
         }
     }
@@ -89,7 +115,7 @@ android {
         val variant = this
         variant.outputs.all {
             val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            output.outputFileName = "baraka-${variant.versionName}-${variant.buildType.name}.apk"
+            output.outputFileName = "baraka-${variant.versionName}-${variant.versionCode}-${variant.buildType.name}.apk"
         }
     }
 
@@ -103,6 +129,34 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+}
+
+// AGP's own bundle task always names its output "app-<buildType>.aab" with no hook to rename it
+// directly (unlike the APK output above) - so this adds a versioned copy alongside it into
+// app/release/, the same folder Android Studio's "Generate Signed App Bundle" wizard writes to,
+// so every build (IDE or CLI) lands in one place, named so multiple uploads are easy to tell
+// apart. Also a natural spot to drop store-listing assets (screenshots, feature graphic) later.
+afterEvaluate {
+    android.buildTypes.names.forEach { buildTypeName ->
+        val capitalized = buildTypeName.replaceFirstChar { it.uppercase() }
+        val bundleTaskName = "bundle$capitalized"
+        if (tasks.findByName(bundleTaskName) != null) {
+            tasks.register<Copy>("renameBundle$capitalized") {
+                // A separate directory, not AGP's own outputs/bundle/<type> - writing back into
+                // that same directory trips Gradle's task-output-overlap validation against
+                // AGP's own produce<Type>BundleIdeListingFile task, which also writes there.
+                from(layout.buildDirectory.dir("outputs/bundle/$buildTypeName"))
+                include("app-$buildTypeName.aab")
+                rename {
+                    "baraka-${android.defaultConfig.versionName}-${android.defaultConfig.versionCode}-$buildTypeName.aab"
+                }
+                into(rootProject.file("app/release"))
+            }
+            tasks.named(bundleTaskName) {
+                finalizedBy("renameBundle$capitalized")
+            }
+        }
     }
 }
 

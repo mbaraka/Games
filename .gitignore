@@ -20,3 +20,7 @@ local.properties
 *.jks
 *.keystore
 /app/release/
+
+# Play Console upload script — service account key and local config, never commit these
+scripts/play-service-account.json
+scripts/play_upload_config.json
