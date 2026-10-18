@@ -14,62 +14,72 @@ enum class StatusKind(
     val description: String,
     val isDebuff: Boolean,
     val icon: VectorIcon,
-    val colorArgb: Long
+    val colorArgb: Long,
+    /** A short in-chip label (StatusRow in ClashComponents.kt) — the icon alone wasn't enough to tell statuses apart at a glance (Empower/Vulnerable are both small stars, same size, easy to confuse), so every status chip now also spells out what it is. */
+    val shortLabel: String
 ) {
     STUN(
         "Stun",
         "Skips your next turn's card plays. You still draw and gain energy.",
         isDebuff = true,
         icon = VectorIcon.Bolt,
-        colorArgb = 0xFFFFEE58
+        colorArgb = 0xFFFFEE58,
+        shortLabel = "Stun"
     ),
     FREEZE(
         "Freeze",
         "Skips your entire next turn — no draw, no energy, no plays.",
         isDebuff = true,
         icon = VectorIcon.Diamond(1f),
-        colorArgb = 0xFF4FC3F7
+        colorArgb = 0xFF4FC3F7,
+        shortLabel = "Frozen"
     ),
     ROOT(
         "Root",
         "You cannot play Defense cards on your next turn.",
         isDebuff = true,
         icon = VectorIcon.TurtleShell,
-        colorArgb = 0xFF8D6E63
+        colorArgb = 0xFF8D6E63,
+        shortLabel = "Rooted"
     ),
     WEAKEN(
         "Weaken",
         "Your Attack cards deal reduced damage while this lasts.",
         isDebuff = true,
         icon = VectorIcon.Axe(1.2f),
-        colorArgb = 0xFF90A4AE
+        colorArgb = 0xFF90A4AE,
+        shortLabel = "Weak"
     ),
     VULNERABLE(
         "Vulnerable",
         "You take extra damage from every hit while this lasts.",
         isDebuff = true,
         icon = VectorIcon.Star(5, 0.5f),
-        colorArgb = 0xFFEF5350
+        colorArgb = 0xFFEF5350,
+        shortLabel = "Vuln"
     ),
     POISON(
         "Poison",
         "Lose HP at the start of each of your turns. Ignores Block.",
         isDebuff = true,
         icon = VectorIcon.Slime,
-        colorArgb = 0xFF9CCC65
+        colorArgb = 0xFF9CCC65,
+        shortLabel = "Poison"
     ),
     EMPOWER(
         "Empower",
         "Your Attack cards deal bonus damage while this lasts.",
         isDebuff = false,
         icon = VectorIcon.Star(4, 0.5f),
-        colorArgb = 0xFFFFB300
+        colorArgb = 0xFFFFB300,
+        shortLabel = "Power+"
     ),
     REGEN(
         "Regen",
         "Heal HP at the start of each of your turns while this lasts.",
         isDebuff = false,
         icon = VectorIcon.Heart,
-        colorArgb = 0xFF66BB6A
+        colorArgb = 0xFF66BB6A,
+        shortLabel = "Regen"
     );
 }

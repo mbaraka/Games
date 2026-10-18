@@ -7,6 +7,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -132,19 +134,34 @@ internal fun EnergyPips(current: Int, max: Int) {
 @Composable
 internal fun StatusRow(statuses: List<StatusEffect>) {
     if (statuses.isEmpty()) return
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+    // Scrollable, not just a Row: with the name spelled out each chip is wider, and 3+
+    // statuses stacked on one duelist used to risk running off the edge of the panel.
+    Row(
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         statuses.forEach { st ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(1.dp, Color(st.kind.colorArgb).copy(alpha = 0.6f), RoundedCornerShape(8.dp))
                     .padding(horizontal = 6.dp, vertical = 3.dp)
             ) {
                 IconSwatch(st.kind.icon, Color(st.kind.colorArgb), size = 16.dp)
                 Spacer(Modifier.width(3.dp))
-                val label = if (st.kind.showsAmount) "${st.amount}·${st.turnsRemaining}" else "${st.turnsRemaining}"
-                Text(label, color = GameColors.TextPrimary, fontSize = 11.sp)
+                // Spelled out, not just the icon: Empower/Vulnerable are both small stars and
+                // read identically at this size, so the icon alone wasn't enough to tell a
+                // buff from a debuff you need to play around.
+                val amount = if (st.kind.showsAmount) " ${st.amount}" else ""
+                Text(
+                    "${st.kind.shortLabel}$amount · ${st.turnsRemaining}",
+                    color = Color(st.kind.colorArgb),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
