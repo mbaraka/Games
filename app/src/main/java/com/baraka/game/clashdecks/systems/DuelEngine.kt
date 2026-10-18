@@ -15,6 +15,7 @@ import com.baraka.game.clashdecks.model.EffectTarget
 import com.baraka.game.clashdecks.model.LogKind
 import com.baraka.game.clashdecks.model.StatusEffect
 import com.baraka.game.clashdecks.model.StatusKind
+import com.baraka.game.clashdecks.model.ScalingSource
 import com.baraka.game.clashdecks.model.merged
 import com.baraka.game.clashdecks.model.tickedDown
 import kotlin.random.Random
@@ -56,9 +57,18 @@ object DuelEngine {
      * (clashdecks/coop/ClashCoopSession.kt) passes neutral names instead since "You" would be
      * wrong on the other phone — the grammar reads slightly stiffer there ("Player 2 play
      * Strike") but needs no further engine change.
+     *
+     * [playerDeckCardIds] lets single-player use a built deck (see `ui/ClashDeckBuilderScreen.kt`)
+     * instead of the full pool — null (the default, and always true for the CPU and for co-op)
+     * means "shuffle the whole [CardLibrary]".
      */
-    fun startDuel(rng: Random, playerName: String = "You", cpuName: String = "Opponent"): DuelState {
-        val player = Duelist.fresh(playerName, isCpu = false, startHp = START_HP, deck = CardLibrary.buildDeck(rng))
+    fun startDuel(
+        rng: Random,
+        playerName: String = "You",
+        cpuName: String = "Opponent",
+        playerDeckCardIds: Collection<String>? = null
+    ): DuelState {
+        val player = Duelist.fresh(playerName, isCpu = false, startHp = START_HP, deck = CardLibrary.buildDeck(rng, playerDeckCardIds))
             .drawCards(3, rng)
         val cpu = Duelist.fresh(cpuName, isCpu = true, startHp = START_HP, deck = CardLibrary.buildDeck(rng))
             .drawCards(3, rng)
@@ -117,6 +127,16 @@ object DuelEngine {
         return when (effect) {
             is Effect.Damage -> dealDamage(s, effect.amount, fromActive = true)
 
+            is Effect.ScalingDamage -> {
+                val opp = s.inactive
+                val stacks = when (effect.source) {
+                    ScalingSource.ENEMY_DEBUFFS -> opp.statuses.count { it.kind.isDebuff }
+                    ScalingSource.SELF_MISSING_HP_TENTHS -> ((me.maxHp - me.hp) * 10 / me.maxHp.coerceAtLeast(1))
+                    ScalingSource.ROUND_NUMBER -> s.turnNumber
+                }
+                dealDamage(s, effect.base + effect.perStack * stacks, fromActive = true)
+            }
+
             is Effect.Block ->
                 s.withActive(me.copy(block = me.block + effect.amount))
                     .log("${me.does("gain")} ${effect.amount} Block.", LogKind.NEUTRAL)
@@ -142,6 +162,19 @@ object DuelEngine {
             is Effect.ApplyStatus -> {
                 val toSelf = effect.target == EffectTarget.SELF
                 val target = if (toSelf) me else s.inactive
+                val targetSide = if (toSelf) s.activeSide else s.inactiveSide
+
+                // Warded blocks only the three "lose your turn" debuffs, and is used up
+                // whether or not it actually needed to block anything less severe.
+                val isControlDebuff = effect.kind == StatusKind.STUN || effect.kind == StatusKind.FREEZE || effect.kind == StatusKind.ROOT
+                if (isControlDebuff && target.hasStatus(StatusKind.WARDED)) {
+                    val warded = target.copy(statuses = target.statuses.filterNot { it.kind == StatusKind.WARDED })
+                    val next = if (toSelf) s.withActive(warded) else s.withInactive(warded)
+                    return next.log("${target.does("ward")} off the ${effect.kind.displayName}!", LogKind.STATUS)
+                        .sound(DuelSound.BUFF)
+                        .vfx(DuelVfx.Warded(targetSide))
+                }
+
                 val updated = target.copy(
                     statuses = target.statuses.merged(
                         StatusEffect(effect.kind, effect.amount, effect.turns)
@@ -149,7 +182,6 @@ object DuelEngine {
                 )
                 val next = if (toSelf) s.withActive(updated) else s.withInactive(updated)
                 val verb = if (effect.kind.isDebuff) "suffer" else "gain"
-                val targetSide = if (toSelf) s.activeSide else s.inactiveSide
                 next.log("${target.does(verb)} ${effect.kind.displayName} (${effect.turns}).", LogKind.STATUS)
                     .sound(if (effect.kind == StatusKind.STUN) DuelSound.STUN
                            else if (effect.kind == StatusKind.FREEZE) DuelSound.FREEZE

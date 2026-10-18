@@ -27,11 +27,30 @@ class ClashDecksSettingsRepository private constructor(
         preferences.edit().putInt(KEY_BEST_WIN_ROUNDS, rounds).apply()
     }
 
+    /** How far through `CardLibrary.unlockOrder` single-player wins have gotten — every Common is unlocked from the start regardless. */
+    fun unlockedNonCommonCount(): Int = preferences.getInt(KEY_UNLOCKED_COUNT, 0)
+
+    fun setUnlockedNonCommonCount(count: Int) {
+        preferences.edit().putInt(KEY_UNLOCKED_COUNT, count).apply()
+    }
+
+    /** The player's built deck (card ids), or empty if they've never opened the deck builder — callers fall back to "everything unlocked" in that case. */
+    fun selectedDeckCardIds(): Set<String> {
+        val raw = preferences.getString(KEY_SELECTED_DECK, null) ?: return emptySet()
+        return raw.split(',').filter { it.isNotBlank() }.toSet()
+    }
+
+    fun setSelectedDeckCardIds(ids: Set<String>) {
+        preferences.edit().putString(KEY_SELECTED_DECK, ids.joinToString(",")).apply()
+    }
+
     companion object {
         private const val PREF_FILE = "clash_decks_settings"
         private const val KEY_SOUND_ENABLED = "sound_enabled"
         private const val KEY_PLAYER_NAME = "player_name"
         private const val KEY_BEST_WIN_ROUNDS = "best_win_rounds"
+        private const val KEY_UNLOCKED_COUNT = "unlocked_non_common_count"
+        private const val KEY_SELECTED_DECK = "selected_deck_card_ids"
 
         @Volatile
         private var instance: ClashDecksSettingsRepository? = null

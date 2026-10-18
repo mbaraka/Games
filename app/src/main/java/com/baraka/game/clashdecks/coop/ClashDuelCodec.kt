@@ -127,6 +127,7 @@ object ClashDuelCodec {
             is DuelVfx.CardPlayed -> { o.writeByte(6); o.writeByte(sideByte); o.writeByte(vfx.type.ordinal) }
             is DuelVfx.Cleansed -> { o.writeByte(7); o.writeByte(sideByte) }
             is DuelVfx.ReflectReady -> { o.writeByte(8); o.writeByte(sideByte) }
+            is DuelVfx.Warded -> { o.writeByte(9); o.writeByte(sideByte) }
         }
     }
 
@@ -143,6 +144,7 @@ object ClashDuelCodec {
             6 -> DuelVfx.CardPlayed(side, CardType.entries[i.readUnsignedByte()])
             7 -> DuelVfx.Cleansed(side)
             8 -> DuelVfx.ReflectReady(side)
+            9 -> DuelVfx.Warded(side)
             else -> DuelVfx.Frozen(side)
         }
     }

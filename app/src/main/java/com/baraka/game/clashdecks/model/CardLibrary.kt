@@ -6,11 +6,19 @@ import com.baraka.game.knightsurvivor.model.VectorIcon
 import kotlin.random.Random
 
 /**
- * The whole card pool for v1 — 20 cards, 7 Attack / 6 Defense / 7 Support. Both duelists
- * draw from an independent shuffled copy of this list (no deck building yet). Every tuning
- * number the game has lives here and in `systems/DuelEngine.kt`.
+ * The whole card pool — 24 cards. The CPU always draws from the full pool; the player draws
+ * from their *built* deck (see `ui/ClashDeckBuilderScreen.kt`): every Common is unlocked from
+ * the start, Uncommons and Rares unlock one at a time, in [unlockOrder], on each single-player
+ * win (`ClashDecksViewModel`). Every tuning number the game has lives here and in
+ * `systems/DuelEngine.kt`.
  */
 object CardLibrary {
+
+    /** A built deck (`ui/ClashDeckBuilderScreen.kt`) must have at least this many cards — comfortably below the starting 10 Commons, so a brand-new player is never blocked from dueling. */
+    const val MIN_DECK_SIZE = 8
+
+    /** ...and at most this many, so deckbuilding only becomes a real choice once you've unlocked more than fit. */
+    const val MAX_DECK_SIZE = 15
 
     val all: List<Card> = listOf(
         // ---------------- Attack ----------------
@@ -141,6 +149,32 @@ object CardLibrary {
             icon = VectorIcon.Heart, soundHz = 820.0,
             flavor = "Shake it off. Literally."
         ),
+        Card(
+            "steel_resolve", "Steel Resolve", CardType.SUPPORT, cost = 2, rarity = Rarity.RARE,
+            effects = listOf(Effect.ApplyStatus(StatusKind.WARDED, 0, 2, SELF)),
+            icon = VectorIcon.Shield, soundHz = 540.0,
+            flavor = "The next Stun, Freeze or Root breaks on you like a wave on rock."
+        ),
+
+        // ---------------- Scaling (Rare finishers) ----------------
+        Card(
+            "executioners_edge", "Executioner's Edge", CardType.ATTACK, cost = 3, rarity = Rarity.RARE,
+            effects = listOf(Effect.ScalingDamage(base = 1, perStack = 2, source = ScalingSource.ENEMY_DEBUFFS)),
+            icon = VectorIcon.Blade(2f), soundHz = 260.0,
+            flavor = "Curse them first. This finishes what you started."
+        ),
+        Card(
+            "last_stand", "Last Stand", CardType.ATTACK, cost = 2, rarity = Rarity.RARE,
+            effects = listOf(Effect.ScalingDamage(base = 1, perStack = 1, source = ScalingSource.SELF_MISSING_HP_TENTHS)),
+            icon = VectorIcon.Axe(1.4f), soundHz = 180.0,
+            flavor = "Cornered things hit harder than cautious ones."
+        ),
+        Card(
+            "avalanche", "Avalanche", CardType.ATTACK, cost = 5, rarity = Rarity.RARE,
+            effects = listOf(Effect.ScalingDamage(base = 0, perStack = 1, source = ScalingSource.ROUND_NUMBER)),
+            icon = VectorIcon.Diamond(1.3f), soundHz = 150.0,
+            flavor = "Weak on round one. By round ten, unstoppable."
+        ),
     )
 
     init {
@@ -149,6 +183,20 @@ object CardLibrary {
 
     fun byId(id: String): Card? = all.firstOrNull { it.id == id }
 
-    /** A fresh shuffled draw pile — one per duelist per duel. */
-    fun buildDeck(rng: Random): List<Card> = all.shuffled(rng)
+    /**
+     * The fixed sequence non-Common cards unlock in (Commons are unlocked from the start and
+     * never appear here). Single-player wins consume this one card at a time —
+     * `ClashDecksSettingsRepository.unlockedNonCommonCount()` is just how far through it the
+     * player has gotten, so nothing but a count needs to be persisted.
+     */
+    val unlockOrder: List<String> = all.filter { it.rarity != Rarity.COMMON }.map { it.id }
+
+    /** Every Common, plus the first [unlockedNonCommonCount] cards of [unlockOrder]. */
+    fun unlockedIds(unlockedNonCommonCount: Int): Set<String> =
+        all.filter { it.rarity == Rarity.COMMON }.map { it.id }.toSet() +
+            unlockOrder.take(unlockedNonCommonCount)
+
+    /** A fresh shuffled draw pile. [cardIds] restricts it to that subset (used for a player's built deck); null (always true for the CPU) shuffles the whole library. */
+    fun buildDeck(rng: Random, cardIds: Collection<String>? = null): List<Card> =
+        (cardIds?.mapNotNull(::byId) ?: all).shuffled(rng)
 }

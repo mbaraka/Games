@@ -142,5 +142,6 @@ private fun floaterFor(e: VfxEmission): Floater? = when (val v = e.vfx) {
     is DuelVfx.Frozen -> Floater(e.id, v.side, "FROZEN", Color(0xFF4FC3F7), 24)
     is DuelVfx.Cleansed -> Floater(e.id, v.side, "CLEANSED", Color(0xFF81C784), 18)
     is DuelVfx.ReflectReady -> Floater(e.id, v.side, "RIPOSTE READY", Color(0xFFB39DDB), 16)
+    is DuelVfx.Warded -> Floater(e.id, v.side, "WARDED OFF", Color(0xFF4DD0E1), 20)
     is DuelVfx.CardPlayed -> null
 }

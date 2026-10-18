@@ -36,6 +36,7 @@ import com.baraka.game.clashdecks.ai.Difficulty
 import com.baraka.game.clashdecks.model.DuelLogEntry
 import com.baraka.game.clashdecks.model.DuelPhase
 import com.baraka.game.clashdecks.model.DuelState
+import com.baraka.game.clashdecks.model.CardLibrary
 import com.baraka.game.clashdecks.model.DuelWinner
 import com.baraka.game.clashdecks.model.LogKind
 import com.baraka.game.clashdecks.model.VfxSide
@@ -58,11 +59,14 @@ fun ClashDecksScreen(
     onRematch: () -> Unit,
     onBackToMenu: () -> Unit,
     onPlayVsFriend: () -> Unit = {},
+    onOpenDeckBuilder: () -> Unit = {},
+    onCloseDeckBuilder: () -> Unit = {},
+    onSaveDeck: (Set<String>) -> Unit = {},
     debugSections: List<DebugSection> = emptyList()
 ) {
     Box(modifier = Modifier.fillMaxSize().background(ScreenBg)) {
         when (model.screen) {
-            ClashScreen.MENU -> MenuScreen(model, onBack, onSetDifficulty, onStartDuel, onOpenCodex, onOpenSettings, onPlayVsFriend)
+            ClashScreen.MENU -> MenuScreen(model, onBack, onSetDifficulty, onStartDuel, onOpenCodex, onOpenSettings, onPlayVsFriend, onOpenDeckBuilder)
             ClashScreen.CODEX -> CodexScreen(onClose = onCloseCodex)
             ClashScreen.SETTINGS -> ClashSettingsScreen(
                 soundEnabled = model.soundEnabled,
@@ -70,11 +74,17 @@ fun ClashDecksScreen(
                 onClose = onCloseSettings,
                 debugSections = debugSections
             )
+            ClashScreen.DECK_BUILDER -> ClashDeckBuilderScreen(
+                unlockedNonCommonCount = model.unlockedNonCommonCount,
+                selectedDeckIds = model.selectedDeckIds,
+                onSave = onSaveDeck,
+                onClose = onCloseDeckBuilder
+            )
             ClashScreen.DUEL -> model.duel?.let {
                 DuelScreen(it, model.cpuThinking, model.effects, onPlayCard, onEndTurn, onOpenCodex, onOpenSettings, "Opponent")
             }
             ClashScreen.RESULT -> model.duel?.let {
-                ResultScreen(it, onRematch, onBackToMenu, onOpenCodex, model.bestWinRounds)
+                ResultScreen(it, onRematch, onBackToMenu, onOpenCodex, model.bestWinRounds, model.justUnlockedCard)
             }
         }
     }
@@ -88,8 +98,10 @@ private fun MenuScreen(
     onStartDuel: () -> Unit,
     onOpenCodex: () -> Unit,
     onOpenSettings: () -> Unit,
-    onPlayVsFriend: () -> Unit
+    onPlayVsFriend: () -> Unit,
+    onOpenDeckBuilder: () -> Unit
 ) {
+    val unlockedCount = CardLibrary.unlockedIds(model.unlockedNonCommonCount).size
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -116,6 +128,7 @@ private fun MenuScreen(
         }
         Spacer(Modifier.height(8.dp))
         PillButton("Start Duel", onStartDuel)
+        PillButton("Deck ($unlockedCount/${CardLibrary.all.size} unlocked)", onOpenDeckBuilder, primary = false)
         PillButton("Play vs Friend (Bluetooth)", onPlayVsFriend, primary = false)
         PillButton("Codex", onOpenCodex, primary = false)
         PillButton("Settings", onOpenSettings, primary = false)
@@ -232,7 +245,9 @@ internal fun ResultScreen(
     onBackToMenu: () -> Unit,
     onOpenCodex: () -> Unit,
     /** Fewest rounds a win has ever taken (0 = none recorded — always 0 in co-op, which doesn't track this). */
-    bestWinRounds: Int = 0
+    bestWinRounds: Int = 0,
+    /** Set when this win unlocked a new card — always null in co-op. */
+    justUnlockedCard: com.baraka.game.clashdecks.model.Card? = null
 ) {
     val won = duel.winner == DuelWinner.PLAYER
     val isNewBest = won && duel.turnNumber == bestWinRounds
@@ -271,6 +286,15 @@ internal fun ResultScreen(
         }
         if (isNewBest) {
             Text("New fastest win!", color = GameColors.Warning, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
+        if (justUnlockedCard != null) {
+            Text(
+                "New card unlocked: ${justUnlockedCard.name}!",
+                color = GameColors.Accent,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
         }
         Spacer(Modifier.height(16.dp))
         PillButton("Rematch", onRematch)

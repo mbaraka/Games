@@ -22,12 +22,18 @@ data class Card(
     /** "Deal 2 · Stun (1) → enemy" — built from [effects], shown on the card face and in the Codex. */
     val summary: String get() = effects.joinToString("  ·  ") { it.describe() }
 
-    /** Raw offensive output ignoring buffs/block — used by the CPU's lethal check. */
+    /**
+     * Raw offensive output ignoring buffs/block — used by the CPU's lethal check.
+     * [Effect.ScalingDamage] only counts its guaranteed [Effect.ScalingDamage.base] here: the
+     * CPU can't know the scaling bonus without the live duel state, so it treats a scaling
+     * card as a conservative floor rather than ignoring it outright.
+     */
     val nominalDamage: Int
         get() = effects.sumOf {
             when (it) {
                 is Effect.Damage -> it.amount
                 is Effect.Shatter -> it.bonusDamage
+                is Effect.ScalingDamage -> it.base
                 else -> 0
             }
         }

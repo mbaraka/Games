@@ -24,6 +24,8 @@ sealed interface DuelVfx {
     data class Cleansed(override val side: VfxSide) : DuelVfx
     /** Riposte: [side] just charged a reflect — nothing happened to them yet, so this needed its own cue rather than silently returning no vfx. */
     data class ReflectReady(override val side: VfxSide) : DuelVfx
+    /** A Stun/Freeze/Root aimed at [side] was absorbed by their Warded status instead of landing. */
+    data class Warded(override val side: VfxSide) : DuelVfx
 
     /** [side] is whoever played the card. */
     data class CardPlayed(override val side: VfxSide, val type: CardType) : DuelVfx

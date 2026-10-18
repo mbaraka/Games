@@ -126,6 +126,9 @@ private fun ClashDecksRoot(
         onRematch = viewModel::rematch,
         onBackToMenu = viewModel::backToMenu,
         onPlayVsFriend = { showNameEntry = true },
+        onOpenDeckBuilder = viewModel::openDeckBuilder,
+        onCloseDeckBuilder = viewModel::closeDeckBuilder,
+        onSaveDeck = viewModel::saveDeck,
         debugSections = clashDebugSections(viewModel)
     )
 }
@@ -157,6 +160,13 @@ private fun clashDebugSections(viewModel: ClashDecksViewModel): List<DebugSectio
             DebugItem.Action("Force a win") { viewModel.debugForceWin() },
             DebugItem.Action("Force a loss") { viewModel.debugForceLose() },
             DebugItem.Info("All of the above need an active duel — they silently do nothing from the menu.")
+        )
+    ),
+    DebugSection(
+        "Progression",
+        listOf(
+            DebugItem.Action("Unlock next card") { viewModel.debugUnlockNextCard() },
+            DebugItem.Info("Normally one card unlocks per single-player win, in a fixed order — this skips the wait to check a specific card.")
         )
     )
 )

@@ -81,5 +81,14 @@ enum class StatusKind(
         icon = VectorIcon.Heart,
         colorArgb = 0xFF66BB6A,
         shortLabel = "Regen"
+    ),
+    /** Consumed automatically (see DuelEngine's `Effect.ApplyStatus` branch) the next time Stun, Freeze or Root would land on its holder — a shield against losing a turn, not against damage. */
+    WARDED(
+        "Warded",
+        "Blocks the next Stun, Freeze or Root applied to you, then is used up.",
+        isDebuff = false,
+        icon = VectorIcon.Shield,
+        colorArgb = 0xFF4DD0E1,
+        shortLabel = "Ward"
     );
 }

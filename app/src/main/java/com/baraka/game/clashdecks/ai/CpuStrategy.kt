@@ -70,12 +70,17 @@ object CpuStrategy {
                         StatusKind.POISON -> 6 + effect.amount * effect.turns
                         StatusKind.ROOT -> 4
                         StatusKind.REGEN -> if (lowHp) 8 else 3
+                        StatusKind.WARDED -> if (threatened) 6 else 3
                     }
                     is Effect.DrawCards -> score += 3 * effect.count
                     is Effect.GainEnergy -> score += 2 * effect.amount
                     is Effect.Cleanse -> score += if (me.statuses.any { it.kind.isDebuff }) 9 else -6
                     is Effect.ReflectNextHit -> score += if (threatened) 6 else 2
                     is Effect.Shatter -> score += if (opp.block > 0) opp.block else -2
+                    // ScalingDamage's guaranteed base is already folded into `dmg` above via
+                    // Card.nominalDamage — no extra scoring needed here, just don't fall
+                    // through to a compile error on this now-non-exhaustive `when`.
+                    is Effect.ScalingDamage -> {}
                     else -> {}
                 }
             }

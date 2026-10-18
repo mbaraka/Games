@@ -7,6 +7,8 @@ import com.baraka.game.clashdecks.ai.CpuStrategy
 import com.baraka.game.clashdecks.ai.Difficulty
 import com.baraka.game.clashdecks.data.ClashDecksSettingsRepository
 import com.baraka.game.clashdecks.data.DuelSoundEngine
+import com.baraka.game.clashdecks.model.Card
+import com.baraka.game.clashdecks.model.CardLibrary
 import com.baraka.game.clashdecks.model.DuelPhase
 import com.baraka.game.clashdecks.model.DuelState
 import com.baraka.game.clashdecks.model.DuelVfx
@@ -22,7 +24,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
-enum class ClashScreen { MENU, DUEL, CODEX, SETTINGS, RESULT }
+enum class ClashScreen { MENU, DUEL, CODEX, SETTINGS, RESULT, DECK_BUILDER }
 
 /** One visual effect plus a unique id so the UI's effect layer plays each batch once. */
 data class VfxEmission(val id: Long, val vfx: DuelVfx)
@@ -38,7 +40,13 @@ data class ClashUiModel(
     /** Co-op only: the partner reported a different [com.baraka.game.clashdecks.coop.CLASH_COOP_PROTOCOL] — they're on a different build. Always false in single-player. */
     val partnerVersionMismatch: Boolean = false,
     /** Single-player only: fewest rounds a win has ever taken (0 = none yet), so the result screen can show it alongside this duel's own round count. */
-    val bestWinRounds: Int = 0
+    val bestWinRounds: Int = 0,
+    /** Single-player only: how far through [CardLibrary.unlockOrder] wins have unlocked. Every Common is unlocked regardless. */
+    val unlockedNonCommonCount: Int = 0,
+    /** The player's saved deck selection — empty means "never built one yet", which callers treat as "everything currently unlocked". */
+    val selectedDeckIds: Set<String> = emptySet(),
+    /** Set for one result screen when that win unlocked a new card; cleared on the next duel. */
+    val justUnlockedCard: Card? = null
 )
 
 /**
@@ -54,10 +62,16 @@ class ClashDecksViewModel(application: Application) : AndroidViewModel(applicati
     private var vfxSeq = 0L
     private val settingsRepository = ClashDecksSettingsRepository.getInstance(application)
 
-    private val _ui = MutableStateFlow(ClashUiModel(soundEnabled = settingsRepository.isSoundEnabled()))
+    private val _ui = MutableStateFlow(
+        ClashUiModel(
+            soundEnabled = settingsRepository.isSoundEnabled(),
+            unlockedNonCommonCount = settingsRepository.unlockedNonCommonCount(),
+            selectedDeckIds = settingsRepository.selectedDeckCardIds()
+        )
+    )
     val ui: StateFlow<ClashUiModel> = _ui.asStateFlow()
 
-    /** Where Codex/Settings were opened from, so closing either returns to the right screen. */
+    /** Where Codex/Settings/Deck Builder were opened from, so closing any of them returns to the right screen. */
     private var screenBeforeOverlay: ClashScreen = ClashScreen.MENU
 
     fun setSoundEnabled(enabled: Boolean) {
@@ -68,13 +82,14 @@ class ClashDecksViewModel(application: Application) : AndroidViewModel(applicati
     fun setDifficulty(difficulty: Difficulty) = _ui.update { it.copy(difficulty = difficulty) }
 
     fun startDuel() {
-        val state = DuelEngine.startDuel(rng)
+        val state = DuelEngine.startDuel(rng, playerDeckCardIds = effectiveDeckIds())
         _ui.update {
             it.copy(
                 screen = ClashScreen.DUEL,
                 cpuThinking = false,
                 duel = null,
-                bestWinRounds = settingsRepository.bestWinRounds()
+                bestWinRounds = settingsRepository.bestWinRounds(),
+                justUnlockedCard = null
             )
         }
         applyState(state)
@@ -83,7 +98,14 @@ class ClashDecksViewModel(application: Application) : AndroidViewModel(applicati
     fun rematch() = startDuel()
 
     fun backToMenu() {
-        _ui.update { ClashUiModel(difficulty = it.difficulty, soundEnabled = it.soundEnabled) }
+        _ui.update {
+            ClashUiModel(
+                difficulty = it.difficulty,
+                soundEnabled = it.soundEnabled,
+                unlockedNonCommonCount = it.unlockedNonCommonCount,
+                selectedDeckIds = it.selectedDeckIds
+            )
+        }
     }
 
     fun openCodex() {
@@ -102,6 +124,30 @@ class ClashDecksViewModel(application: Application) : AndroidViewModel(applicati
 
     fun closeSettings() {
         _ui.update { it.copy(screen = screenBeforeOverlay) }
+    }
+
+    fun openDeckBuilder() {
+        screenBeforeOverlay = _ui.value.screen
+        _ui.update { it.copy(screen = ClashScreen.DECK_BUILDER) }
+    }
+
+    fun closeDeckBuilder() {
+        _ui.update { it.copy(screen = screenBeforeOverlay) }
+    }
+
+    /** Persists a new deck selection. The deck builder screen itself enforces [CardLibrary.MIN_DECK_SIZE]/[CardLibrary.MAX_DECK_SIZE] and only unlocked ids before calling this. */
+    fun saveDeck(cardIds: Set<String>) {
+        settingsRepository.setSelectedDeckCardIds(cardIds)
+        _ui.update { it.copy(selectedDeckIds = cardIds, screen = screenBeforeOverlay) }
+    }
+
+    /** The ids a new duel should actually deal from: the saved deck if it's still a valid size within what's unlocked, otherwise every unlocked card (capped). */
+    private fun effectiveDeckIds(): Set<String> {
+        val model = _ui.value
+        val unlocked = CardLibrary.unlockedIds(model.unlockedNonCommonCount)
+        val saved = model.selectedDeckIds.filter { it in unlocked }.toSet()
+        if (saved.size in CardLibrary.MIN_DECK_SIZE..CardLibrary.MAX_DECK_SIZE) return saved
+        return unlocked.toList().take(CardLibrary.MAX_DECK_SIZE).toSet()
     }
 
     fun playCard(cardId: String) {
@@ -175,6 +221,8 @@ class ClashDecksViewModel(application: Application) : AndroidViewModel(applicati
     fun debugFreezeCpu() = mutateDuel { DuelDebugTools.applyStatusToCpu(it, StatusKind.FREEZE) }
     fun debugForceWin() = mutateDuel(DuelDebugTools::forceWin)
     fun debugForceLose() = mutateDuel(DuelDebugTools::forceLose)
+    /** Jumps straight to the next unlock, ignoring the normal "one per win" pace — for checking a specific card's art/text without grinding duels. */
+    fun debugUnlockNextCard() = unlockNextCardIfAny()
 
     private fun mutateDuel(transform: (DuelState) -> DuelState) {
         val current = _ui.value.duel ?: return
@@ -190,9 +238,13 @@ class ClashDecksViewModel(application: Application) : AndroidViewModel(applicati
         // A win that beats (or sets) the fastest-win record is saved immediately, so the
         // result screen's "best" always reflects what just happened, not what it was before.
         var bestWinRounds = _ui.value.bestWinRounds
-        if (cleared.winner == DuelWinner.PLAYER && (bestWinRounds == 0 || cleared.turnNumber < bestWinRounds)) {
-            bestWinRounds = cleared.turnNumber
-            settingsRepository.setBestWinRounds(bestWinRounds)
+        var unlocked: Card? = null
+        if (cleared.winner == DuelWinner.PLAYER) {
+            if (bestWinRounds == 0 || cleared.turnNumber < bestWinRounds) {
+                bestWinRounds = cleared.turnNumber
+                settingsRepository.setBestWinRounds(bestWinRounds)
+            }
+            unlocked = unlockNextCardIfAny()
         }
 
         _ui.update {
@@ -200,9 +252,21 @@ class ClashDecksViewModel(application: Application) : AndroidViewModel(applicati
                 duel = cleared,
                 effects = emissions,
                 screen = if (cleared.winner != null) ClashScreen.RESULT else it.screen,
-                bestWinRounds = bestWinRounds
+                bestWinRounds = bestWinRounds,
+                justUnlockedCard = unlocked ?: it.justUnlockedCard
             )
         }
+    }
+
+    /** Unlocks the next card in [CardLibrary.unlockOrder], if any remain, and returns it. */
+    private fun unlockNextCardIfAny(): Card? {
+        val current = _ui.value.unlockedNonCommonCount
+        if (current >= CardLibrary.unlockOrder.size) return null
+        val next = CardLibrary.byId(CardLibrary.unlockOrder[current]) ?: return null
+        val newCount = current + 1
+        settingsRepository.setUnlockedNonCommonCount(newCount)
+        _ui.update { it.copy(unlockedNonCommonCount = newCount) }
+        return next
     }
 
     override fun onCleared() {
