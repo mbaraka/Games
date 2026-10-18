@@ -52,6 +52,7 @@ val minesweeperBuild = gameBuild("app/src/main/java/com/baraka/game/minesweeper"
 val clashDecksBuild = gameBuild("app/src/main/java/com/baraka/game/clashdecks", "app/src/main/java/com/baraka/game/coop")
 val battleshipBuild = gameBuild("app/src/main/java/com/baraka/game/battleship")
 val dreadnoughtBuild = gameBuild("app/src/main/java/com/baraka/game/dreadnought")
+val baseDefenderBuild = gameBuild("app/src/main/java/com/baraka/game/basedefender")
 
 android {
     namespace = "com.baraka.game"
@@ -73,6 +74,7 @@ android {
         buildConfigField("String", "CLASH_DECKS_VERSION", "\"1.$clashDecksBuild\"")
         buildConfigField("String", "BATTLESHIP_VERSION", "\"1.$battleshipBuild\"")
         buildConfigField("String", "DREADNOUGHT_VERSION", "\"1.$dreadnoughtBuild\"")
+        buildConfigField("String", "BASE_DEFENDER_VERSION", "\"1.$baseDefenderBuild\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -100,6 +102,16 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Separate package ID (and, since it's signed with the auto-generated debug
+            // keystore instead of our release keystore.jks, a separate signature too) so a
+            // debug build installs side-by-side with the Play release instead of conflicting
+            // with or overwriting it. No Google service in this project is tied to a signing
+            // certificate (no google-services.json/Firebase/OAuth client), so this is safe.
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            resValue("string", "app_name", "Game Hub Dev")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true

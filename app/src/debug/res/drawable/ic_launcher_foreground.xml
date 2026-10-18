@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Same arcade-cabinet silhouette as the release icon, but in a red/amber "dev build"
+         palette instead of cyan/purple, so it's unmistakable from the Play release icon. -->
+
+    <!-- Cabinet body (trapezoid, wider at the base) -->
+    <path
+        android:fillColor="#EDEDF2"
+        android:pathData="M31,16 L77,16 L85,90 L23,90 Z"/>
+
+    <!-- Marquee stripe -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M31,16 L77,16 L77,21 L31,21 Z"/>
+
+    <!-- Screen glow -->
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M36,24 L72,24 Q75,24 75,27 L75,51 Q75,54 72,54 L36,54 Q33,54 33,51 L33,27 Q33,24 36,24 Z"/>
+
+    <!-- Screen -->
+    <path
+        android:fillColor="#2E0A0A"
+        android:pathData="M39,28 L69,28 Q71,28 71,30 L71,48 Q71,50 69,50 L39,50 Q37,50 37,48 L37,30 Q37,28 39,28 Z"/>
+
+    <!-- Control panel -->
+    <path
+        android:fillColor="#331414"
+        android:pathData="M22,64 L86,64 Q88,64 88,66 L88,70 Q88,72 86,72 L22,72 Q20,72 20,70 L20,66 Q20,64 22,64 Z"/>
+
+    <!-- Buttons -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M31,68 A3.2,3.2 0 1,1 24.6,68 A3.2,3.2 0 1,1 31,68 Z"/>
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M42,68 A3.2,3.2 0 1,1 35.6,68 A3.2,3.2 0 1,1 42,68 Z"/>
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M72.4,68 A3.2,3.2 0 1,1 66,68 A3.2,3.2 0 1,1 72.4,68 Z"/>
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M83.4,68 A3.2,3.2 0 1,1 77,68 A3.2,3.2 0 1,1 83.4,68 Z"/>
+
+    <!-- Base -->
+    <path
+        android:fillColor="#5C3030"
+        android:pathData="M23,90 L85,90 L85,94 L23,94 Z"/>
+</vector>
