@@ -39,6 +39,7 @@ import com.baraka.game.clashdecks.model.DuelState
 import com.baraka.game.clashdecks.model.DuelWinner
 import com.baraka.game.clashdecks.model.LogKind
 import com.baraka.game.clashdecks.model.VfxSide
+import com.baraka.game.ui.debug.DebugSection
 import com.baraka.game.ui.theme.GameColors
 
 @Composable
@@ -56,7 +57,8 @@ fun ClashDecksScreen(
     onSetSoundEnabled: (Boolean) -> Unit,
     onRematch: () -> Unit,
     onBackToMenu: () -> Unit,
-    onPlayVsFriend: () -> Unit = {}
+    onPlayVsFriend: () -> Unit = {},
+    debugSections: List<DebugSection> = emptyList()
 ) {
     Box(modifier = Modifier.fillMaxSize().background(ScreenBg)) {
         when (model.screen) {
@@ -65,7 +67,8 @@ fun ClashDecksScreen(
             ClashScreen.SETTINGS -> ClashSettingsScreen(
                 soundEnabled = model.soundEnabled,
                 onSoundEnabledChanged = onSetSoundEnabled,
-                onClose = onCloseSettings
+                onClose = onCloseSettings,
+                debugSections = debugSections
             )
             ClashScreen.DUEL -> model.duel?.let {
                 DuelScreen(it, model.cpuThinking, model.effects, onPlayCard, onEndTurn, onOpenCodex, onOpenSettings, "Opponent")
@@ -250,6 +253,11 @@ internal fun ResultScreen(
             color = GameColors.TextSecondary,
             fontSize = 14.sp,
             textAlign = TextAlign.Center
+        )
+        Text(
+            "Finished in round ${duel.turnNumber}",
+            color = GameColors.TextMuted,
+            fontSize = 13.sp
         )
         Spacer(Modifier.height(16.dp))
         PillButton("Rematch", onRematch)

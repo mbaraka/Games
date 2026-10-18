@@ -10,6 +10,8 @@ import com.baraka.game.clashdecks.data.DuelSoundEngine
 import com.baraka.game.clashdecks.model.DuelPhase
 import com.baraka.game.clashdecks.model.DuelState
 import com.baraka.game.clashdecks.model.DuelVfx
+import com.baraka.game.clashdecks.model.StatusKind
+import com.baraka.game.clashdecks.systems.DuelDebugTools
 import com.baraka.game.clashdecks.systems.DuelEngine
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -146,6 +148,27 @@ class ClashDecksViewModel(application: Application) : AndroidViewModel(applicati
             }
             _ui.update { it.copy(cpuThinking = false) }
         }
+    }
+
+    // ---------------------------------------------------------------- debug tools
+    // See systems/DuelDebugTools.kt. Gated behind DebugKit's unlock in ClashSettingsScreen;
+    // every one of these is a no-op when there's no active duel to mutate.
+
+    fun debugHealPlayer() = mutateDuel(DuelDebugTools::healPlayerFull)
+    fun debugHealCpu() = mutateDuel(DuelDebugTools::healCpuFull)
+    fun debugDamagePlayerToOne() = mutateDuel { DuelDebugTools.setPlayerHp(it, 1) }
+    fun debugDamageCpuToOne() = mutateDuel { DuelDebugTools.setCpuHp(it, 1) }
+    fun debugGrantPlayerEnergy() = mutateDuel { DuelDebugTools.grantPlayerEnergy(it, 5) }
+    fun debugDrawPlayerCard() = mutateDuel { DuelDebugTools.drawPlayerCard(it, rng) }
+    fun debugCleansePlayer() = mutateDuel(DuelDebugTools::cleansePlayer)
+    fun debugPoisonCpu() = mutateDuel { DuelDebugTools.applyStatusToCpu(it, StatusKind.POISON) }
+    fun debugFreezeCpu() = mutateDuel { DuelDebugTools.applyStatusToCpu(it, StatusKind.FREEZE) }
+    fun debugForceWin() = mutateDuel(DuelDebugTools::forceWin)
+    fun debugForceLose() = mutateDuel(DuelDebugTools::forceLose)
+
+    private fun mutateDuel(transform: (DuelState) -> DuelState) {
+        val current = _ui.value.duel ?: return
+        applyState(transform(current))
     }
 
     /** Plays the state's pending sounds, forwards its VFX to the UI, then stores it cleared. */

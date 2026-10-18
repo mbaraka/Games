@@ -20,6 +20,8 @@ import com.baraka.game.coop.CoopLobbyScreen
 import com.baraka.game.clashdecks.ui.ClashCoopNameEntryScreen
 import com.baraka.game.clashdecks.ui.ClashCoopScreen
 import com.baraka.game.clashdecks.ui.ClashDecksScreen
+import com.baraka.game.ui.debug.DebugItem
+import com.baraka.game.ui.debug.DebugSection
 import com.baraka.game.ui.theme.GameTheme
 
 class ClashDecksActivity : ComponentActivity() {
@@ -123,6 +125,38 @@ private fun ClashDecksRoot(
         onSetSoundEnabled = viewModel::setSoundEnabled,
         onRematch = viewModel::rematch,
         onBackToMenu = viewModel::backToMenu,
-        onPlayVsFriend = { showNameEntry = true }
+        onPlayVsFriend = { showNameEntry = true },
+        debugSections = clashDebugSections(viewModel)
     )
 }
+
+/** Single-player-only cheats (see systems/DuelDebugTools.kt) — each is a no-op without an active duel. */
+private fun clashDebugSections(viewModel: ClashDecksViewModel): List<DebugSection> = listOf(
+    DebugSection(
+        "Health & energy",
+        listOf(
+            DebugItem.Action("Heal you to full") { viewModel.debugHealPlayer() },
+            DebugItem.Action("Heal opponent to full") { viewModel.debugHealCpu() },
+            DebugItem.Action("Drop you to 1 HP") { viewModel.debugDamagePlayerToOne() },
+            DebugItem.Action("Drop opponent to 1 HP") { viewModel.debugDamageCpuToOne() },
+            DebugItem.Action("+5 energy (you)") { viewModel.debugGrantPlayerEnergy() },
+            DebugItem.Action("Draw a card (you)") { viewModel.debugDrawPlayerCard() }
+        )
+    ),
+    DebugSection(
+        "Status effects",
+        listOf(
+            DebugItem.Action("Cleanse your debuffs") { viewModel.debugCleansePlayer() },
+            DebugItem.Action("Poison opponent") { viewModel.debugPoisonCpu() },
+            DebugItem.Action("Freeze opponent") { viewModel.debugFreezeCpu() }
+        )
+    ),
+    DebugSection(
+        "Duel outcome",
+        listOf(
+            DebugItem.Action("Force a win") { viewModel.debugForceWin() },
+            DebugItem.Action("Force a loss") { viewModel.debugForceLose() },
+            DebugItem.Info("All of the above need an active duel — they silently do nothing from the menu.")
+        )
+    )
+)
