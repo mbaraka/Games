@@ -10,6 +10,7 @@ import com.baraka.game.clashdecks.data.DuelSoundEngine
 import com.baraka.game.clashdecks.model.DuelPhase
 import com.baraka.game.clashdecks.model.DuelState
 import com.baraka.game.clashdecks.model.DuelVfx
+import com.baraka.game.clashdecks.model.DuelWinner
 import com.baraka.game.clashdecks.model.StatusKind
 import com.baraka.game.clashdecks.systems.DuelDebugTools
 import com.baraka.game.clashdecks.systems.DuelEngine
@@ -35,7 +36,9 @@ data class ClashUiModel(
     val effects: List<VfxEmission> = emptyList(),
     val soundEnabled: Boolean = true,
     /** Co-op only: the partner reported a different [com.baraka.game.clashdecks.coop.CLASH_COOP_PROTOCOL] — they're on a different build. Always false in single-player. */
-    val partnerVersionMismatch: Boolean = false
+    val partnerVersionMismatch: Boolean = false,
+    /** Single-player only: fewest rounds a win has ever taken (0 = none yet), so the result screen can show it alongside this duel's own round count. */
+    val bestWinRounds: Int = 0
 )
 
 /**
@@ -66,7 +69,14 @@ class ClashDecksViewModel(application: Application) : AndroidViewModel(applicati
 
     fun startDuel() {
         val state = DuelEngine.startDuel(rng)
-        _ui.update { it.copy(screen = ClashScreen.DUEL, cpuThinking = false, duel = null) }
+        _ui.update {
+            it.copy(
+                screen = ClashScreen.DUEL,
+                cpuThinking = false,
+                duel = null,
+                bestWinRounds = settingsRepository.bestWinRounds()
+            )
+        }
         applyState(state)
     }
 
@@ -176,11 +186,21 @@ class ClashDecksViewModel(application: Application) : AndroidViewModel(applicati
         if (_ui.value.soundEnabled) state.pendingSounds.forEach(sound::play)
         val emissions = state.pendingVfx.map { VfxEmission(vfxSeq++, it) }
         val cleared = state.copy(pendingSounds = emptyList(), pendingVfx = emptyList())
+
+        // A win that beats (or sets) the fastest-win record is saved immediately, so the
+        // result screen's "best" always reflects what just happened, not what it was before.
+        var bestWinRounds = _ui.value.bestWinRounds
+        if (cleared.winner == DuelWinner.PLAYER && (bestWinRounds == 0 || cleared.turnNumber < bestWinRounds)) {
+            bestWinRounds = cleared.turnNumber
+            settingsRepository.setBestWinRounds(bestWinRounds)
+        }
+
         _ui.update {
             it.copy(
                 duel = cleared,
                 effects = emissions,
-                screen = if (cleared.winner != null) ClashScreen.RESULT else it.screen
+                screen = if (cleared.winner != null) ClashScreen.RESULT else it.screen,
+                bestWinRounds = bestWinRounds
             )
         }
     }

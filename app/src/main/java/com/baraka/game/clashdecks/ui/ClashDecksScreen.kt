@@ -74,7 +74,7 @@ fun ClashDecksScreen(
                 DuelScreen(it, model.cpuThinking, model.effects, onPlayCard, onEndTurn, onOpenCodex, onOpenSettings, "Opponent")
             }
             ClashScreen.RESULT -> model.duel?.let {
-                ResultScreen(it, onRematch, onBackToMenu, onOpenCodex)
+                ResultScreen(it, onRematch, onBackToMenu, onOpenCodex, model.bestWinRounds)
             }
         }
     }
@@ -230,9 +230,12 @@ internal fun ResultScreen(
     duel: DuelState,
     onRematch: () -> Unit,
     onBackToMenu: () -> Unit,
-    onOpenCodex: () -> Unit
+    onOpenCodex: () -> Unit,
+    /** Fewest rounds a win has ever taken (0 = none recorded — always 0 in co-op, which doesn't track this). */
+    bestWinRounds: Int = 0
 ) {
     val won = duel.winner == DuelWinner.PLAYER
+    val isNewBest = won && duel.turnNumber == bestWinRounds
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -259,6 +262,16 @@ internal fun ResultScreen(
             color = GameColors.TextMuted,
             fontSize = 13.sp
         )
+        if (bestWinRounds > 0) {
+            Text(
+                "Best win: $bestWinRounds round${if (bestWinRounds == 1) "" else "s"}",
+                color = GameColors.TextMuted,
+                fontSize = 13.sp
+            )
+        }
+        if (isNewBest) {
+            Text("New fastest win!", color = GameColors.Warning, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
         Spacer(Modifier.height(16.dp))
         PillButton("Rematch", onRematch)
         PillButton("Menu", onBackToMenu, primary = false)

@@ -20,10 +20,18 @@ class ClashDecksSettingsRepository private constructor(
         preferences.edit().putString(KEY_PLAYER_NAME, name).apply()
     }
 
+    /** Fewest rounds a single-player duel has ever been won in. 0 means no win recorded yet. */
+    fun bestWinRounds(): Int = preferences.getInt(KEY_BEST_WIN_ROUNDS, 0)
+
+    fun setBestWinRounds(rounds: Int) {
+        preferences.edit().putInt(KEY_BEST_WIN_ROUNDS, rounds).apply()
+    }
+
     companion object {
         private const val PREF_FILE = "clash_decks_settings"
         private const val KEY_SOUND_ENABLED = "sound_enabled"
         private const val KEY_PLAYER_NAME = "player_name"
+        private const val KEY_BEST_WIN_ROUNDS = "best_win_rounds"
 
         @Volatile
         private var instance: ClashDecksSettingsRepository? = null
