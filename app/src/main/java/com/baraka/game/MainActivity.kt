@@ -240,7 +240,7 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
     GameCatalogEntry(
         id = "minesweeper",
         title = "Minesweeper",
-        description = "Two-phone Bluetooth minefield - clear the board together or race for cells.",
+        description = "Classic solo Minesweeper, plus two-phone Bluetooth play - clear the board together or race for cells.",
         color = Color(0xFF4DD0E1),
         activityClass = MinesweeperActivity::class.java,
         multiplayer = true

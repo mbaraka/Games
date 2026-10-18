@@ -1,9 +1,11 @@
 package com.baraka.game.minesweeper.model
 
 /** How the two players relate: [COOP] shares lives and wins or loses together, [VERSUS] scores every cell you uncover. */
-enum class MineMode(val label: String, val blurb: String) {
+enum class MineMode(val label: String, val blurb: String, val multiplayer: Boolean = true) {
     COOP("Co-op", "Clear the board together. Both of you share 3 lives: every mine you trigger costs one."),
-    VERSUS("Versus", "Race for cells. Each safe cell you uncover scores a point, each mine costs 5. Most points wins.")
+    VERSUS("Versus", "Race for cells. Each safe cell you uncover scores a point, each mine costs 5. Most points wins."),
+    /** Classic single-player game on the same engine and screens: one mine ends it. Keep last so snapshot ordinals stay stable. */
+    SOLO("Solo", "Classic Minesweeper. Uncover every safe cell; one mine ends the game.", multiplayer = false)
 }
 
 enum class MineDifficulty(val label: String, val w: Int, val h: Int, val mines: Int) {
@@ -35,6 +37,7 @@ object MineStatus {
 }
 
 const val COOP_LIVES = 3
+const val SOLO_LIVES = 1
 const val MINE_PENALTY = 5
 
 /**

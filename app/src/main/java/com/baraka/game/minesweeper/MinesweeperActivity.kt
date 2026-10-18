@@ -43,6 +43,7 @@ private fun MinesweeperRoot(vm: MineViewModel, onExit: () -> Unit) {
     when (screen) {
         MineScreen.MENU -> MineMenuScreen(
             vm,
+            onPlaySolo = { screen = MineScreen.GAME },
             onPlayFriend = { screen = MineScreen.LOBBY },
             onSettings = { screen = MineScreen.SETTINGS },
             onBack = onExit

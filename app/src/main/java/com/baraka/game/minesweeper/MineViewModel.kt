@@ -82,6 +82,18 @@ class MineViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Starts a single-player game: the same host-side engine with no partner and no link. */
+    fun beginSolo() {
+        end()
+        me = 0
+        connected = true
+        versionMismatch = false
+        xray = false
+        lastBoom = 0
+        mode = MineMode.SOLO
+        newGame()
+    }
+
     /** Leaves the game and closes the link so the partner's phone notices. */
     fun end() {
         pollJob?.cancel()

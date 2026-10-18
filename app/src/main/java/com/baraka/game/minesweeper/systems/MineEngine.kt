@@ -7,6 +7,7 @@ import com.baraka.game.minesweeper.model.MineDifficulty
 import com.baraka.game.minesweeper.model.MineMode
 import com.baraka.game.minesweeper.model.MineSnap
 import com.baraka.game.minesweeper.model.MineStatus
+import com.baraka.game.minesweeper.model.SOLO_LIVES
 import kotlin.random.Random
 
 /**
@@ -27,7 +28,8 @@ class MineGame(val mode: MineMode, val difficulty: MineDifficulty, private val r
 
     private var generated = false
     private var revealedSafe = 0
-    var lives = COOP_LIVES
+    private val startLives = if (mode == MineMode.SOLO) SOLO_LIVES else COOP_LIVES
+    var lives = startLives
         private set
     val score = IntArray(2)
     var status = MineStatus.PLAYING
@@ -48,7 +50,7 @@ class MineGame(val mode: MineMode, val difficulty: MineDifficulty, private val r
             boomSeq++
             boomBy = player
             when (mode) {
-                MineMode.COOP -> if (--lives <= 0) status = MineStatus.LOST
+                MineMode.COOP, MineMode.SOLO -> if (--lives <= 0) status = MineStatus.LOST
                 MineMode.VERSUS -> score[player] -= MINE_PENALTY
             }
             return true
@@ -86,7 +88,7 @@ class MineGame(val mode: MineMode, val difficulty: MineDifficulty, private val r
 
     /** Debug: gives the shared lives back and resumes a co-op game lost on the last mine. */
     fun restoreLives() {
-        lives = COOP_LIVES
+        lives = startLives
         if (status == MineStatus.LOST) status = MineStatus.PLAYING
     }
 

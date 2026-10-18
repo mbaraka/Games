@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -39,36 +40,43 @@ import com.baraka.game.ui.debug.DebugKit
 import com.baraka.game.ui.debug.DebugPanel
 import com.baraka.game.ui.debug.FpsOverlay
 import com.baraka.game.ui.debug.FrameStats
+import kotlinx.coroutines.delay
 
 @Composable
-fun MineMenuScreen(vm: MineViewModel, onPlayFriend: () -> Unit, onSettings: () -> Unit, onBack: () -> Unit) {
+fun MineMenuScreen(vm: MineViewModel, onPlaySolo: () -> Unit, onPlayFriend: () -> Unit, onSettings: () -> Unit, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     GameScreenContainer(backgroundColor = MineColors.Background, scrollable = true, horizontalAlignment = Alignment.CenterHorizontally) {
         Text("MINESWEEPER", color = MineColors.Accent, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 12.dp))
         Text("Two phones, one minefield", color = MineColors.Muted, fontSize = 14.sp, modifier = Modifier.padding(bottom = 18.dp))
 
-        Card("Mode (host picks)") {
+        Card("Two phones: mode (host picks)") {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for (m in MineMode.entries) MineButton(m.label, { vm.mode = m }, Modifier.weight(1f), selected = vm.mode == m)
+                for (m in MineMode.entries) if (m.multiplayer) MineButton(m.label, { vm.mode = m }, Modifier.weight(1f), selected = vm.mode == m)
             }
             Text(vm.mode.blurb, color = MineColors.Muted, fontSize = 13.sp)
         }
         Spacer12()
-        Card("Board size (host picks)") {
+        Card("Board size") {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 for (d in MineDifficulty.entries) MineButton(d.label, { vm.difficulty = d }, Modifier.weight(1f), selected = vm.difficulty == d)
             }
             Text("${vm.difficulty.w} x ${vm.difficulty.h} cells, ${vm.difficulty.mines} mines", color = MineColors.Muted, fontSize = 13.sp)
         }
         Spacer12()
-        MineButton("Play with a friend (Bluetooth)", onPlayFriend, Modifier.fillMaxWidth(), primary = true)
+        MineButton("Play solo", { vm.beginSolo(); onPlaySolo() }, Modifier.fillMaxWidth(), primary = true)
+        Text(MineMode.SOLO.blurb, color = MineColors.Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+        Spacer12()
+        MineButton("Play with a friend (Bluetooth)", {
+            if (!vm.mode.multiplayer) vm.mode = MineMode.COOP
+            onPlayFriend()
+        }, Modifier.fillMaxWidth())
         Spacer12()
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             MineButton("Settings", onSettings, Modifier.weight(1f))
             MineButton("Back to hub", onBack, Modifier.weight(1f))
         }
         Text(
-            "The host (who taps Host in the lobby) picks the mode and size. Both phones tap at the same time. Tap to uncover, long-press or use the flag button to flag.",
+            "For two phones, the host (who taps Host in the lobby) picks the mode and size and both phones tap at the same time. Tap to uncover, long-press or use the flag button to flag.",
             color = MineColors.Muted, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 16.dp)
         )
     }
@@ -96,6 +104,16 @@ fun MineGameScreen(vm: MineViewModel, versionName: String, onLeave: () -> Unit) 
     var debugOpen by remember { mutableStateOf(false) }
     var hideResult by remember { mutableStateOf(false) }
     val stats = remember { FrameStats() }
+    // Solo timer: runs from the first uncovered cell until the game ends; restarts with every new board.
+    var seconds by remember { mutableIntStateOf(0) }
+    val timing = snap != null && snap.started && snap.status == MineStatus.PLAYING
+    LaunchedEffect(snap?.started) { if (snap?.started != true) seconds = 0 }
+    LaunchedEffect(timing) {
+        while (timing) {
+            delay(1000)
+            seconds++
+        }
+    }
     LaunchedEffect(snap?.status) { hideResult = false }
     LaunchedEffect(vm.settings.showFps) {
         if (!vm.settings.showFps) return@LaunchedEffect
@@ -122,7 +140,10 @@ fun MineGameScreen(vm: MineViewModel, versionName: String, onLeave: () -> Unit) 
                     snap?.modeEnum?.label?.uppercase() ?: "", color = MineColors.Accent, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold,
                     textAlign = TextAlign.Center, modifier = Modifier.weight(1f)
                 )
-                Text(if (vm.isHost) "Host" else "Guest", color = MineColors.Muted, fontSize = 12.sp)
+                Text(
+                    if (snap?.modeEnum?.multiplayer == false) "" else if (vm.isHost) "Host" else "Guest",
+                    color = MineColors.Muted, fontSize = 12.sp
+                )
             }
             if (!vm.connected) Banner("Partner disconnected.", MineColors.Bad)
             else if (vm.versionMismatch) Banner("Your partner has a different game version - update both phones.", MineColors.Danger)
@@ -132,7 +153,7 @@ fun MineGameScreen(vm: MineViewModel, versionName: String, onLeave: () -> Unit) 
                     Text("Waiting for the host to deal...", color = MineColors.Muted, fontSize = 16.sp)
                 }
             } else {
-                StatusBar(snap, vm.me)
+                StatusBar(snap, vm.me, seconds)
                 Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
                     MineBoardView(
                         snap = snap,
@@ -154,12 +175,12 @@ fun MineGameScreen(vm: MineViewModel, versionName: String, onLeave: () -> Unit) 
         if (vm.settings.showFps) FpsOverlay(stats, Modifier.align(Alignment.TopStart).padding(top = 4.dp, start = 4.dp))
 
         if (snap != null && snap.status != MineStatus.PLAYING && !hideResult && !paused) {
-            ResultCard(snap, vm.me, vm.isHost, onRematch = vm::rematch, onView = { hideResult = true }, onLeave = onLeave)
+            ResultCard(snap, vm.me, vm.isHost, seconds, onRematch = vm::rematch, onView = { hideResult = true }, onLeave = onLeave)
         }
         if (paused && !debugOpen) {
             Overlay {
                 Text("PAUSED", color = MineColors.Text, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                Text("The board keeps running for your partner.", color = MineColors.Muted, fontSize = 12.sp)
+                if (snap?.modeEnum?.multiplayer != false) Text("The board keeps running for your partner.", color = MineColors.Muted, fontSize = 12.sp)
                 MineButton("Resume", { paused = false }, Modifier.fillMaxWidth(), primary = true)
                 MineButton("Settings", { settingsOpen = true }, Modifier.fillMaxWidth())
                 if (DebugKit.isUnlocked(context)) MineButton("Debug tools", { debugOpen = true }, Modifier.fillMaxWidth())
@@ -179,14 +200,16 @@ private fun Banner(text: String, color: Color) {
 }
 
 @Composable
-private fun StatusBar(snap: MineSnap, me: Int) {
+private fun StatusBar(snap: MineSnap, me: Int, seconds: Int) {
     val mine = if (me == 0) snap.scoreHost else snap.scoreGuest
     val other = if (me == 0) snap.scoreGuest else snap.scoreHost
     Row(
         Modifier.fillMaxWidth().padding(top = 8.dp).background(MineColors.Card, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (snap.modeEnum == MineMode.VERSUS) {
+        if (snap.modeEnum == MineMode.SOLO) {
+            Text("Time  ${clock(seconds)}", color = MineColors.Text, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+        } else if (snap.modeEnum == MineMode.VERSUS) {
             Text("You  $mine", color = MineColors.Me, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
             Text("Partner  $other", color = MineColors.Partner, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
         } else {
@@ -208,11 +231,14 @@ private fun Overlay(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun ResultCard(snap: MineSnap, me: Int, isHost: Boolean, onRematch: () -> Unit, onView: () -> Unit, onLeave: () -> Unit) {
+private fun ResultCard(snap: MineSnap, me: Int, isHost: Boolean, seconds: Int, onRematch: () -> Unit, onView: () -> Unit, onLeave: () -> Unit) {
     val mine = if (me == 0) snap.scoreHost else snap.scoreGuest
     val other = if (me == 0) snap.scoreGuest else snap.scoreHost
     val versus = snap.modeEnum == MineMode.VERSUS
+    val solo = snap.modeEnum == MineMode.SOLO
     val (title, color) = when {
+        solo && snap.status == MineStatus.LOST -> "Boom!" to MineColors.Bad
+        solo -> "Cleared!" to MineColors.Good
         snap.status == MineStatus.LOST -> "Out of lives" to MineColors.Bad
         !versus -> "Board cleared!" to MineColors.Good
         mine > other -> "You win!" to MineColors.Good
@@ -222,7 +248,8 @@ private fun ResultCard(snap: MineSnap, me: Int, isHost: Boolean, onRematch: () -
     Overlay {
         Text(title, color = color, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
         Text(
-            if (versus) "You $mine  -  Partner $other" else "You uncovered $mine cells, your partner $other.",
+            if (solo) "You uncovered $mine cells in ${clock(seconds)}."
+            else if (versus) "You $mine  -  Partner $other" else "You uncovered $mine cells, your partner $other.",
             color = MineColors.Text, fontSize = 15.sp, textAlign = TextAlign.Center
         )
         MineButton(if (isHost) "Play again" else "Ask for a rematch", onRematch, Modifier.fillMaxWidth(), primary = true)
@@ -230,3 +257,5 @@ private fun ResultCard(snap: MineSnap, me: Int, isHost: Boolean, onRematch: () -
         MineButton("Leave", onLeave, Modifier.fillMaxWidth())
     }
 }
+
+private fun clock(seconds: Int): String = "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}"
