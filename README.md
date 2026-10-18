@@ -22,12 +22,12 @@ No ads, no accounts, no tracking. Just simple, fun games.
 | Memory Match | Find matching pairs of gaming cards. |
 | Number Cruncher | Combine numbers to reach the target. |
 | Snakes & Ladders | 2D board — 2–6 players, each human or CPU. |
-| Base Defender | Defend your base — aim and shoot at incoming enemies. |
+| Base Defender | Defend your turrets across 20 waves — each extra base is a different turret (cannon, gatling, scatter, sniper). |
 | Fleet Duel | Local 2 players or vs computer — place fleets, then take turns firing. |
 | Dreadnought | Top-down naval combat in landscape — steer a battleship, aim rotating turrets and lead your shots to sink waves of destroyers, torpedo boats, submarines, cruisers, carriers and a flagship boss; refit between waves and in the harbour. |
 | Train Survivor | Side-view train defense — fight ground and flying zombies and bosses, pick routes, earn coins, upgrade the train and its named survivors. Two-phone Bluetooth co-op: two trains, double zombies, lend passengers across a Gangway. |
 | Tunnel Crew | Lemmings-style puzzler — hand skills (dig, build, bash, mine, climb, float, block, bomb, pour cement, lay decks, stack stairs) to a walking crew and guide them to the exit across 22 levels with medals. |
-| Minesweeper | Two-phone Bluetooth minefield — co-op (shared lives) or versus (race for cells) on one shared board, with a practice bot. |
+| Minesweeper | Solo classic, plus two-phone Bluetooth minefield — co-op (shared lives) or versus (race for cells) on one shared board, with a practice bot. |
 | Key Reader | Scan NFC keys and manage saved entries. |
 
 The full list lives in [`GAME_CATALOG`](app/src/main/java/com/baraka/game/MainActivity.kt) —
