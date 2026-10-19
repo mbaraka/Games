@@ -1,6 +1,7 @@
 package com.baraka.game.clashdecks.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -24,10 +25,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +53,7 @@ import com.baraka.game.knightsurvivor.model.VectorIcon
 import com.baraka.game.knightsurvivor.render.drawKnightIcon
 import com.baraka.game.knightsurvivor.render.drawVectorIcon
 import com.baraka.game.ui.theme.GameColors
+import kotlinx.coroutines.delay
 
 internal val PanelBg: Color
     @Composable get() = MaterialTheme.colorScheme.surfaceVariant
@@ -167,6 +175,47 @@ internal fun StatusRow(statuses: List<StatusEffect>) {
     }
 }
 
+/** A one-shot icon that pops out from behind the avatar and dissolves — the on-character echo of a status/shield/heal event, so the effect reads at a glance instead of only through the floating word and the status chip. */
+private data class StatusBurst(val id: Long, val icon: VectorIcon, val color: Color, val big: Boolean = false)
+
+private fun burstFor(e: VfxEmission): StatusBurst? = when (val v = e.vfx) {
+    is DuelVfx.StatusApplied -> StatusBurst(e.id, v.kind.icon, Color(v.kind.colorArgb))
+    is DuelVfx.Warded -> StatusBurst(e.id, VectorIcon.Shield, Color(0xFF4DD0E1))
+    is DuelVfx.Cleansed -> StatusBurst(e.id, VectorIcon.Star(points = 7, innerRadiusRatio = 0.42f), Color(0xFF81C784))
+    is DuelVfx.ReflectReady -> StatusBurst(e.id, VectorIcon.Shield, Color(0xFFB39DDB))
+    is DuelVfx.Frozen -> StatusBurst(e.id, VectorIcon.Star(points = 6, innerRadiusRatio = 0.3f), Color(0xFF4FC3F7), big = true)
+    is DuelVfx.BlockShattered -> StatusBurst(e.id, VectorIcon.Shield, Color(0xFFECEFF1), big = true)
+    is DuelVfx.BlockGain -> StatusBurst(e.id, VectorIcon.Shield, Color(0xFF64B5F6))
+    is DuelVfx.Heal -> if (v.amount > 0) StatusBurst(e.id, VectorIcon.Heart, Color(0xFF66BB6A)) else null
+    else -> null
+}
+
+@Composable
+private fun StatusBurstIcon(burst: StatusBurst, onDone: () -> Unit) {
+    val progress by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = tween(durationMillis = 560, easing = LinearOutSlowInEasing),
+        label = "statusBurst"
+    )
+    LaunchedEffect(burst.id) {
+        delay(580)
+        onDone()
+    }
+    Canvas(
+        modifier = Modifier
+            .size(if (burst.big) 64.dp else 48.dp)
+            .scale(0.5f + 1.3f * progress)
+            .alpha((1f - progress).coerceIn(0f, 1f))
+    ) {
+        drawVectorIcon(
+            icon = burst.icon,
+            center = Offset(size.width / 2f, size.height / 2f),
+            radius = size.minDimension * 0.46f,
+            color = burst.color
+        )
+    }
+}
+
 @Composable
 internal fun DuelistPanel(
     duelist: Duelist,
@@ -194,6 +243,11 @@ internal fun DuelistPanel(
         label = "jitter"
     )
 
+    val bursts = remember { mutableStateListOf<StatusBurst>() }
+    LaunchedEffect(effects) {
+        effects.forEach { e -> if (e.vfx.side == side) burstFor(e)?.let { bursts.add(it) } }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -204,11 +258,14 @@ internal fun DuelistPanel(
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AvatarCanvas(
-                design = if (duelist.isCpu) KnightDesign.BERSERKER else KnightDesign.SWORN_BLADE,
-                frozen = duelist.hasStatus(com.baraka.game.clashdecks.model.StatusKind.FREEZE),
-                flash = flash
-            )
+            Box(contentAlignment = Alignment.Center) {
+                AvatarCanvas(
+                    design = if (duelist.isCpu) KnightDesign.BERSERKER else KnightDesign.SWORN_BLADE,
+                    frozen = duelist.hasStatus(com.baraka.game.clashdecks.model.StatusKind.FREEZE),
+                    flash = flash
+                )
+                bursts.forEach { b -> key(b.id) { StatusBurstIcon(b) { bursts.remove(b) } } }
+            }
             Spacer(Modifier.width(8.dp))
             Text(label, color = GameColors.TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(8.dp))
