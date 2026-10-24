@@ -99,6 +99,7 @@ class NavalRenderer {
         drawParticles(g, under = true)
         drawTorpedoes(g)
         for (i in g.ships.size - 1 downTo 0) drawShip(g.ships[i], t)
+        drawPlanes(g, t)
         drawShells(g)
         drawParticles(g, under = false)
         drawAim(g, st)
@@ -273,6 +274,50 @@ class NavalRenderer {
                 drawLine(col, Offset(px, py), Offset(px - sxn * k, py), w)
                 drawLine(col, Offset(px, py), Offset(px, py - syn * k), w)
             }
+        }
+    }
+
+    // --- aircraft -------------------------------------------------------------------------------------
+
+    private fun DrawScope.drawPlanes(g: NavalGame, t: Float) {
+        val canvas = drawContext.canvas
+        for (i in 0 until NavalGame.PL_MAX) {
+            if (!g.plAlive[i]) continue
+            val sx = worldToScreenX(g.plX[i])
+            val sy = worldToScreenY(g.plY[i])
+            if (sx < -80f || sx > size.width + 80f || sy < -80f || sy > size.height + 80f) continue
+            val alt = g.plAlt[i]
+            val k = scale * (0.85f + 0.35f * alt)
+            val enemy = g.plSide[i] == 1
+            // shadow on the water, further away the higher the plane flies
+            canvas.save()
+            canvas.translate(sx + 9f * alt * scale, sy + 13f * alt * scale)
+            canvas.rotate(g.plHead[i] * DEG)
+            canvas.scale(k)
+            planeShape(Color(0x33000000), Color(0x33000000), Color.Transparent, Color.Transparent, 0f)
+            canvas.restore()
+            canvas.save()
+            canvas.translate(sx, sy)
+            canvas.rotate(g.plHead[i] * DEG)
+            canvas.scale(k)
+            if (enemy) planeShape(Color(0xFF6B7078), Color(0xFF565B62), Color(0xFFE53935), Color(0xFF263238), t + i)
+            else planeShape(Color(0xFFC5D0D8), Color(0xFFA3B3BF), Color(0xFF2979FF), Color(0xFF263238), t + i)
+            canvas.restore()
+        }
+    }
+
+    /** A single-engine bomber seen from above, about 30 m long; nose to +x. */
+    private fun DrawScope.planeShape(body: Color, wing: Color, mark: Color, glass: Color, spin: Float) {
+        drawRect(wing, Offset(-14f, -7f), androidx.compose.ui.geometry.Size(5f, 14f)) // tail plane
+        drawRect(wing, Offset(-3f, -17f), androidx.compose.ui.geometry.Size(9f, 34f)) // wing
+        drawOval(body, Offset(-15f, -2.8f), androidx.compose.ui.geometry.Size(31f, 5.6f)) // fuselage
+        drawCircle(glass, 2.1f, Offset(3f, 0f)) // cockpit
+        drawCircle(mark, 2.2f, Offset(1f, 11f))
+        drawCircle(mark, 2.2f, Offset(1f, -11f))
+        if (glass.alpha > 0f) {
+            drawCircle(Color(0x33FFFFFF), 6.5f, Offset(16f, 0f)) // propeller blur
+            val a = spin * 40f
+            drawLine(Color(0x99000000), Offset(16f, -6f * cos(a)), Offset(16f, 6f * cos(a)), 1.2f)
         }
     }
 
@@ -463,7 +508,16 @@ class NavalRenderer {
         text.color = 0xFFEAF2F8.toInt()
         canvas.drawText(hullStr, x + 10f * d, y + 17f * d, text)
         // main battery: one bar per turret, fills as it reloads
-        val mains = p.cls.mainCount
+        if (p.cls.mainCount == 0 && p.cls.heroPlanes > 0) {
+            // a carrier shows its hangar instead of gun reloads: one pip per plane, gold when ready on deck
+            val n = p.cls.heroPlanes
+            val pw = (w - 20f * d - (n - 1) * 4f * d) / n
+            for (k in 0 until n) {
+                val bx = x + 10f * d + k * (pw + 4f * d)
+                drawRect(if (k < p.hangar) Color(0xFFFFD54F) else Color(0xFF1B2A36), Offset(bx, y + 37f * d), androidx.compose.ui.geometry.Size(pw, 7f * d))
+            }
+        }
+        val mains = max(1, p.cls.mainCount)
         val bw = (w - 20f * d - (mains - 1) * 4f * d) / mains
         var bi = 0
         for (i in p.cls.mounts.indices) {
@@ -494,14 +548,14 @@ class NavalRenderer {
             text.color = 0xFFFFFFFF.toInt()
             text.alpha = (min(1f, g.phaseT) * 255).toInt()
             canvas.drawText(waveStr, cx, halfH - 30f * d, text)
-            if (g.wave % 5 == 0) {
+            if (NavalGame.isBossWave(g.wave)) {
                 text.textSize = 16f * d
                 text.color = 0xFFEF5350.toInt()
                 canvas.drawText("FLAGSHIP INBOUND", cx, halfH - 6f * d, text)
             }
             text.alpha = 255
         } else if (g.phase == PHASE_CLEARED) {
-            val bonus = 20 + g.wave * 8
+            val bonus = NavalGame.clearBonus(g.wave)
             if (bonus != lastClearCoins) {
                 lastClearCoins = bonus
                 clearStr = "+$bonus coins"

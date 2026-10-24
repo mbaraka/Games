@@ -49,6 +49,7 @@ fun TrainGame.writeWorld(out: DataOutputStream) {
     if (c != null) {
         out.writeFloat(c.x); out.writeFloat(c.y); out.writeFloat(c.phase); out.writeBoolean(c.landed); out.writeFloat(c.life)
     }
+    writeHitcher(out)
     val j = junction
     out.writeBoolean(j != null)
     if (j != null) {
@@ -77,6 +78,7 @@ fun TrainGame.readWorld(input: DataInputStream) {
         c.phase = input.readFloat(); c.landed = input.readBoolean(); c.life = input.readFloat()
         c
     } else null
+    readHitcher(input)
     if (input.readBoolean()) {
         val a = Biome.entries[input.readUnsignedByte().coerceAtMost(Biome.entries.lastIndex)]
         val b = Biome.entries[input.readUnsignedByte().coerceAtMost(Biome.entries.lastIndex)]
@@ -136,6 +138,8 @@ fun TrainGame.writeRig(out: DataOutputStream) {
         out.writeByte(h.kind.ordinal)
         h.writeState(out)
     }
+    writePassenger(out)
+    writePuddles(out)
 }
 
 fun TrainGame.readRig(input: DataInputStream, zombieIndex: Map<Int, Zombie>) {
@@ -195,6 +199,8 @@ fun TrainGame.readRig(input: DataInputStream, zombieIndex: Map<Int, Zombie>) {
         hazards.clear()
         hazards.addAll(rebuilt)
     }
+    readPassenger(input)
+    readPuddles(input)
 }
 
 // ------------------------------------------------------------------ zombies
@@ -312,7 +318,10 @@ fun TrainGame.replayFx(input: DataInputStream) {
                 val width = input.readUnsignedByte() / 10f
                 val color = input.readInt()
                 val packed = input.readShort().toInt()
-                addTracer(Tracer(x, y, x2, y2, (packed shr 1) / 100f, width, color, jagged = packed and 1 != 0))
+                addTracer(
+                    Tracer(x, y, x2, y2, (packed shr 5) / 100f, width, color, jagged = packed and 1 != 0)
+                        .also { it.style = com.baraka.game.trainsurvivor.model.ShotStyle.entries.getOrElse((packed shr 1) and 15) { com.baraka.game.trainsurvivor.model.ShotStyle.LINE } }
+                )
             }
             FxLog.EXPLOSION -> explosion(x, y, input.readUnsignedByte().toFloat())
             FxLog.SPARK -> spark(x, y)
@@ -378,6 +387,7 @@ fun TrainGame.visualTick(dt: Float) {
         updateRepairers(dt)
         emitSmoke(dt)
     }
+    hitchVisualTick(dt)
     if (leader == null) {
         // The zombie list is shared by both mirrors: ease it once.
         val k = min(1f, dt * 14f)

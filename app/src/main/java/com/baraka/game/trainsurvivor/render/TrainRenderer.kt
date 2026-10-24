@@ -26,6 +26,7 @@ import com.baraka.game.trainsurvivor.model.SURVIVORS
 import com.baraka.game.trainsurvivor.model.TrainShape
 import com.baraka.game.trainsurvivor.model.DangerLevel
 import com.baraka.game.trainsurvivor.model.WeaponType
+import com.baraka.game.trainsurvivor.model.ShotStyle
 import com.baraka.game.trainsurvivor.model.ZombieType
 import com.baraka.game.trainsurvivor.systems.CAR_W
 import com.baraka.game.trainsurvivor.systems.COWCATCHER
@@ -33,11 +34,13 @@ import com.baraka.game.trainsurvivor.systems.LOCO_W
 import com.baraka.game.trainsurvivor.systems.ParticleKind
 import com.baraka.game.trainsurvivor.systems.LANE_DY
 import com.baraka.game.trainsurvivor.systems.RAIL_Y
+import com.baraka.game.trainsurvivor.systems.Tracer
 import com.baraka.game.trainsurvivor.systems.TrainGame
 import com.baraka.game.trainsurvivor.systems.Zombie
 import com.baraka.game.trainsurvivor.systems.weaponLength
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -180,6 +183,7 @@ private fun DrawScope.drawLaneBody(rig: TrainGame, light: Float, laneFilter: Int
     palette = rig.livery // each train wears its own paint
     drawRails(rig)
     drawTrain(rig, light)
+    drawPuddles(rig)
     val order = rig.drawOrder
     for (i in order.indices) {
         val z = order[i]
@@ -187,7 +191,10 @@ private fun DrawScope.drawLaneBody(rig: TrainGame, light: Float, laneFilter: Int
         drawZombie(z)
         if (z.elite != null) drawEliteMarks(z, rig.time)
     }
-    if (front) drawCrate(rig)
+    if (front) {
+        drawCrate(rig)
+        drawHitcher(rig)
+    }
     drawShells(rig)
     drawHazards(rig)
     if (rig.rescueTime > 0f) drawStranded(rig)
@@ -701,6 +708,7 @@ private fun DrawScope.drawTrain(g: TrainGame, light: Float) {
         if (g.flameLevel > 0) drawFlamer(g)
         if (g.guestPresent) drawGuestMount(g)
         for (i in 0..g.slotCount) drawGunner(g, i)
+        drawPassenger(g)
         drawAwayMarkers(g)
     }
 }
@@ -1293,6 +1301,10 @@ private fun DrawScope.drawGlow(g: TrainGame, night: Float, laneFilter: Int = -1)
     for (ti in g.tracers.indices) {
         val t = g.tracers[ti]
         if (laneFilter >= 0 && t.lane != laneFilter) continue
+        if (t.style != ShotStyle.LINE) {
+            drawShot(t)
+            continue
+        }
         val a = (t.life / 0.1f).coerceIn(0.3f, 1f)
         if (t.jagged) {
             var px = t.x1
@@ -1603,4 +1615,249 @@ private fun DrawScope.drawStranded(g: TrainGame) {
         drawArc(Color(0xFF66FF8A), -90f, 360f * g.rescueFraction, false, Offset(x - 34f, y - 84f), Size(68f, 68f), style = Stroke(5f))
     }
     outlinedText("SOS " + g.rescueTime.toInt() + "s", x, y - 98f, 14f, 0xFFFFD54F.toInt())
+}
+
+/** Spilled puddles on the ground beside the train: a glossy pool with ripples and rising wisps, fading out at the end. */
+private fun DrawScope.drawPuddles(rig: TrainGame) {
+    for (i in rig.puddles.indices) {
+        val p = rig.puddles[i]
+        val fade = p.left.coerceIn(0f, 1f)
+        val c = Color(p.who.puddleColor)
+        val y = RAIL_Y + 42f
+        drawOval(c.copy(alpha = 0.5f * fade), Offset(p.x - p.radius, y - 9f), Size(p.radius * 2f, 22f))
+        drawOval(Color.White.copy(alpha = 0.25f * fade), Offset(p.x - p.radius * 0.6f, y - 6f), Size(p.radius * 1.0f, 7f))
+        for (k in 0..1) {
+            val t = (rig.time * 0.7f + k * 0.5f) % 1f
+            drawOval(c.copy(alpha = 0.55f * (1f - t) * fade), Offset(p.x - p.radius * t, y + 2f - 11f * t), Size(p.radius * 2f * t, 22f * t), style = Stroke(1.6f))
+        }
+        for (k in 0..2) {
+            val rise = (rig.time * 22f + k * 9f) % 16f
+            drawCircle(Color.White.copy(alpha = 0.5f * fade * (1f - rise / 16f)), 2f, Offset(p.x - p.radius * 0.5f + k * p.radius * 0.5f, y - 4f - rise))
+        }
+    }
+}
+
+/** A pigeon on its way to a target (see Hitchhiker.birds): it arcs out of the cage, strikes, then flutters up and away. */
+private fun DrawScope.drawPigeon(t: Tracer) {
+    val u = (1f - t.life / t.total).coerceIn(0f, 1f)
+    val hitAt = 0.36f
+    val dir = if (t.x2 >= t.x1) 1f else -1f
+    val x: Float
+    val y: Float
+    var alpha = 1f
+    if (u < hitAt) {
+        val k = u / hitAt
+        x = t.x1 + (t.x2 - t.x1) * k
+        y = t.y1 + (t.y2 - t.y1) * k - sin(k * 3.1416f) * 26f
+    } else {
+        val k = (u - hitAt) / (1f - hitAt)
+        x = t.x2 + dir * k * 90f
+        y = t.y2 - k * 140f
+        alpha = 1f - k
+    }
+    val flap = sin(u * 70f)
+    withTransform({ translate(x, y); scale(dir * 1.3f, 1.3f, Offset.Zero) }) {
+        for (k in 1..3) drawCircle(Color.White.copy(alpha = alpha * (0.55f - k * 0.13f)), 2f, Offset(-10f - k * 6f, k * 1.2f)) // feather trail
+        path.rewind(); path.moveTo(-3f, -4f); path.lineTo(-14f, -8f - 14f * flap); path.lineTo(4f, -3f); path.close()
+        drawPath(path, Color(0xFF78909C).copy(alpha = alpha)) // far wing
+        drawOval(Color(0xFFB0BEC5).copy(alpha = alpha), Offset(-10f, -6f), Size(20f, 11f))
+        drawOval(Color(0xFFCFD8DC).copy(alpha = alpha), Offset(-5f, -2f), Size(12f, 5f))
+        drawCircle(Color(0xFF90A4AE).copy(alpha = alpha), 4.6f, Offset(10f, -6f))
+        drawCircle(Color(0xFF7E57C2).copy(alpha = alpha * 0.8f), 2.6f, Offset(8f, -3.5f)) // iridescent neck
+        path.rewind(); path.moveTo(14f, -6.5f); path.lineTo(20f, -5f); path.lineTo(14f, -4f); path.close()
+        drawPath(path, Color(0xFFFFA726).copy(alpha = alpha)) // beak
+        drawCircle(Color(0xFFFF6D00).copy(alpha = alpha), 1.2f, Offset(11.5f, -7f))
+        path.rewind(); path.moveTo(-2f, -4f); path.lineTo(-12f, -6f + 12f * flap); path.lineTo(5f, -2f); path.close()
+        drawPath(path, Color(0xFFCFD8DC).copy(alpha = alpha)) // near wing
+    }
+}
+
+// ------------------------------------------------------------------ hitchhiker projectiles (see ShotStyle)
+
+/** Draws one flying shot of a hitchhiker's weapon, dispatching on its style. */
+private fun DrawScope.drawShot(t: Tracer) {
+    when (t.style) {
+        ShotStyle.BIRD -> drawPigeon(t)
+        ShotStyle.PAN -> drawPan(t)
+        ShotStyle.HARPOON -> drawHarpoon(t)
+        ShotStyle.BOX -> drawMimeBox(t)
+        ShotStyle.GUST -> drawGust(t)
+        ShotStyle.SOUP -> drawLob(t, soup = true)
+        ShotStyle.SHELL -> drawLob(t, soup = false)
+        ShotStyle.CONFETTI -> drawStreamers(t)
+        ShotStyle.BOOT -> drawBoot(t)
+        ShotStyle.LINE -> {}
+    }
+}
+
+/** Progress of a shot 0..1 over its visible life, the fraction of it spent flying, and the same split for the part after the hit. */
+private fun shotProgress(t: Tracer): Float = (1f - t.life / t.total).coerceIn(0f, 1f)
+private fun shotHitAt(t: Tracer): Float = t.style.flight / t.style.life
+
+/** Grandma's frying pan: thrown spinning, it clangs off the zombie and tumbles away. */
+private fun DrawScope.drawPan(t: Tracer) {
+    val hitAt = shotHitAt(t)
+    val u = shotProgress(t)
+    val k = (u / hitAt).coerceAtMost(1f)
+    val after = if (u > hitAt) (u - hitAt) / (1f - hitAt) else 0f
+    val dir = if (t.x2 >= t.x1) 1f else -1f
+    val x = t.x1 + (t.x2 - t.x1) * k + after * 14f * dir
+    val y = t.y1 + (t.y2 - t.y1) * k - sin(k * 3.1416f) * 18f + after * after * 90f
+    val alpha = 1f - after
+    withTransform({ translate(x, y); rotate(u * 1100f, Offset.Zero) }) {
+        drawLine(Color(0xFF6D4C41).copy(alpha = alpha), Offset.Zero, Offset(16f, 0f), 3.4f, cap = StrokeCap.Round)
+        drawCircle(Color(0xFF263238).copy(alpha = alpha), 9f, Offset(-6f, 0f))
+        drawCircle(Color(0xFF607D8B).copy(alpha = alpha), 7f, Offset(-6f, 0f))
+        drawCircle(Color.White.copy(alpha = alpha * 0.4f), 2.4f, Offset(-8f, -2.5f))
+    }
+    if (u > hitAt && u < hitAt + 0.18f) outlinedText("CLANG", t.x2, t.y2 - 26f - after * 20f, 14f, 0xFFFFF59D.toInt(), 1f - after * 3f)
+}
+
+/** Dave's harpoon: a spear trailing a fishing line back to the gun; it sticks in the target, then the line goes slack and fades. */
+private fun DrawScope.drawHarpoon(t: Tracer) {
+    val hitAt = shotHitAt(t)
+    val u = shotProgress(t)
+    val k = (u / hitAt).coerceAtMost(1f)
+    val after = if (u > hitAt) (u - hitAt) / (1f - hitAt) else 0f
+    val tx = t.x1 + (t.x2 - t.x1) * k
+    val ty = t.y1 + (t.y2 - t.y1) * k
+    val alpha = 1f - after * after
+    val sag = sin(k * 3.1416f) * 6f + after * 14f
+    drawLine(Color(0xFFE0E0E0).copy(alpha = alpha * 0.8f), Offset(t.x1, t.y1), Offset((t.x1 + tx) / 2f, (t.y1 + ty) / 2f + sag), 1.4f)
+    drawLine(Color(0xFFE0E0E0).copy(alpha = alpha * 0.8f), Offset((t.x1 + tx) / 2f, (t.y1 + ty) / 2f + sag), Offset(tx, ty), 1.4f)
+    val angle = atan2(t.y2 - t.y1, t.x2 - t.x1) * 57.2958f
+    withTransform({ translate(tx, ty); rotate(angle, Offset.Zero) }) {
+        drawLine(Color(0xFF8D6E63).copy(alpha = alpha), Offset(-24f, 0f), Offset(0f, 0f), 3f, cap = StrokeCap.Round)
+        path.rewind(); path.moveTo(0f, -4f); path.lineTo(11f, 0f); path.lineTo(0f, 4f); path.close()
+        drawPath(path, Color(0xFFCFD8DC).copy(alpha = alpha))
+        drawLine(Color(0xFFCFD8DC).copy(alpha = alpha), Offset(2f, -3f), Offset(-4f, -8f), 2f)
+        drawLine(Color(0xFFCFD8DC).copy(alpha = alpha), Offset(2f, 3f), Offset(-4f, 8f), 2f)
+    }
+}
+
+/** Marcel's invisible box: a glass cube closes in around the target and traps it. */
+private fun DrawScope.drawMimeBox(t: Tracer) {
+    val hitAt = shotHitAt(t)
+    val u = shotProgress(t)
+    val closing = 1.9f - 0.9f * (u / hitAt).coerceAtMost(1f)
+    val alpha = if (u < 0.8f) 1f else (1f - (u - 0.8f) / 0.2f)
+    val half = 22f * closing
+    val c = Color(0xFFE3F2FD).copy(alpha = alpha * 0.9f)
+    val off = 7f
+    drawRect(c, Offset(t.x2 - half, t.y2 - half), Size(half * 2f, half * 2f), style = Stroke(2f))
+    drawRect(c.copy(alpha = alpha * 0.5f), Offset(t.x2 - half + off, t.y2 - half - off), Size(half * 2f, half * 2f), style = Stroke(1.6f))
+    for (corner in 0..3) {
+        val cx = t.x2 + (if (corner and 1 == 0) -half else half)
+        val cy = t.y2 + (if (corner and 2 == 0) -half else half)
+        drawLine(c.copy(alpha = alpha * 0.6f), Offset(cx, cy), Offset(cx + off, cy - off), 1.6f)
+    }
+    drawRect(Color(0xFF90CAF9).copy(alpha = alpha * 0.12f), Offset(t.x2 - half, t.y2 - half), Size(half * 2f, half * 2f))
+    if (u > hitAt) drawCircle(Color.White.copy(alpha = alpha * 0.8f), 7f, Offset(t.x2 + half + off + 4f, t.y2 - half - off - 2f)) // a gloved hand taps the glass
+}
+
+/** Sparky's leaf blower: a wide rush of air with leaves tumbling along it. */
+private fun DrawScope.drawGust(t: Tracer) {
+    val u = shotProgress(t)
+    val head = (u / shotHitAt(t)).coerceAtMost(1.15f)
+    val dx = t.x2 - t.x1
+    val dy = t.y2 - t.y1
+    val alpha = if (u < 0.6f) 1f else (1f - (u - 0.6f) / 0.4f)
+    for (i in 0..4) {
+        val off = (i - 2) * 8f * (0.4f + head)
+        val sx = t.x1 + dx * (head - 0.45f).coerceAtLeast(0f)
+        val sy = t.y1 + dy * (head - 0.45f).coerceAtLeast(0f) + off
+        drawLine(Color(0xFFE1F5FE).copy(alpha = alpha * 0.55f), Offset(sx, sy), Offset(t.x1 + dx * head, t.y1 + dy * head + off), 2.6f, cap = StrokeCap.Round)
+    }
+    for (i in 0..3) {
+        val k = (head - i * 0.12f).coerceIn(0f, 1.1f)
+        val lx = t.x1 + dx * k
+        val ly = t.y1 + dy * k + sin(k * 14f + i) * 9f
+        drawCircle((if (i % 2 == 0) Color(0xFFFF8F00) else Color(0xFF7CB342)).copy(alpha = alpha), 3f, Offset(lx, ly))
+    }
+}
+
+/** The soup pot (or the general's shell): lobbed in a high arc, shedding droplets (or smoke) behind it. */
+private fun DrawScope.drawLob(t: Tracer, soup: Boolean) {
+    val hitAt = shotHitAt(t)
+    val u = shotProgress(t)
+    if (!soup && u < 0.5f) { // the megaphone's shout rings out of the launcher
+        for (r in 0..1) {
+            val rr = 8f + (u * 2f + r * 0.35f) * 70f
+            drawCircle(Color(0xFFFFE082).copy(alpha = ((1f - u * 2f) * 0.6f).coerceAtLeast(0f)), rr, Offset(t.x1, t.y1), style = Stroke(2.4f))
+        }
+    }
+    if (u > hitAt) return
+    val k = u / hitAt
+    val arc = if (soup) 80f else 120f
+    fun px(kk: Float) = t.x1 + (t.x2 - t.x1) * kk
+    fun py(kk: Float) = t.y1 + (t.y2 - t.y1) * kk - sin(kk * 3.1416f) * arc
+    val x = px(k)
+    val y = py(k)
+    for (i in 1..4) {
+        val kk = (k - i * 0.04f).coerceAtLeast(0f)
+        val c = if (soup) Color(0xFFFFB74D) else Color(0xFFB0B0B0)
+        drawCircle(c.copy(alpha = 0.55f - i * 0.12f), (if (soup) 2.6f else 4f) - i * 0.3f, Offset(px(kk), py(kk) + i * 1.5f))
+    }
+    if (soup) {
+        withTransform({ translate(x, y); rotate(k * 540f, Offset.Zero) }) {
+            drawRect(Color(0xFFB71C1C), Offset(-7f, -6f), Size(14f, 11f))
+            drawRect(Color(0xFF7F0000), Offset(-8f, -8f), Size(16f, 3f))
+            drawLine(Color(0xFF263238), Offset(-7f, -4f), Offset(-12f, -8f), 2f)
+            drawLine(Color(0xFF263238), Offset(7f, -4f), Offset(12f, -8f), 2f)
+            drawCircle(Color(0xFFFFB74D), 3f, Offset(0f, -8f))
+        }
+    } else {
+        val angle = atan2(py(k + 0.02f) - y, px(k + 0.02f) - x) * 57.2958f
+        withTransform({ translate(x, y); rotate(angle, Offset.Zero) }) {
+            drawRect(Color(0xFF607D8B), Offset(-9f, -3.5f), Size(16f, 7f))
+            path.rewind(); path.moveTo(7f, -3.5f); path.lineTo(14f, 0f); path.lineTo(7f, 3.5f); path.close()
+            drawPath(path, Color(0xFFD32F2F))
+            drawLine(Color(0xFF455A64), Offset(-9f, -3.5f), Offset(-13f, -7f), 2f)
+            drawLine(Color(0xFF455A64), Offset(-9f, 3.5f), Offset(-13f, 7f), 2f)
+        }
+    }
+}
+
+/** Mr. Confetti's party cannon: ribbons of confetti spiral to the target and pop there. */
+private fun DrawScope.drawStreamers(t: Tracer) {
+    val hitAt = shotHitAt(t)
+    val u = shotProgress(t)
+    val colors = longArrayOf(0xFFFF4081, 0xFFFFEB3B, 0xFF40C4FF, 0xFF69F0AE, 0xFFFF9100, 0xFFB388FF)
+    val dx = t.x2 - t.x1
+    val dy = t.y2 - t.y1
+    val len = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1f)
+    val nx = -dy / len
+    val ny = dx / len
+    if (u <= hitAt) {
+        val k = u / hitAt
+        for (r in 0..11) {
+            val kk = (k - (r % 4) * 0.05f).coerceAtLeast(0f)
+            val wob = sin(kk * 11f + r) * 14f * (1f - kk * 0.6f)
+            val x = t.x1 + dx * kk + nx * wob
+            val y = t.y1 + dy * kk + ny * wob - sin(kk * 3.1416f) * 10f
+            drawCircle(Color(colors[r % colors.size]), 2.6f, Offset(x, y))
+            drawLine(Color(colors[r % colors.size]).copy(alpha = 0.7f), Offset(x, y), Offset(x - dx / len * 6f, y - dy / len * 6f), 1.6f)
+        }
+    } else {
+        val a = (u - hitAt) / (1f - hitAt)
+        for (r in 0..9) {
+            val ang = r * 0.628f
+            drawLine(Color(colors[r % colors.size]).copy(alpha = 1f - a), Offset(t.x2 + cos(ang) * 6f, t.y2 + sin(ang) * 6f), Offset(t.x2 + cos(ang) * (10f + 26f * a), t.y2 + sin(ang) * (10f + 26f * a)), 2f)
+        }
+        drawCircle(Color(0xFFFF4081).copy(alpha = 0.4f * (1f - a)), 14f * (0.6f + a), Offset(t.x2, t.y2), style = Stroke(2f)) // popped balloon
+    }
+}
+
+/** The fisherman's old boot: an old boot flips through the air instead of a harpoon. */
+private fun DrawScope.drawBoot(t: Tracer) {
+    val u = shotProgress(t)
+    val x = t.x1 + (t.x2 - t.x1) * u
+    val y = t.y1 + (t.y2 - t.y1) * u - sin(u * 3.1416f) * 30f
+    val alpha = if (u < 0.8f) 1f else (1f - (u - 0.8f) / 0.2f)
+    withTransform({ translate(x, y); rotate(u * 720f, Offset.Zero) }) {
+        drawRect(Color(0xFF5D4037).copy(alpha = alpha), Offset(-4f, -10f), Size(8f, 14f))
+        drawOval(Color(0xFF4E342E).copy(alpha = alpha), Offset(-4f, 2f), Size(15f, 8f))
+        drawRect(Color(0xFF3E2723).copy(alpha = alpha), Offset(-5f, -11f), Size(10f, 3f))
+        drawCircle(Color(0xFF29B6F6).copy(alpha = alpha * 0.8f), 2f, Offset(6f, 12f)) // dripping
+    }
 }

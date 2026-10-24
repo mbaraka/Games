@@ -2,6 +2,8 @@ package com.baraka.game.trainsurvivor.ui
 
 import com.baraka.game.trainsurvivor.model.AUTO_WEAPON
 import com.baraka.game.trainsurvivor.model.CrewSlot
+import com.baraka.game.trainsurvivor.model.Grade
+import com.baraka.game.trainsurvivor.model.Hitchhiker
 import com.baraka.game.trainsurvivor.model.MAX_CAR_ARMOR
 import com.baraka.game.trainsurvivor.model.MAX_POWER
 import com.baraka.game.trainsurvivor.model.MAX_SLOTS
@@ -11,6 +13,8 @@ import com.baraka.game.trainsurvivor.model.TrainUpgrade
 import com.baraka.game.trainsurvivor.model.WeaponType
 import com.baraka.game.trainsurvivor.model.ZombieType
 import com.baraka.game.trainsurvivor.systems.TrainGame
+import com.baraka.game.trainsurvivor.systems.debugBoard
+import com.baraka.game.trainsurvivor.systems.debugCallHitcher
 import com.baraka.game.ui.debug.DebugItem
 import com.baraka.game.ui.debug.DebugSection
 import kotlin.math.max
@@ -120,6 +124,15 @@ fun runDebugSections(
         com.baraka.game.trainsurvivor.model.Biome.entries.map { route ->
             DebugItem.Action("Go to " + route.displayName) { game.debugSetRoute(route) }
         } + DebugItem.Action("Trigger this route's hazard now") { game.debugHazard() }
+    ),
+    DebugSection(
+        "Hitchhikers",
+        listOf(
+            DebugItem.Action("Call a random hitchhiker to the track") { game.debugCallHitcher() },
+            DebugItem.Info("Grade for the next one: " + (game.debugGrade?.label ?: "random")),
+            DebugItem.Action("Next grade: random") { game.debugGrade = null }
+        ) + Grade.entries.map { gr -> DebugItem.Action("Next grade: " + gr.label) { game.debugGrade = gr } } +
+            Hitchhiker.entries.map { h -> DebugItem.Action("Board " + h.displayName) { game.debugBoard(h) } }
     ),
     DebugSection(
         "Events",

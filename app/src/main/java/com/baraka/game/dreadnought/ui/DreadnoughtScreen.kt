@@ -49,6 +49,7 @@ import com.baraka.game.dreadnought.data.DreadRepository
 import com.baraka.game.dreadnought.data.DreadSave
 import com.baraka.game.dreadnought.data.DreadSettings
 import com.baraka.game.dreadnought.model.Refit
+import com.baraka.game.dreadnought.model.ShipClass
 import com.baraka.game.dreadnought.model.Theatre
 import com.baraka.game.dreadnought.render.NavalRenderer
 import com.baraka.game.dreadnought.systems.DreadCue
@@ -72,6 +73,10 @@ private class HudState {
     var phase by mutableIntStateOf(PHASE_BRIEF)
     var fireReady by mutableFloatStateOf(1f)
     var repair by mutableFloatStateOf(1f)
+    var torp by mutableFloatStateOf(1f)
+    var planes by mutableFloatStateOf(1f)
+    var dive by mutableFloatStateOf(1f)
+    var diving by mutableStateOf(false)
 }
 
 @Composable
@@ -107,6 +112,13 @@ fun DreadnoughtScreen() {
                 }
             },
             onTheatre = { i -> if (save.theatreUnlocked(Theatre.entries[i])) commit(save.copy(theatre = i)) },
+            onShip = { i -> commit(save.copy(ship = i)) },
+            onBuyShip = { i ->
+                val c = ShipClass.PLAYABLE[i]
+                if (!save.owns(i) && save.coins >= c.unlockCost) {
+                    commit(save.copy(coins = save.coins - c.unlockCost, shipsOwned = save.shipsOwned or (1 shl i), ship = i))
+                }
+            },
             onSettings = { page = Page.SETTINGS },
             onExit = { (context as? android.app.Activity)?.finish() }
         )
@@ -153,7 +165,7 @@ private fun RunScreen(
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
-    val game = remember { NavalGame(save.levels) }
+    val game = remember { NavalGame(save.levels, 1, save.shipClass()) }
     val renderer = remember { NavalRenderer() }
     val audio = remember { DreadAudio(context) }
     val stats = remember { FrameStats() }
@@ -231,6 +243,10 @@ private fun RunScreen(
                         }
                         hud.phase = game.phase
                         hud.fireReady = (game.mainReady * 20f).toInt() / 20f
+                        hud.torp = (game.torpFrac() * 20f).toInt() / 20f
+                        hud.planes = (game.planesFrac() * 20f).toInt() / 20f
+                        hud.dive = (game.diveBattery * 20f).toInt() / 20f
+                        hud.diving = game.diving
                         hud.repair = if (game.repairCd <= 0f) 1f else ((1f - game.repairCd / game.repairCdMax) * 20f).toInt() / 20f
                     }
                 }
@@ -303,8 +319,18 @@ private fun RunScreen(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
+                if (game.canDive) {
+                    RingButton(if (hud.diving) "SURFACE" else "DIVE", hud.dive, onPress = { game.setDive(!game.diving) }, diameter = 76.dp)
+                }
+                if (game.hasTubes) {
+                    RingButton("TORP", hud.torp, onPress = { game.fireTorpedoes() }, diameter = 76.dp)
+                }
                 RingButton("REPAIR", hud.repair, onPress = { game.requestRepair() }, diameter = 76.dp)
-                RingButton("FIRE", hud.fireReady, onPress = { game.firing = true }, onRelease = { game.firing = false }, diameter = 104.dp)
+                if (game.hasPlanes) {
+                    RingButton("LAUNCH", hud.planes, onPress = { game.launchPlanes() }, diameter = 104.dp)
+                } else {
+                    RingButton("FIRE", hud.fireReady, onPress = { game.firing = true }, onRelease = { game.firing = false }, diameter = 104.dp)
+                }
             }
             Column(Modifier.align(Alignment.TopEnd), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 NavyButton("II", { paused = true }, Modifier.width(60.dp), fontSize = 16.sp)
@@ -394,7 +420,10 @@ private fun RefitOverlay(game: NavalGame) {
                     ) {
                         NavyLabel(r.label, size = 16.sp, bold = true)
                         NavyLabel(r.blurb, size = 12.sp, color = NavyColors.Muted)
-                        NavyLabel("This sortie: +${game.temp[r.ordinal] + 1}", size = 12.sp, color = NavyColors.Accent, bold = true)
+                        val now = game.level(r)
+                        NavyLabel("Now: " + r.stat(game.player.cls, now), size = 12.sp)
+                        NavyLabel("Next: " + r.stat(game.player.cls, now + 1), size = 12.sp, color = NavyColors.Accent, bold = true)
+                        NavyLabel("Lasts until this sortie ends", size = 11.sp, color = NavyColors.Muted)
                     }
                 }
             }

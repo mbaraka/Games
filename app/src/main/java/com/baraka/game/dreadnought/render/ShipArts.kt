@@ -276,8 +276,6 @@ private object SubmarineArt : ShipArt() {
         rect(-42f, -4.6f, 5f, 1.8f, p.steel)
         rect(30f, 3.9f, 3.4f, 1.3f, p.steel)
         rect(30f, -3.9f, 3.4f, 1.3f, p.steel)
-        disc(27f, 0f, 2.3f, p.dark)
-        ln(27f, 0f, 33f, 0f, 0.9f, p.dark)
     }
 
     override fun structure(d: DrawScope, c: ShipClass, p: ShipPalette, t: Float) = with(d) {

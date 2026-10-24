@@ -3,6 +3,7 @@ package com.baraka.game.dreadnought.data
 import android.content.Context
 import android.content.SharedPreferences
 import com.baraka.game.dreadnought.model.Refit
+import com.baraka.game.dreadnought.model.ShipClass
 import com.baraka.game.dreadnought.model.Theatre
 
 /** Every player-facing option of Dreadnought. Volumes are 0..1. */
@@ -27,8 +28,13 @@ data class DreadSave(
     val kills: Int = 0,
     val flagships: Int = 0,
     val levels: List<Int> = List(Refit.entries.size) { 0 },
-    val theatre: Int = 0
+    val theatre: Int = 0,
+    /** Chosen ship (index in [ShipClass.PLAYABLE]) and the ships bought (bit per index; the first is always owned). */
+    val ship: Int = 0,
+    val shipsOwned: Int = 1
 ) {
+    fun shipClass(): ShipClass = ShipClass.PLAYABLE[ship.coerceIn(0, ShipClass.PLAYABLE.lastIndex)]
+    fun owns(index: Int): Boolean = shipsOwned and (1 shl index) != 0
     fun level(r: Refit): Int = levels.getOrElse(r.ordinal) { 0 }
     fun theatreUnlocked(t: Theatre): Boolean = bestWave >= t.unlockWave
 }
@@ -43,7 +49,9 @@ class DreadRepository private constructor(private val prefs: SharedPreferences) 
         kills = prefs.getInt("kills", 0),
         flagships = prefs.getInt("flagships", 0),
         levels = Refit.entries.map { prefs.getInt("lvl_${it.name}", 0).coerceIn(0, it.maxLevel) },
-        theatre = prefs.getInt("theatre", 0).coerceIn(0, Theatre.entries.lastIndex)
+        theatre = prefs.getInt("theatre", 0).coerceIn(0, Theatre.entries.lastIndex),
+        ship = prefs.getInt("ship", 0).coerceIn(0, ShipClass.PLAYABLE.lastIndex),
+        shipsOwned = prefs.getInt("ships_owned", 1) or 1
     )
 
     fun save(data: DreadSave) {
@@ -54,6 +62,8 @@ class DreadRepository private constructor(private val prefs: SharedPreferences) 
             putInt("kills", data.kills)
             putInt("flagships", data.flagships)
             putInt("theatre", data.theatre)
+            putInt("ship", data.ship)
+            putInt("ships_owned", data.shipsOwned)
             for (r in Refit.entries) putInt("lvl_${r.name}", data.level(r))
         }.apply()
     }

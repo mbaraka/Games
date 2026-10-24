@@ -20,6 +20,7 @@ fun harborDebug(save: DreadSave, onSave: (DreadSave) -> Unit): List<DebugSection
     DebugSection(
         "Progress", listOf(
             DebugItem.Info("Best wave ${save.bestWave}, best score ${save.bestScore}"),
+            DebugItem.Action("Unlock every ship") { onSave(save.copy(shipsOwned = (1 shl ShipClass.PLAYABLE.size) - 1)) },
             DebugItem.Action("Max every refit") { onSave(save.copy(levels = Refit.entries.map { it.maxLevel })) },
             DebugItem.Action("Unlock all theatres") {
                 onSave(save.copy(bestWave = maxOf(save.bestWave, Theatre.entries.maxOf { it.unlockWave })))

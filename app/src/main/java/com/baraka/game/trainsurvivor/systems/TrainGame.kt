@@ -96,6 +96,14 @@ class Zombie(val type: ZombieType, var x: Float, var y: Float, val side: Int, va
     var netX = 0f
     var netY = 0f
     var netStamp = 0
+    /** Hitchhiker weapon effects: slowed (speed multiplier while [slowT] runs) and burning ([burnDps] while [burnT] runs). */
+    var slowT = 0f
+    var slowMul = 1f
+    var burnT = 0f
+    var burnDps = 0f
+    /** Standing in a puddle: takes [vulnMul] extra damage while [vulnT] runs (refreshed every frame it stays in). */
+    var vulnT = 0f
+    var vulnMul = 0f
 }
 
 /** One member of the visible repair crew walking the train's running board. */
@@ -115,6 +123,9 @@ class Particle(
 
 class Tracer(val x1: Float, val y1: Float, val x2: Float, val y2: Float, var life: Float, val width: Float, val color: Int, val jagged: Boolean = false) {
     var lane = 0
+    /** LINE is a plain tracer; any other style is drawn as a sprite flying from the first point to the second (see ShotStyle). */
+    var style: com.baraka.game.trainsurvivor.model.ShotStyle = com.baraka.game.trainsurvivor.model.ShotStyle.LINE
+    val total = life
 }
 
 /** A fork in the track: the player has until [timeLeft] runs out to pick; [chosen] is set once they (or the timeout) do. */
@@ -341,6 +352,13 @@ class TrainGame(
 
     // ---- events ----
     var crate: Crate? = null
+    /** A hitchhiker waiting by the track (owned by the world, like the crate) and the one riding this train (see Hitchhiking.kt). */
+    var hitcher: Hitcher? = null
+    var passenger: Passenger? = null
+    /** Puddles this train's passenger has spilled (soup...): zombies in them slip and take more damage. */
+    val puddles = ArrayList<Puddle>(8)
+    internal var nextHitchAt = 40f
+    internal var debugGrade: com.baraka.game.trainsurvivor.model.Grade? = null
     var hordeWarning = 0f
     var hordeTime = 0f
     internal var hordeSide = 1
@@ -472,6 +490,7 @@ class TrainGame(
             }
             updateZombies(dt)
             updateGunners(dt)
+            updateHitchhiker(dt)
             updateTrainWeapons(dt)
             updateShells(dt)
             updateRepairers(dt)
@@ -500,6 +519,7 @@ class TrainGame(
         kitFrom = w.kitFrom
         kitBlend = w.kitBlend
         crate = w.crate
+        hitcher = w.hitcher
         hordeTime = w.hordeTime
         hordeWarning = w.hordeWarning
         hordeSide = w.hordeSide
@@ -902,12 +922,14 @@ class TrainGame(
     fun tapAt(lx: Float, ly: Float) {
         remote?.let { it.act(GuestAction.TAP, 0, lx, ly); return }
         if (!over && tapHazard(lx, ly)) return
+        if (tapHitcher(lx, ly)) return
         tapCrate(lx, ly)
     }
 
     /** A tap from the player of the second train, in the scene they see (their lane is drawn LANE_DY above the lead's). */
     fun tapFromGuest(lx: Float, ly: Float) {
         if (!over && tapHazard(lx, if (lane == 1) ly + LANE_DY else ly)) return
+        if (tapHitcher(lx, ly)) return
         tapCrate(lx, ly)
     }
 
@@ -971,7 +993,8 @@ class TrainGame(
     internal fun hurtCar(slot: Int, amount: Float) {
         if (godMode || over) return
         var s = slot
-        var dmg = amount
+        var dmg = amount * (1f - hitchShield())
+        hitchOnHurt(dmg)
         if (s > 0 && carHp[s] <= 0f) {
             while (s > 0 && carHp[s] <= 0f) s--
             dmg *= 0.6f
@@ -1088,6 +1111,7 @@ class TrainGame(
     // ---------------------------------------------------------------- events
 
     private fun updateEvents(dt: Float) {
+        updateHitchEvents(dt)
         // Supply crate.
         val c = crate
         if (c == null) {
@@ -1245,7 +1269,7 @@ class TrainGame(
                         z.lungeTimer = 3.5f
                     }
                 }
-                val step = z.type.speed * dt * speedMul * z.speedMul * biome.speedMult * zombiePace
+                val step = z.type.speed * dt * speedMul * z.speedMul * (if (z.slowT > 0f) z.slowMul else 1f) * biome.speedMult * zombiePace
                 val arrived = abs(delta) <= step + 1f
                 if (arrived) z.x = spot else z.x += if (delta > 0f) step else -step
                 z.facing = -side
@@ -1592,6 +1616,10 @@ class TrainGame(
             dealt *= m
             if (m > 1.2f) z.feedback = 1 else if (m < 0.8f) z.feedback = 2
         }
+        if (z.vulnT > 0f) {
+            dealt *= 1f + z.vulnMul
+            if (!silent) z.feedback = 1
+        }
         val shown = dealt
         if (!silent && z.shield > 0f) {
             val absorbed = min(z.shield, dealt)
@@ -1698,7 +1726,7 @@ class TrainGame(
     // ---------------------------------------------------------------- gunners
 
     private fun updateGunners(dt: Float) {
-        val boost = if (overdriveTime > 0f) 1.6f else 1f
+        val boost = (if (overdriveTime > 0f) 1.6f else 1f) * (1f + hitchRally())
         for (i in 0..slotCount) {
             val g = gunners[i]
             if (i == slotCount) {
@@ -2293,7 +2321,7 @@ class TrainGame(
     internal fun addTracer(t: Tracer) {
         t.lane = fxLane
         tracers.add(t)
-        if (fx.recording) fx.add(FxLog.TRACER, fxLane, t.x1, t.y1, t.x2, t.y2, t.width, t.color, (t.life * 100f).toInt() * 2 + (if (t.jagged) 1 else 0))
+        if (fx.recording) fx.add(FxLog.TRACER, fxLane, t.x1, t.y1, t.x2, t.y2, t.width, t.color, (t.life * 100f).toInt() * 32 + t.style.ordinal * 2 + (if (t.jagged) 1 else 0))
     }
 
     internal fun addText(t: FloatingText) {

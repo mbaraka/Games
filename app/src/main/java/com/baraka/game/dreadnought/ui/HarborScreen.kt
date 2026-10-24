@@ -20,11 +20,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -50,10 +54,15 @@ fun HarborScreen(
     onSortie: () -> Unit,
     onBuy: (Refit) -> Unit,
     onTheatre: (Int) -> Unit,
+    onShip: (Int) -> Unit,
+    onBuyShip: (Int) -> Unit,
     onSettings: () -> Unit,
     onExit: () -> Unit
 ) {
-    val player = remember { Ship(ShipClass.DREADNOUGHT, 0) }
+    val cls = save.shipClass()
+    val owned = save.owns(save.ship)
+    val player = remember(cls) { Ship(cls, 0) }
+    var tab by remember { mutableIntStateOf(0) }
     var clock by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(Unit) {
         var last = 0L
@@ -85,7 +94,7 @@ fun HarborScreen(
                 Modifier.fillMaxWidth().height(96.dp).clip(RoundedCornerShape(12.dp)).background(NavyColors.Water)
             ) { drawShipPortrait(player, false, clock) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                NavyButton("SORTIE", onSortie, Modifier.weight(1f).height(52.dp), accent = true, fontSize = 18.sp)
+                NavyButton(if (owned) "SORTIE" else "LOCKED", onSortie, Modifier.weight(1f).height(52.dp), enabled = owned, accent = owned, fontSize = 18.sp)
                 NavyButton("Settings", onSettings, Modifier.height(52.dp), fontSize = 13.sp)
             }
             NavyLabel(
@@ -93,6 +102,12 @@ fun HarborScreen(
                 size = 12.sp, color = NavyColors.Text
             )
             NavyLabel("Ships sunk ${save.kills}   |   Flagships ${save.flagships}", size = 12.sp, color = NavyColors.Muted)
+
+            NavyLabel(
+                "Ship: ${cls.label}" + if (owned) "   (change it in the SHIPS tab)" else "   - locked, unlock it in the SHIPS tab",
+                size = 12.sp, color = NavyColors.Accent, bold = true
+            )
+            NavyLabel(loadout(cls), size = 11.sp, color = NavyColors.Muted)
 
             NavyLabel("SEA", size = 11.sp, color = NavyColors.Muted, bold = true)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -103,7 +118,8 @@ fun HarborScreen(
                         Modifier.weight(1f),
                         enabled = save.theatreUnlocked(t),
                         accent = save.theatre == t.ordinal,
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        compact = true
                     )
                 }
             }
@@ -114,19 +130,67 @@ fun HarborScreen(
             }
         }
 
-        // right: refits, then the recognition guide
-        LazyColumn(Modifier.weight(0.55f).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            item { NavyLabel("REFITS - permanent, bought with coins", size = 12.sp, color = NavyColors.Accent, bold = true) }
-            items(Refit.entries) { r -> RefitRow(r, save, onBuy) }
-            item { Spacer(Modifier.height(6.dp)) }
-            item { NavyLabel("RECOGNITION GUIDE", size = 12.sp, color = NavyColors.Accent, bold = true) }
-            items(ShipClass.entries) { c -> GuideRow(c) }
+        // right: tabs for refits, ships and the recognition guide
+        Column(Modifier.weight(0.55f).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                val tabs = arrayOf("REFITS", "SHIPS", "GUIDE")
+                for (i in tabs.indices) {
+                    NavyButton(tabs[i], { tab = i }, Modifier.weight(1f), accent = tab == i, fontSize = 13.sp, compact = true)
+                }
+            }
+            LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                when (tab) {
+                    0 -> {
+                        item { NavyLabel("Permanent upgrades, bought with coins. They apply to whichever ship you sail.", size = 12.sp, color = NavyColors.Muted) }
+                        items(Refit.entries) { r -> RefitRow(r, save, onBuy) }
+                    }
+                    1 -> {
+                        item { NavyLabel("Choose the ship to sail. Tap a card to select it.", size = 12.sp, color = NavyColors.Muted) }
+                        itemsIndexed(ShipClass.PLAYABLE) { i, c -> ShipCard(c, save.ship == i, save.owns(i), save.coins, { onShip(i) }, { onBuyShip(i) }) }
+                    }
+                    else -> {
+                        item { NavyLabel("Every ship in the game, so you can learn to recognise them.", size = 12.sp, color = NavyColors.Muted) }
+                        items(ShipClass.entries) { c -> GuideRow(c) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** One choosable ship: its picture, what it is good at, what it carries, and select / unlock. */
+@Composable
+private fun ShipCard(c: ShipClass, selected: Boolean, owned: Boolean, coins: Int, onSelect: () -> Unit, onUnlock: () -> Unit) {
+    val ship = remember(c) { Ship(c, 0) }
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        Modifier.fillMaxWidth()
+            .background(NavyColors.Card, shape)
+            .border(if (selected) 2.dp else 0.dp, if (selected) NavyColors.Accent else NavyColors.Card, shape)
+            .clickable { onSelect() }
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Canvas(Modifier.width(130.dp).height(56.dp).clip(RoundedCornerShape(8.dp)).background(NavyColors.Water)) {
+            drawShipPortrait(ship, false, 0f)
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            NavyLabel(c.label + if (selected) "  (selected)" else "", size = 14.sp, bold = true, color = if (selected) NavyColors.Accent else NavyColors.Text)
+            NavyLabel(c.heroBlurb, size = 11.sp, color = NavyColors.Text)
+            NavyLabel(loadout(c), size = 10.sp, color = NavyColors.Muted)
+        }
+        if (!owned) {
+            NavyButton("${c.unlockCost}", onUnlock, Modifier.width(78.dp), enabled = coins >= c.unlockCost, accent = coins >= c.unlockCost, fontSize = 13.sp, compact = true)
+        } else {
+            NavyButton(if (selected) "In use" else "Select", onSelect, Modifier.width(78.dp), enabled = !selected, fontSize = 12.sp, compact = true)
         }
     }
 }
 
 @Composable
 private fun RefitRow(r: Refit, save: DreadSave, onBuy: (Refit) -> Unit) {
+    val cls = save.shipClass()
     val level = save.level(r)
     val maxed = level >= r.maxLevel
     Row(
@@ -137,6 +201,10 @@ private fun RefitRow(r: Refit, save: DreadSave, onBuy: (Refit) -> Unit) {
         Column(Modifier.weight(1f)) {
             NavyLabel(r.label, size = 14.sp, bold = true)
             NavyLabel(r.blurb, size = 11.sp, color = NavyColors.Muted)
+            NavyLabel(
+                if (maxed) "Now: " + r.stat(cls, level) + " (maximum)" else "Now: " + r.stat(cls, level) + "   ->   Next: " + r.stat(cls, level + 1),
+                size = 11.sp, color = NavyColors.Accent, bold = true
+            )
             Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 for (i in 0 until r.maxLevel) {
                     Box(
@@ -155,6 +223,19 @@ private fun RefitRow(r: Refit, save: DreadSave, onBuy: (Refit) -> Unit) {
             accent = !maxed && save.coins >= price,
             fontSize = 13.sp
         )
+    }
+}
+
+/** One line on what a ship carries when you sail it: its hull, speed and weapons. */
+private fun loadout(c: ShipClass): String {
+    val mains = c.mounts.filter { it.kind == MountKind.MAIN }
+    val sec = c.mounts.size - mains.size
+    return buildString {
+        append("Hull ${c.heroHp.toInt()}  |  Speed ${c.maxSpeed.toInt()}  |  ")
+        if (mains.isNotEmpty()) append("${mains.size} x ${mains[0].barrels} main guns")
+        if (sec > 0) append(", $sec small guns")
+        if (c.heroTubes > 0) append(", ${c.heroTubes} torpedoes")
+        if (c.diver) append(", can dive")
     }
 }
 

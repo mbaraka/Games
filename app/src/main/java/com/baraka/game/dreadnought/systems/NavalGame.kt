@@ -72,6 +72,16 @@ class Ship(val cls: ShipClass, val side: Int) {
     var targetT = 0f
     var secTarget: Ship? = null
     var wakeSide = 1f
+    // hangar (carriers): ready planes, planes landed and being rearmed, planes lost and being rebuilt, and the launch queue
+    var hangar = 0
+    var rearmQueue = 0
+    var rearmT = 0f
+    var lostQueue = 0
+    var lostT = 0f
+    var launchQueue = 0
+    var launchT = 0f
+    var launchTarget: Ship? = null
+    var airT = 8f
 }
 
 const val P_WAKE = 0
@@ -88,7 +98,7 @@ const val P_BUBBLE = 7
  * renderer (`render/NavalRenderer.kt`) and the UI only read it. Everything gameplay can grow is a fixed-size
  * pool (see the `*_MAX` constants), so a long sortie allocates nothing per frame.
  */
-class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
+class NavalGame(permanentLevels: List<Int>, startWave: Int = 1, heroClass: ShipClass = ShipClass.DREADNOUGHT) {
     private val rnd = Random(System.nanoTime())
 
     // --- options (set by the screen from the settings) ---
@@ -106,7 +116,7 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
 
     // --- ships ---
     val ships = ArrayList<Ship>(24)
-    val player: Ship = Ship(ShipClass.DREADNOUGHT, 0)
+    val player: Ship = Ship(heroClass, 0)
 
     // --- sortie state ---
     var time = 0f
@@ -165,6 +175,22 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
     val tpBubble = FloatArray(TP_MAX)
     private var tpNext = 0
 
+    // --- aircraft ---
+    val plAlive = BooleanArray(PL_MAX)
+    val plSide = IntArray(PL_MAX)
+    val plX = FloatArray(PL_MAX)
+    val plY = FloatArray(PL_MAX)
+    val plHead = FloatArray(PL_MAX)
+    val plAlt = FloatArray(PL_MAX)
+    val plHp = FloatArray(PL_MAX)
+    private val plState = IntArray(PL_MAX)
+    private val plT = FloatArray(PL_MAX)
+    private val plBomb = FloatArray(PL_MAX)
+    private val plDropped = BooleanArray(PL_MAX)
+    private val plOwner = arrayOfNulls<Ship>(PL_MAX)
+    private val plTarget = arrayOfNulls<Ship>(PL_MAX)
+    private var plNext = 0
+
     // --- particles ---
     val pAlive = BooleanArray(P_MAX)
     val pKind = IntArray(P_MAX)
@@ -200,6 +226,7 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
     init {
         ships.add(player)
         applyStats(heal = true)
+        player.hangar = heroClass.heroPlanes
         aimX = 400f
         aimY = 0f
         beginWave(startWave.coerceAtLeast(1))
@@ -218,9 +245,9 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
 
     private fun applyStats(heal: Boolean) {
         val frac = if (heal) 1f else player.hp / player.maxHp
-        player.maxHp = player.cls.maxHp * (1f + 0.14f * level(Refit.ARMOR))
+        player.maxHp = player.cls.heroHp * (1f + 0.14f * level(Refit.ARMOR))
         player.hp = player.maxHp * frac
-        repairCdMax = 45f - 4f * level(Refit.DAMAGE_CONTROL)
+        repairCdMax = Refit.REPAIR_COOLDOWN - 4f * level(Refit.DAMAGE_CONTROL)
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -265,6 +292,281 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
         cue(DreadCue.REPAIR, player.x, player.y, 1f)
     }
 
+    // --- the player's special abilities (not every ship has them) ---
+    /** Submarine: submerged, shells cannot hit you and you cannot use guns; the battery drains while under. */
+    var diving = false
+    var diveBattery = 1f
+    val canDive: Boolean get() = player.cls.diver
+    val hasTubes: Boolean get() = player.cls.heroTubes > 0
+
+    private fun torpReloadTime(): Float = player.cls.torpReload * reloadMult()
+
+    /** How far the torpedo tubes have reloaded, 0..1 (1 = ready). */
+    fun torpFrac(): Float = if (!hasTubes) 1f else (1f - max(0f, player.tubeReload) / torpReloadTime()).coerceIn(0f, 1f)
+
+    fun setDive(on: Boolean) {
+        if (!player.alive || !canDive) return
+        if (on && diveBattery < 0.15f) return
+        diving = on
+    }
+
+    /** Fires the player's torpedoes towards the aim point, in a small fan. */
+    fun fireTorpedoes() {
+        val c = player.cls
+        if (!player.alive || c.heroTubes == 0 || player.tubeReload > 0f) return
+        val ang = atan2(aimY - player.y, aimX - player.x)
+        val n = c.heroTubes
+        val dmg = c.torpDamage * c.heroTorp * mainDmgMult()
+        for (k in 0 until n) {
+            val a = ang + (k - (n - 1) / 2f) * 0.09f
+            launchTorpedo(player.x + cos(a) * c.length * 0.4f, player.y + sin(a) * c.length * 0.4f, a, dmg, 0)
+        }
+        player.tubeReload = torpReloadTime()
+        cue(DreadCue.TORPEDO, player.x, player.y, 1f)
+    }
+
+    private fun updateDive(dt: Float) {
+        if (!player.alive || !canDive) return
+        if (diving && diveBattery <= 0f) diving = false
+        val target = if (diving) 1f else 0f
+        val step = dt / 1.2f
+        player.depth = if (player.depth < target) min(target, player.depth + step) else max(target, player.depth - step)
+        diveBattery = if (player.depth > 0.5f) max(0f, diveBattery - dt / 16f) else min(1f, diveBattery + dt / 10f)
+    }
+
+    // --- aircraft ---
+    val hasPlanes: Boolean get() = player.cls.heroPlanes > 0
+
+    /** Ready planes as a share of the hangar, 0..1. */
+    fun planesFrac(): Float = if (!hasPlanes) 1f else player.hangar / player.cls.heroPlanes.toFloat()
+
+    /** The player's LAUNCH button: every ready plane takes off and bombs the locked ship (or the one nearest the aim point). */
+    fun launchPlanes() {
+        if (!player.alive || !hasPlanes || player.hangar <= 0 || player.launchQueue > 0) return
+        var target = lock
+        if (target == null || !target.alive || target.depth > 0.35f) {
+            target = null
+            var best = 260f
+            for (i in 1 until ships.size) {
+                val s = ships[i]
+                if (!s.alive || s.depth > 0.35f) continue
+                val d = hypot(s.x - aimX, s.y - aimY)
+                if (d < best) {
+                    best = d
+                    target = s
+                }
+            }
+        }
+        if (target == null || hypot(target.x - player.x, target.y - player.y) > mainRange() * 1.05f) return
+        launchSquadron(player, target)
+    }
+
+    private fun launchSquadron(owner: Ship, target: Ship) {
+        owner.launchQueue = owner.hangar
+        owner.hangar = 0
+        owner.launchT = 0f
+        owner.launchTarget = target
+    }
+
+    private fun maxPlanes(s: Ship): Int = if (s === player) s.cls.heroPlanes else s.cls.planes
+
+    private fun tickHangar(s: Ship, dt: Float) {
+        if (maxPlanes(s) <= 0) return
+        if (s.launchQueue > 0) {
+            s.launchT -= dt
+            if (s.launchT <= 0f) {
+                spawnPlane(s, s.launchTarget)
+                s.launchQueue--
+                s.launchT = 0.3f
+            }
+        }
+        if (s.rearmT > 0f) s.rearmT -= dt
+        if (s.rearmQueue > 0 && s.rearmT <= 0f) {
+            s.hangar++
+            s.rearmQueue--
+            s.rearmT = 3.5f * (if (s === player) reloadMult() else 1f)
+        }
+        if (s.lostQueue > 0) {
+            s.lostT -= dt
+            if (s.lostT <= 0f) {
+                s.hangar++
+                s.lostQueue--
+                s.lostT = 12f
+            }
+        }
+    }
+
+    private fun spawnPlane(owner: Ship, target: Ship?) {
+        var idx = -1
+        for (k in 0 until PL_MAX) {
+            val j = (plNext + k) % PL_MAX
+            if (!plAlive[j]) {
+                idx = j
+                break
+            }
+        }
+        if (idx < 0) return
+        plNext = (idx + 1) % PL_MAX
+        val side = (rnd.nextFloat() - 0.5f) * owner.cls.beam * 0.5f
+        val back = owner.cls.length * 0.25f
+        plAlive[idx] = true
+        plSide[idx] = owner.side
+        plX[idx] = owner.x - cos(owner.heading) * back - sin(owner.heading) * side
+        plY[idx] = owner.y - sin(owner.heading) * back + cos(owner.heading) * side
+        plHead[idx] = owner.heading
+        plAlt[idx] = 0f
+        plState[idx] = PLANE_CLIMB
+        plT[idx] = 0f
+        val hero = owner === player
+        plHp[idx] = if (hero) 40f * (1f + 0.14f * level(Refit.ARMOR)) else 30f
+        plBomb[idx] = if (hero) owner.cls.heroBomb * mainDmgMult() else 28f * owner.dmgMult
+        plDropped[idx] = false
+        plOwner[idx] = owner
+        plTarget[idx] = target
+        cue(DreadCue.SEC_GUN, plX[idx], plY[idx], 0.6f)
+    }
+
+    private fun opponentNear(x: Float, y: Float, side: Int): Ship? {
+        var best: Ship? = null
+        var bestD = 1e9f
+        for (i in 0 until ships.size) {
+            val s = ships[i]
+            if (!s.alive || s.side == side || s.depth > 0.35f) continue
+            val d = hypot(s.x - x, s.y - y)
+            if (d < bestD) {
+                bestD = d
+                best = s
+            }
+        }
+        return best
+    }
+
+    private fun updatePlanes(dt: Float) {
+        for (i in 0 until PL_MAX) {
+            if (!plAlive[i]) continue
+            plT[i] += dt
+            var desired = plHead[i]
+            var steer = true
+            val owner = plOwner[i]
+            when (plState[i]) {
+                PLANE_CLIMB -> {
+                    steer = false
+                    plAlt[i] = min(1f, plT[i] / 0.9f)
+                    if (plT[i] > 0.9f) {
+                        plState[i] = PLANE_ATTACK
+                        plT[i] = 0f
+                    }
+                }
+                PLANE_ATTACK -> {
+                    var tgt = plTarget[i]
+                    if (tgt == null || !tgt.alive || tgt.depth > 0.35f) {
+                        tgt = opponentNear(plX[i], plY[i], plSide[i])
+                        plTarget[i] = tgt
+                    }
+                    if (tgt == null) {
+                        plState[i] = PLANE_RETURN
+                        plT[i] = 0f
+                    } else {
+                        val tx = tgt.x + cos(tgt.heading) * tgt.speed * 0.25f
+                        val ty = tgt.y + sin(tgt.heading) * tgt.speed * 0.25f
+                        desired = atan2(ty - plY[i], tx - plX[i])
+                        if (hypot(tx - plX[i], ty - plY[i]) < 24f) {
+                            val err = if (owner === player) 14f * spreadMult() else 16f
+                            impact(plX[i] + gauss() * err, plY[i] + gauss() * err, plBomb[i], plSide[i], 0)
+                            plDropped[i] = true
+                            plState[i] = PLANE_EGRESS
+                            plT[i] = 0f
+                        }
+                    }
+                }
+                PLANE_EGRESS -> {
+                    steer = false
+                    if (plT[i] > 1.4f) {
+                        plState[i] = PLANE_RETURN
+                        plT[i] = 0f
+                    }
+                }
+                else -> {
+                    if (!plDropped[i]) {
+                        val next = opponentNear(plX[i], plY[i], plSide[i])
+                        if (next != null) {
+                            plTarget[i] = next
+                            plState[i] = PLANE_ATTACK
+                            plT[i] = 0f
+                        }
+                    }
+                    if (owner != null && owner.alive) {
+                        val dx = owner.x - plX[i]
+                        val dy = owner.y - plY[i]
+                        desired = atan2(dy, dx)
+                        val d = hypot(dx, dy)
+                        plAlt[i] = if (d < 160f) max(0.35f, d / 160f) else 1f
+                        if (d < 26f) {
+                            plAlive[i] = false
+                            owner.rearmQueue++
+                            continue
+                        }
+                    } else {
+                        steer = false
+                        if (plT[i] > 6f) {
+                            plAlive[i] = false
+                            continue
+                        }
+                    }
+                }
+            }
+            if (steer) {
+                val diff = wrapAngle(desired - plHead[i])
+                val turn = 2.3f * dt
+                plHead[i] = wrapAngle(plHead[i] + diff.coerceIn(-turn, turn))
+            }
+            plX[i] += cos(plHead[i]) * PLANE_SPEED * dt
+            plY[i] += sin(plHead[i]) * PLANE_SPEED * dt
+        }
+        updateFlak(dt)
+    }
+
+    /** Anti-aircraft fire: every armed ship wears down enemy planes that fly within range of its small guns. */
+    private fun updateFlak(dt: Float) {
+        for (si in 0 until ships.size) {
+            val s = ships[si]
+            if (!s.alive || s.depth > 0.35f) continue
+            val c = s.cls
+            val isPlayer = s === player
+            val dps = (if (c.secDamage > 0f) c.secDamage * (if (isPlayer) c.heroSec * secMult() else s.dmgMult) else c.mainDamage * 0.4f * s.dmgMult) * 0.8f
+            if (dps <= 0f) continue
+            val range = if (isPlayer) secRange() else if (c.secDamage > 0f) c.secRange else 380f
+            for (i in 0 until PL_MAX) {
+                if (!plAlive[i] || plSide[i] == s.side) continue
+                if (hypot(plX[i] - s.x, plY[i] - s.y) > range) continue
+                plHp[i] -= dps * dt
+                if (rnd.nextFloat() < dt * 7f) {
+                    emit(P_SMOKE, plX[i] + gauss() * 8f, plY[i] + gauss() * 8f, 0f, 0f, 0.9f, 3f, 5f)
+                }
+                if (plHp[i] <= 0f) {
+                    planeDown(i)
+                    break
+                }
+            }
+        }
+    }
+
+    private fun planeDown(i: Int) {
+        plAlive[i] = false
+        val owner = plOwner[i]
+        if (owner != null && owner.alive) {
+            if (owner.lostQueue == 0) owner.lostT = 12f
+            owner.lostQueue++
+        }
+        emit(P_BLAST, plX[i], plY[i], 0f, 0f, 0.5f, 6f, 12f)
+        for (k in 0 until 3) {
+            val a = rnd.nextFloat() * TWO_PI_F
+            emit(P_DEBRIS, plX[i], plY[i], cos(a) * 30f, sin(a) * 30f, 1.2f, 1.6f, 0f)
+        }
+        emit(P_SMOKE, plX[i], plY[i], 0f, 0f, 2.2f, 4f, 8f)
+        cue(DreadCue.SHELL_HIT, plX[i], plY[i], 0.7f)
+    }
+
     fun pickRefit(index: Int) {
         if (phase != PHASE_REFIT) return
         temp[refitOffer[index.coerceIn(0, 2)]]++
@@ -306,6 +608,7 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
         }
 
         updatePlayerAim()
+        updateDive(dt)
         val px0 = player.x
         val py0 = player.y
         var i = 0
@@ -315,6 +618,7 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
                 if (s.side == 1) runAi(s, dt)
                 updateMounts(s, dt)
                 if (s.side == 1 || s === player) tickTubes(s, dt)
+                tickHangar(s, dt)
             }
             moveShip(s, dt)
             shipEffects(s, dt)
@@ -328,6 +632,7 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
         }
         updateShells(dt)
         updateTorpedoes(dt)
+        updatePlanes(dt)
         updateParticles(dt)
         updateTexts(dt)
         updateRepair(dt)
@@ -357,8 +662,8 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
         phase = PHASE_BRIEF
         phaseT = 2.6f
         queue.clear()
-        var budget = 2.5f + n * 1.7f
-        if (n % 5 == 0) {
+        var budget = 2f + n * 1.2f
+        if (isBossWave(n)) {
             queue.add(ShipClass.FLAGSHIP)
             budget *= 0.45f
         }
@@ -378,10 +683,10 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
     private fun waveCleared() {
         phase = PHASE_CLEARED
         phaseT = 2.8f
-        val bonus = 20 + wave * 8
+        val bonus = clearBonus(wave)
         runCoins += bonus
         score += wave * 50
-        player.hp = min(player.maxHp, player.hp + player.maxHp * 0.15f)
+        player.hp = min(player.maxHp, player.hp + player.maxHp * 0.3f)
         cue(DreadCue.WAVE_CLEAR, player.x, player.y, 1f)
     }
 
@@ -418,8 +723,8 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
         val hpMult = 1f + 0.07f * (w - 1)
         s.maxHp = cls.maxHp * hpMult
         s.hp = s.maxHp
-        s.dmgMult = 1f + 0.035f * (w - 1)
-        s.skill = min(1f, 0.4f + 0.04f * w)
+        s.dmgMult = 1f + 0.03f * (w - 1)
+        s.skill = min(1f, 0.3f + 0.035f * w)
         s.leadErr = 0.85f + rnd.nextFloat() * 0.25f
         s.orbitDir = if (rnd.nextBoolean()) 1f else -1f
         s.flipT = 10f + rnd.nextFloat() * 12f
@@ -427,6 +732,8 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
         s.tubeReload = 3f + rnd.nextFloat() * cls.torpReload * 0.6f
         for (i in s.reload.indices) s.reload[i] = rnd.nextFloat() * 3f
         if (cls.diver) s.depth = 1f
+        s.hangar = cls.planes
+        s.airT = 6f + rnd.nextFloat() * 6f
         ships.add(s)
         return s
     }
@@ -492,6 +799,13 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
                     e.speed = 40f
                 }
                 s.escortT = 16f
+            }
+        }
+        if (c.planes > 0) {
+            s.airT -= dt
+            if (s.airT <= 0f && s.hangar > 0 && phase == PHASE_FIGHT && dist < 1000f) {
+                launchSquadron(s, p)
+                s.airT = 15f
             }
         }
     }
@@ -667,8 +981,8 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
         }
         val sigma = dist * spread
         val damage = when {
-            isPlayer && main -> c.mainDamage * mainDmgMult()
-            isPlayer -> c.secDamage * secMult()
+            isPlayer && main -> c.mainDamage * c.heroMain * mainDmgMult()
+            isPlayer -> c.secDamage * c.heroSec * secMult()
             main -> c.mainDamage * s.dmgMult
             else -> c.secDamage * s.dmgMult
         }
@@ -888,7 +1202,7 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
         } else {
             kills++
             score += s.cls.reward
-            runCoins += s.cls.reward
+            runCoins += (s.cls.reward * 3 / 2)
             if (s.cls.boss) flagships++
         }
     }
@@ -1125,7 +1439,15 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1) {
     }
 
     companion object {
+        fun isBossWave(n: Int) = n >= 10 && n % 5 == 0
+        fun clearBonus(n: Int) = 30 + n * 12
         const val SH_MAX = 192
+        const val PL_MAX = 24
+        private const val PLANE_SPEED = 175f
+        private const val PLANE_CLIMB = 0
+        private const val PLANE_ATTACK = 1
+        private const val PLANE_EGRESS = 2
+        private const val PLANE_RETURN = 3
         const val TP_MAX = 32
         const val P_MAX = 720
         const val TX_MAX = 28

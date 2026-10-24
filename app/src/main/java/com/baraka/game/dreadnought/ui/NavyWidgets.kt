@@ -1,5 +1,6 @@
 package com.baraka.game.dreadnought.ui
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -40,13 +41,15 @@ fun NavyButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     accent: Boolean = false,
-    fontSize: TextUnit = 14.sp
+    fontSize: TextUnit = 14.sp,
+    compact: Boolean = false
 ) {
     Button(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
         shape = RoundedCornerShape(10.dp),
+        contentPadding = if (compact) PaddingValues(horizontal = 2.dp, vertical = 8.dp) else ButtonDefaults.ContentPadding,
         colors = ButtonDefaults.buttonColors(
             containerColor = if (accent) NavyColors.Accent else NavyColors.Bar,
             contentColor = if (accent) NavyColors.OnAccent else NavyColors.Text,
