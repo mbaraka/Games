@@ -100,7 +100,19 @@ def get_service(service_account_json: Path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--aab", required=True, type=Path, help="Path to the signed .aab to upload")
+    parser.add_argument(
+        "--aab",
+        type=Path,
+        help="Path to the signed .aab to upload. Omit when using --promote-version-code to "
+        "push an already-uploaded versionCode to another track without re-uploading (Play's "
+        "versionCode namespace is app-wide, not per-track - re-uploading the same bundle for "
+        "a second track fails with 'Version code N has already been used').",
+    )
+    parser.add_argument(
+        "--promote-version-code",
+        type=int,
+        help="Assign this already-uploaded versionCode to --track instead of uploading --aab.",
+    )
     parser.add_argument("--track", required=True, choices=VALID_TRACKS, help="Play Console track to release to")
     parser.add_argument("--notes", help="Release notes (en-US) - overrides the default for this one upload")
     parser.add_argument(
@@ -131,7 +143,9 @@ def main():
     )
     args = parser.parse_args()
 
-    if not args.aab.exists():
+    if args.promote_version_code is None and args.aab is None:
+        sys.exit("Pass --aab to upload a new bundle, or --promote-version-code to reuse one already uploaded.")
+    if args.aab is not None and not args.aab.exists():
         sys.exit(f"AAB not found: {args.aab}")
 
     config = load_config(args.config)
@@ -148,13 +162,17 @@ def main():
     edit_id = edit["id"]
 
     try:
-        print(f"Uploading {args.aab.name} ({args.aab.stat().st_size / 1024 / 1024:.1f} MB)...")
-        media = MediaFileUpload(str(args.aab), mimetype="application/octet-stream")
-        bundle_response = edits.bundles().upload(
-            packageName=package_name, editId=edit_id, media_body=media
-        ).execute()
-        version_code = bundle_response["versionCode"]
-        print(f"Uploaded as versionCode {version_code}")
+        if args.promote_version_code is not None:
+            version_code = args.promote_version_code
+            print(f"Reusing already-uploaded versionCode {version_code} (no new bundle upload).")
+        else:
+            print(f"Uploading {args.aab.name} ({args.aab.stat().st_size / 1024 / 1024:.1f} MB)...")
+            media = MediaFileUpload(str(args.aab), mimetype="application/octet-stream")
+            bundle_response = edits.bundles().upload(
+                packageName=package_name, editId=edit_id, media_body=media
+            ).execute()
+            version_code = bundle_response["versionCode"]
+            print(f"Uploaded as versionCode {version_code}")
 
         notes_en = args.notes or default_notes.get("en-US", FALLBACK_NOTES["en-US"])
         release_notes = [{"language": "en-US", "text": notes_en}]
@@ -184,7 +202,10 @@ def main():
             result = edits.commit(packageName=package_name, editId=edit_id).execute()
             print(f"COMMITTED. Edit id: {result['id']}")
             print(f"versionCode {version_code} is now live on track '{args.track}'.")
-            tag_release(args.aab.name, version_code, args.track, tag_prefix)
+            if args.aab is not None:
+                tag_release(args.aab.name, version_code, args.track, tag_prefix)
+            else:
+                print(f"(No --aab given, skipping git tag - versionCode {version_code} was already tagged on first upload.)")
         else:
             edits.delete(packageName=package_name, editId=edit_id).execute()
             print()
