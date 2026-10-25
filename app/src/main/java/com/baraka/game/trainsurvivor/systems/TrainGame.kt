@@ -12,9 +12,13 @@ import com.baraka.game.trainsurvivor.model.HazardKind
 import com.baraka.game.trainsurvivor.model.Perk
 import com.baraka.game.trainsurvivor.model.SURVIVORS
 import com.baraka.game.trainsurvivor.model.SaveData
+import com.baraka.game.trainsurvivor.model.CraftedWeapon
+import com.baraka.game.trainsurvivor.model.TrailLook
 import com.baraka.game.trainsurvivor.model.TrainShape
 import com.baraka.game.trainsurvivor.model.TrainUpgrade
 import com.baraka.game.trainsurvivor.model.WeaponType
+import com.baraka.game.trainsurvivor.model.craftedWeaponForDay
+import com.baraka.game.trainsurvivor.model.trailForDay
 import com.baraka.game.trainsurvivor.model.ZombieType
 import kotlin.math.PI
 import kotlin.math.abs
@@ -235,6 +239,10 @@ class TrainGame(
     val shape: TrainShape = save.selectedShape
     /** The paint chosen in the Garage; each livery carries a small bonus (see Livery). */
     private val paint = save.selectedLivery
+    /** The cosmetic trail chosen in the Garage, regenerated once here from its day number; null = none. */
+    val trail: TrailLook? = if (save.selectedTrail >= 0L) trailForDay(save.selectedTrail) else null
+    /** The crafted turret mounted in the Garage's Workshop, regenerated once here from its day number; null = none. */
+    val workshop: CraftedWeapon? = if (save.workshopActive >= 0L) craftedWeaponForDay(save.workshopActive) else null
     val slotCount = save.unlockedSlots
     val crew: MutableList<CrewSlot> = save.slots.take(slotCount).toMutableList().also { it.add(CrewSlot()) }
     val gunners = List(slotCount + 1) { i ->
@@ -353,6 +361,8 @@ class TrainGame(
     var flameCooldown = 0f
     val flameReach = 140f + 14f * flameLevel
     var mortarCooldown = 2f
+    var workshopCooldown = 1f
+    var workshopFlash = 0f
     private var healTextGap = 0f
 
     // ---- events ----
@@ -456,6 +466,9 @@ class TrainGame(
     val mortarY get() = if (slotCount > 1) 418f else shape.locoRoofY
     val flameX get() = frontEnd - 14f
     val flameY get() = 486f
+    /** The Workshop's crafted turret sits on the rear car's roof, past the spikes. */
+    val workshopX get() = rearEnd - 26f
+    val workshopY get() = 424f
 
     internal fun slotAt(x: Float): Int {
         if (slotCount == 1 || x >= locoLeft) return 0
@@ -2048,6 +2061,69 @@ class TrainGame(
             mortarCooldown -= dt * boost
             if (mortarCooldown <= 0f) fireMortar()
         }
+        workshopFlash = max(0f, workshopFlash - dt)
+        if (workshop != null) {
+            workshopCooldown -= dt * boost
+            if (workshopCooldown <= 0f) fireWorkshop()
+        }
+    }
+
+    /** The Workshop's crafted turret: fires its own stats (model/Workshop.kt) at the nearest target in range. */
+    private fun fireWorkshop() {
+        val w = workshop ?: return
+        var target: Zombie? = null
+        var best = w.range
+        for (k in zombies.indices) {
+            val z = zombies[k]
+            if (z.dead || z.x < -10f || z.x > worldW + 10f) continue
+            if (w.groundOnly && z.flying) continue
+            val d = abs(z.x - workshopX)
+            if (d < best) { best = d; target = z }
+        }
+        if (target == null) {
+            workshopCooldown = 0.2f
+            return
+        }
+        workshopCooldown = w.interval
+        workshopFlash = 0.1f
+        val tx = target.x
+        val ty = targetY(target)
+        val dmg = w.damage * (if (buffTime > 0f) 1.3f else 1f)
+        val color = when (w.kind) {
+            DamageKind.FIRE -> 0xFFFF7043
+            DamageKind.ELECTRIC -> 0xFF40E0FF
+            DamageKind.EARTH -> 0xFF8D6E63
+            DamageKind.PHYSICAL -> 0xFFE0E0E0
+        }.toInt()
+        addTracer(Tracer(workshopX, workshopY - 20f, tx, ty, 0.12f, 3f, color))
+        if (w.splashRadius > 0f) explosion(tx, ty, 26f)
+        sound(TrainSoundCue.ZAP)
+        shooter = -1
+        strikeKind = w.kind
+        damageZombie(target, dmg, crit = false)
+        if (w.pierce > 1) {
+            struck.clear()
+            repeat(w.pierce - 1) {
+                var next: Zombie? = null
+                var nextDist = 240f
+                for (k in zombies.indices) {
+                    val z = zombies[k]
+                    if (z.dead || z === target || struck.contains(z)) continue
+                    val d = abs(z.x - tx)
+                    if (d < nextDist) { nextDist = d; next = z }
+                }
+                if (next != null) struck.add(next)
+            }
+            for (k in struck.indices) damageZombie(struck[k], dmg * 0.8f)
+        }
+        if (w.splashRadius > 0f) {
+            for (k in zombies.indices) {
+                val z = zombies[k]
+                if (z.dead || z === target) continue
+                if (abs(z.x - tx) <= w.splashRadius) damageZombie(z, dmg * 0.6f)
+            }
+        }
+        strikeKind = DamageKind.PHYSICAL
     }
 
     private fun fireFlak() {

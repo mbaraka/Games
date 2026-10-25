@@ -52,7 +52,17 @@ data class SaveData(
     val shapesOwned: Int = 1,
     /** Furthest distance reached in a two-phone co-op run, and survivors rescued there. Unlocks co-op paints. */
     val coopBest: Int = 0,
-    val coopRescues: Int = 0
+    val coopRescues: Int = 0,
+    /** Day numbers (see Progression.today) of every trail effect bought; each one's look is regenerated
+     * from its day, never stored, so the collection only ever grows and needs no content updates. */
+    val trailsOwned: List<Long> = emptyList(),
+    /** The owned trail currently shown behind the train; -1 means none selected. */
+    val selectedTrail: Long = -1L,
+    /** Day numbers of every crafted turret bought from the Workshop (see model/Workshop.kt); like
+     * [trailsOwned], each one's stats are regenerated from its day rather than stored. */
+    val workshopOwned: List<Long> = emptyList(),
+    /** The owned crafted weapon currently mounted on the train; -1 means none installed. */
+    val workshopActive: Long = -1L
 ) {
     /** A title for how far the player's co-op runs have gone. */
     val coopRank: String get() = when {
@@ -177,6 +187,52 @@ object Shop {
     }
 
     fun selectShape(save: SaveData, index: Int): SaveData = if (save.ownsShape(index)) save.copy(shape = index) else save
+
+    /** Price of today's trail: a steady sink that only grows as the collection does, so surplus coins always have somewhere to go. */
+    fun trailCost(save: SaveData): Int = (400.0 * 1.18.pow(save.trailsOwned.size)).roundToInt()
+
+    fun buyTrail(save: SaveData, day: Long): SaveData? {
+        val cost = trailCost(save)
+        if (save.trailsOwned.contains(day) || save.coins < cost) return null
+        return save.copy(coins = save.coins - cost, trailsOwned = save.trailsOwned + day, selectedTrail = day)
+    }
+
+    /** Shows an owned trail (or -1 for none) behind the train; free. */
+    fun selectTrail(save: SaveData, day: Long): SaveData =
+        if (day == -1L || save.trailsOwned.contains(day)) save.copy(selectedTrail = day) else save
+
+    /** Refunds half a weapon's cost and removes it (not the starting Pistol or a signature weapon -
+     * [signatureOwnerOf], model/Survivors.kt) so there is always something to fall back on. */
+    fun scrapWeapon(save: SaveData, index: Int, weapon: WeaponType): SaveData? {
+        val slot = save.slots[index]
+        if (weapon == WeaponType.PISTOL || !slot.owns(weapon) || signatureOwnerOf(weapon) != null) return null
+        val newSelected = if (slot.selected == weapon.ordinal) AUTO_WEAPON else slot.selected
+        return save.copy(
+            coins = save.coins + weapon.unlockCost / 2,
+            slots = save.slots.replaced(index, slot.copy(owned = slot.owned and (1 shl weapon.ordinal).inv(), selected = newSelected))
+        )
+    }
+
+    /** Price of today's Workshop weapon: a steady sink, same idea as [trailCost] but pricier (it affects combat). */
+    fun workshopCost(save: SaveData): Int = (900.0 * 1.22.pow(save.workshopOwned.size)).roundToInt()
+
+    fun craftWorkshopWeapon(save: SaveData, day: Long): SaveData? {
+        val cost = workshopCost(save)
+        if (save.workshopOwned.contains(day) || save.coins < cost) return null
+        return save.copy(coins = save.coins - cost, workshopOwned = save.workshopOwned + day, workshopActive = day)
+    }
+
+    /** Mounts an owned crafted weapon (or -1 for none); free. */
+    fun selectWorkshopWeapon(save: SaveData, day: Long): SaveData =
+        if (day == -1L || save.workshopOwned.contains(day)) save.copy(workshopActive = day) else save
+
+    /** Discards a crafted weapon that turned out useless - it was already paid for once, so no refund. */
+    fun scrapWorkshopWeapon(save: SaveData, day: Long): SaveData =
+        if (!save.workshopOwned.contains(day)) save
+        else save.copy(
+            workshopOwned = save.workshopOwned - day,
+            workshopActive = if (save.workshopActive == day) -1L else save.workshopActive
+        )
 
     private fun List<CrewSlot>.replaced(index: Int, value: CrewSlot) = mapIndexed { i, s -> if (i == index) value else s }
 }

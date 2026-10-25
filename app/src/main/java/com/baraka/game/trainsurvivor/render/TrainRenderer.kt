@@ -20,6 +20,8 @@ import com.baraka.game.trainsurvivor.model.AvatarBody
 import com.baraka.game.trainsurvivor.model.AvatarExtra
 import com.baraka.game.trainsurvivor.model.AvatarLook
 import com.baraka.game.trainsurvivor.model.Biome
+import com.baraka.game.trainsurvivor.model.CraftedWeapon
+import com.baraka.game.trainsurvivor.model.DamageKind
 import com.baraka.game.trainsurvivor.model.HatStyle
 import com.baraka.game.trainsurvivor.model.Livery
 import com.baraka.game.trainsurvivor.model.SURVIVORS
@@ -27,6 +29,9 @@ import com.baraka.game.trainsurvivor.model.TrainShape
 import com.baraka.game.trainsurvivor.model.DangerLevel
 import com.baraka.game.trainsurvivor.model.WeaponType
 import com.baraka.game.trainsurvivor.model.ShotStyle
+import com.baraka.game.trainsurvivor.model.TrailLook
+import com.baraka.game.trainsurvivor.model.TrailShapeKind
+import com.baraka.game.trainsurvivor.model.WeaponEffect
 import com.baraka.game.trainsurvivor.model.ZombieType
 import com.baraka.game.trainsurvivor.systems.CAR_W
 import com.baraka.game.trainsurvivor.systems.COWCATCHER
@@ -701,10 +706,12 @@ private fun DrawScope.drawTrain(g: TrainGame, light: Float) {
             path.moveTo(g.rearEnd + 2f, sy); path.lineTo(g.rearEnd - 16f, sy + 3.5f); path.lineTo(g.rearEnd + 2f, sy + 7f); path.close()
             drawPath(path, Color(0xFFD7DBE2))
         }
+        g.trail?.let { drawCoinTrail(g, it) }
         if (g.repairLevel > 0) drawRepairCrew(g)
         if (g.flakLevel > 0) drawFlak(g)
         if (g.teslaLevel > 0) drawTesla(g)
         if (g.mortarLevel > 0) drawMortar(g)
+        g.workshop?.let { drawWorkshop(g, it) }
         if (g.flameLevel > 0) drawFlamer(g)
         if (g.guestPresent) drawGuestMount(g)
         for (i in 0..g.slotCount) drawGunner(g, i)
@@ -801,6 +808,30 @@ private fun DrawScope.drawTesla(g: TrainGame) {
     val glow = g.teslaFlash > 0f
     drawCircle(if (glow) Color(0xFFB3F0FF) else Color(0xFFCFD8DC), 7f, Offset(x, y - 38f))
     drawCircle(Color(0xFF607D8B), 7f, Offset(x, y - 38f), style = Stroke(1.8f))
+}
+
+/** The Workshop's crafted turret: a generic rig whose colour comes from its element and whose details come
+ * from its effect, so any procedurally-crafted weapon (model/Workshop.kt) always has something to draw without
+ * needing hand-authored art. */
+private fun DrawScope.drawWorkshop(g: TrainGame, w: CraftedWeapon) {
+    val x = g.workshopX
+    val y = g.workshopY
+    val tint = when (w.kind) {
+        DamageKind.FIRE -> Color(0xFFFF7043)
+        DamageKind.ELECTRIC -> Color(0xFF40E0FF)
+        DamageKind.EARTH -> Color(0xFF8D6E63)
+        DamageKind.PHYSICAL -> Color(0xFFCFD8DC)
+    }
+    box(Color(0xFF37474F), x - 10f, y - 8f, 20f, 8f) // mount
+    box(Color(0xFF263238), x - 4f, y - 20f, 8f, 14f) // barrel base
+    box(tint, x - 3f, y - 26f, 6f, 8f) // barrel tip, coloured by element
+    if (w.effect == WeaponEffect.VOLATILE) drawCircle(tint.copy(alpha = 0.6f), 6f, Offset(x, y - 22f)) // bulging charge
+    if (w.effect == WeaponEffect.PRECISE) { box(Color(0xFF263238), x + 4f, y - 24f, 7f, 3f); drawCircle(tint, 1.6f, Offset(x + 10f, y - 22.5f)) } // scope
+    if (w.effect == WeaponEffect.OVERCHARGED) { box(tint.copy(alpha = 0.7f), x - 8f, y - 18f, 2.4f, 10f); box(tint.copy(alpha = 0.7f), x + 5.6f, y - 18f, 2.4f, 10f) } // vents
+    if (g.workshopFlash > 0f) {
+        drawCircle(Color.White.copy(alpha = 0.8f), 5f, Offset(x, y - 26f))
+        drawCircle(tint.copy(alpha = 0.5f), 10f, Offset(x, y - 26f))
+    }
 }
 
 private fun DrawScope.drawRepairCrew(g: TrainGame) {
@@ -1487,6 +1518,34 @@ private fun DrawScope.drawGlowTrim(g: TrainGame) {
     val trim = Color(palette.trim)
     drawLine(trim.copy(alpha = pulse), Offset(g.rearEnd, 446f), Offset(g.frontEnd - g.shape.nose, 446f), 2.5f)
     drawLine(trim.copy(alpha = pulse * 0.4f), Offset(g.rearEnd, 446f), Offset(g.frontEnd - g.shape.nose, 446f), 7f)
+}
+
+/** A procedurally-generated trail (model/Trails.kt) streaming behind the train; immediate-mode, so no particle pool needed. */
+private fun DrawScope.drawCoinTrail(g: TrainGame, look: TrailLook) {
+    val baseX = g.rearEnd
+    val c1 = Color(look.color1)
+    val c2 = Color(look.color2)
+    for (i in 0 until look.density) {
+        val t = ((g.time * look.speed + i / look.density.toFloat()) % 1f)
+        val x = baseX - t * 260f
+        val y = 450f + sin(g.time * 3f + i) * look.spread * t
+        val mote = lerp(c1, c2, t).copy(alpha = (1f - t) * 0.9f)
+        val size = 6.5f - t * 4.5f
+        when (look.shape) {
+            TrailShapeKind.DOT -> drawCircle(mote, size, Offset(x, y))
+            TrailShapeKind.SPARK -> drawLine(mote, Offset(x, y), Offset(x - 10f, y), size * 0.7f, cap = StrokeCap.Round)
+            TrailShapeKind.RIBBON -> drawLine(mote, Offset(x, y - size), Offset(x, y + size), size * 0.6f, cap = StrokeCap.Round)
+            TrailShapeKind.DIAMOND -> {
+                path.rewind()
+                path.moveTo(x, y - size); path.lineTo(x + size, y); path.lineTo(x, y + size); path.lineTo(x - size, y); path.close()
+                drawPath(path, mote)
+            }
+            TrailShapeKind.STAR -> {
+                drawLine(mote, Offset(x - size, y), Offset(x + size, y), size * 0.3f)
+                drawLine(mote, Offset(x, y - size), Offset(x, y + size), size * 0.3f)
+            }
+        }
+    }
 }
 
 /** One survivor's body in local coordinates (feet at the origin, facing +x); shared by the train and the Garage portrait. */

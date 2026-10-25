@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,7 +61,11 @@ import com.baraka.game.trainsurvivor.data.GameSettings
 import com.baraka.game.trainsurvivor.model.MAX_CAR_ARMOR
 import com.baraka.game.trainsurvivor.model.DangerLevel
 import com.baraka.game.trainsurvivor.model.Livery
+import com.baraka.game.trainsurvivor.model.CraftedWeapon
 import com.baraka.game.trainsurvivor.model.Progression
+import com.baraka.game.trainsurvivor.model.craftedWeaponForDay
+import com.baraka.game.trainsurvivor.model.trailForDay
+import java.time.LocalDate
 import com.baraka.game.trainsurvivor.model.TrainShape
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.aspectRatio
@@ -204,6 +209,51 @@ private fun LookTab(save: SaveData, onChange: (SaveData) -> Unit) {
                 locked = if (save.coopBest < livery.coopDistance) "Locked: ${livery.coopDistance} m in co-op" else null
             )
         }
+        item { Text("TRAIL EFFECT", color = MUTED, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp)) }
+        item {
+            Text(
+                "A new one shows up every day. Buy today's to keep it forever - a steady sink for coins once everything else is maxed.",
+                color = MUTED, fontSize = 11.sp
+            )
+        }
+        item {
+            val today = Progression.today()
+            val todaysLook = trailForDay(today)
+            LookCard(
+                title = todaysLook.name,
+                subtitle = "Today's trail",
+                owned = save.trailsOwned.contains(today),
+                selected = save.selectedTrail == today,
+                cost = Shop.trailCost(save),
+                coins = save.coins,
+                swatch = listOf(todaysLook.color1, todaysLook.color2),
+                onSelect = { onChange(Shop.selectTrail(save, today)) },
+                onBuy = { Shop.buyTrail(save, today)?.let(onChange) }
+            )
+        }
+        if (save.selectedTrail != -1L) {
+            item {
+                LookCard(
+                    title = "No trail", subtitle = "Turn the effect off", owned = true, selected = false,
+                    cost = 0, coins = save.coins, swatch = null,
+                    onSelect = { onChange(Shop.selectTrail(save, -1L)) }, onBuy = {}
+                )
+            }
+        }
+        items(save.trailsOwned.sortedDescending().filter { it != Progression.today() }) { day ->
+            val look = trailForDay(day)
+            LookCard(
+                title = look.name,
+                subtitle = "Bought ${LocalDate.ofEpochDay(day)}",
+                owned = true,
+                selected = save.selectedTrail == day,
+                cost = 0,
+                coins = save.coins,
+                swatch = listOf(look.color1, look.color2),
+                onSelect = { onChange(Shop.selectTrail(save, day)) },
+                onBuy = {}
+            )
+        }
     }
 }
 
@@ -331,6 +381,54 @@ private fun TrainPreview(save: SaveData, modifier: Modifier) {
 @Composable
 private fun TrainTab(save: SaveData, onPurchase: (SaveData) -> Unit) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        item { Text("WORKSHOP", color = MUTED, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+        item {
+            Text(
+                "A new combination of parts shows up every day - element, firing style and a special effect. " +
+                    "Craft it to keep it forever as a standing turret; a bad roll costs nothing to scrap.",
+                color = MUTED, fontSize = 11.sp
+            )
+        }
+        item {
+            val today = Progression.today()
+            val todays = craftedWeaponForDay(today)
+            WorkshopCard(
+                weapon = todays,
+                owned = save.workshopOwned.contains(today),
+                active = save.workshopActive == today,
+                cost = Shop.workshopCost(save),
+                coins = save.coins,
+                onCraft = { Shop.craftWorkshopWeapon(save, today)?.let(onPurchase) },
+                onMount = { onPurchase(Shop.selectWorkshopWeapon(save, today)) },
+                onScrap = { onPurchase(Shop.scrapWorkshopWeapon(save, today)) }
+            )
+        }
+        if (save.workshopActive != -1L) {
+            item {
+                UpgradeCard(
+                    title = "No turret",
+                    subtitle = "Unmount the Workshop weapon",
+                    detail = "",
+                    cost = null,
+                    canAfford = true,
+                    actionLabel = "UNMOUNT",
+                    onClick = { onPurchase(Shop.selectWorkshopWeapon(save, -1L)) }
+                )
+            }
+        }
+        items(save.workshopOwned.sortedDescending().filter { it != Progression.today() }) { day ->
+            WorkshopCard(
+                weapon = craftedWeaponForDay(day),
+                owned = true,
+                active = save.workshopActive == day,
+                cost = 0,
+                coins = save.coins,
+                onCraft = {},
+                onMount = { onPurchase(Shop.selectWorkshopWeapon(save, day)) },
+                onScrap = { onPurchase(Shop.scrapWorkshopWeapon(save, day)) }
+            )
+        }
+        item { Text("UPGRADES", color = MUTED, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp)) }
         items(TrainUpgrade.entries.toList()) { upgrade ->
             val level = save.level(upgrade)
             val cost = Shop.upgradeCost(save, upgrade)
@@ -343,6 +441,46 @@ private fun TrainTab(save: SaveData, onPurchase: (SaveData) -> Unit) {
                 actionLabel = "UPGRADE",
                 onClick = { Shop.buyUpgrade(save, upgrade)?.let(onPurchase) }
             )
+        }
+    }
+}
+
+@Composable
+private fun WorkshopCard(
+    weapon: CraftedWeapon,
+    owned: Boolean,
+    active: Boolean,
+    cost: Int?,
+    coins: Int,
+    onCraft: () -> Unit,
+    onMount: () -> Unit,
+    onScrap: () -> Unit
+) {
+    Column(
+        Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(weapon.name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text(
+            "${weapon.kind.displayName} - ${weapon.damage.toInt()} dmg / ${"%.1f".format(1f / weapon.interval)} shots/s - range ${weapon.range.toInt()}" +
+                (if (weapon.pierce > 1) " - pierces ${weapon.pierce}" else "") +
+                (if (weapon.splashRadius > 0f) " - splash ${weapon.splashRadius.toInt()}" else ""),
+            color = MUTED, fontSize = 11.sp
+        )
+        Text(weapon.effect.label, color = AMBER, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            when {
+                !owned -> BuyButton("CRAFT", cost, cost != null && coins >= cost, Modifier.weight(1f), onCraft)
+                active -> Text("MOUNTED", color = AMBER, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+                else -> Button(onClick = onMount, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)), modifier = Modifier.weight(1f)) { Text("MOUNT", fontSize = 12.sp) }
+            }
+            if (owned) {
+                OutlinedButton(
+                    onClick = onScrap,
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent, contentColor = Color(0xFFEF9A9A)),
+                    modifier = Modifier.weight(1f)
+                ) { Text("SCRAP", fontSize = 12.sp) }
+            }
         }
     }
 }
@@ -426,6 +564,20 @@ private fun CrewCard(index: Int, slot: CrewSlot, save: SaveData, onPurchase: (Sa
                         enabled = save.coins >= w.unlockCost,
                         modifier = Modifier.width(112.dp)
                     ) { Shop.buyWeapon(save, index, w)?.let(onPurchase) }
+                }
+            }
+        }
+        // Weapons that turned out useless can be scrapped for half their cost back (not the Pistol or a signature weapon).
+        val scrappable = slot.ownedWeapons.filter { it != WeaponType.PISTOL && signatureOwnerOf(it) == null }
+        if (scrappable.isNotEmpty()) {
+            Text("Scrap a weapon for half its cost back", color = MUTED, fontSize = 11.sp)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                scrappable.forEach { w ->
+                    OutlinedButton(
+                        onClick = { Shop.scrapWeapon(save, index, w)?.let(onPurchase) },
+                        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent, contentColor = Color(0xFFEF9A9A)),
+                        modifier = Modifier.width(132.dp)
+                    ) { Text("Scrap ${w.displayName} (+${w.unlockCost / 2})", fontSize = 10.sp, maxLines = 2) }
                 }
             }
         }

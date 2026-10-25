@@ -51,7 +51,11 @@ class TrainSaveRepository private constructor(private val prefs: SharedPreferenc
         shape = prefs.getInt("shape", 0),
         shapesOwned = prefs.getInt("shapes_owned", 1) or 1,
         coopBest = prefs.getInt("coop_best", 0),
-        coopRescues = prefs.getInt("coop_rescues", 0)
+        coopRescues = prefs.getInt("coop_rescues", 0),
+        trailsOwned = decodeLongs(prefs.getString("trails_owned", "") ?: ""),
+        selectedTrail = prefs.getLong("selected_trail", -1L),
+        workshopOwned = decodeLongs(prefs.getString("workshop_owned", "") ?: ""),
+        workshopActive = prefs.getLong("workshop_active", -1L)
     )
 
     fun save(data: SaveData) {
@@ -84,6 +88,10 @@ class TrainSaveRepository private constructor(private val prefs: SharedPreferenc
             putInt("shapes_owned", data.shapesOwned)
             putInt("coop_best", data.coopBest)
             putInt("coop_rescues", data.coopRescues)
+            putString("trails_owned", data.trailsOwned.joinToString(","))
+            putLong("selected_trail", data.selectedTrail)
+            putString("workshop_owned", data.workshopOwned.joinToString(","))
+            putLong("workshop_active", data.workshopActive)
         }.apply()
     }
 
@@ -127,6 +135,8 @@ class TrainSaveRepository private constructor(private val prefs: SharedPreferenc
         if (f.size != 4 && f.size != 5) return@mapNotNull null
         runCatching { RunRecord(f[0].toInt(), f[1].toInt(), f[2].toInt(), f[3].toLong(), f.getOrNull(4)?.toInt() ?: 0) }.getOrNull()
     }
+
+    private fun decodeLongs(raw: String): List<Long> = if (raw.isEmpty()) emptyList() else raw.split(',').mapNotNull { it.toLongOrNull() }
 
     companion object {
         @Volatile
