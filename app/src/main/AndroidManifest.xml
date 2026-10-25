@@ -39,11 +39,7 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".basedefender.BaseDefenderGame"
-            android:exported="false"
-            android:label="Base Defender"
-            android:theme="@style/Theme.Game" />
+        <!-- Base Defender's activity entry lives in its own module now (games/basedefender/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
         <activity
             android:name=".memorymatch.MemoryMatchGame"
@@ -59,20 +55,9 @@
 
         <!-- Train Survivor's activity entry lives in its own module now (games/trainsurvivor/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
-        <activity
-            android:name=".dreadnought.DreadnoughtActivity"
-            android:exported="false"
-            android:label="Dreadnought"
-            android:configChanges="orientation|screenSize|keyboardHidden"
-            android:screenOrientation="sensorLandscape"
-            android:theme="@style/Theme.Game" />
+        <!-- Dreadnought's activity entry lives in its own module now (games/dreadnought/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
-        <activity
-            android:name=".keyreader.KeyReaderActivity"
-            android:exported="false"
-            android:label="Key Reader"
-            android:launchMode="singleTop"
-            android:theme="@style/Theme.Game" />
+        <!-- Key Reader's activity entry lives in its own module now (games/keyreader/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
         <activity
             android:name=".licenses.OpenSourceLicensesActivity"
@@ -86,11 +71,7 @@
             android:label="Snakes &amp; Ladders"
             android:theme="@style/Theme.Game" />
 
-        <activity
-            android:name=".battleship.BattleShipActivity"
-            android:exported="false"
-            android:label="Fleet Duel"
-            android:theme="@style/Theme.Game" />
+        <!-- Battleship's activity entry lives in its own module now (games/battleship/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
         <activity
             android:name=".knightsurvivor.KnightSurvivorActivity"

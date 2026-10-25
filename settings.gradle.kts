@@ -23,3 +23,7 @@ rootProject.name = "Game"
 include(":app")
 include(":core")
 include(":games:trainsurvivor")
+include(":games:battleship")
+include(":games:dreadnought")
+include(":games:basedefender")
+include(":games:keyreader")

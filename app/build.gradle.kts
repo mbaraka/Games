@@ -52,9 +52,9 @@ val coopPaths = arrayOf("core/src/main/java/com/baraka/game/coop", "app/src/main
 val knightSurvivorBuild = gameBuild(*arrayOf("app/src/main/java/com/baraka/game/knightsurvivor") + coopPaths)
 val minesweeperBuild = gameBuild(*arrayOf("app/src/main/java/com/baraka/game/minesweeper") + coopPaths)
 val clashDecksBuild = gameBuild(*arrayOf("app/src/main/java/com/baraka/game/clashdecks") + coopPaths)
-val battleshipBuild = gameBuild("app/src/main/java/com/baraka/game/battleship")
-val dreadnoughtBuild = gameBuild("app/src/main/java/com/baraka/game/dreadnought")
-val baseDefenderBuild = gameBuild("app/src/main/java/com/baraka/game/basedefender")
+// Battleship, Dreadnought and Base Defender moved to their own modules (games/battleship,
+// games/dreadnought, games/basedefender) and compute their own versions there, the same way
+// - see AGENTS.md's "Splitting a game into its own module".
 
 android {
     namespace = "com.baraka.game"
@@ -72,9 +72,6 @@ android {
         buildConfigField("String", "MINESWEEPER_VERSION", "\"1.$minesweeperBuild\"")
         buildConfigField("int", "CLASH_DECKS_BUILD", "$clashDecksBuild")
         buildConfigField("String", "CLASH_DECKS_VERSION", "\"1.$clashDecksBuild\"")
-        buildConfigField("String", "BATTLESHIP_VERSION", "\"1.$battleshipBuild\"")
-        buildConfigField("String", "DREADNOUGHT_VERSION", "\"1.$dreadnoughtBuild\"")
-        buildConfigField("String", "BASE_DEFENDER_VERSION", "\"1.$baseDefenderBuild\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -176,6 +173,10 @@ dependencies {
     // Games split into their own module - see AGENTS.md's "Splitting a game into its own module".
     implementation(project(":core"))
     implementation(project(":games:trainsurvivor"))
+    implementation(project(":games:battleship"))
+    implementation(project(":games:dreadnought"))
+    implementation(project(":games:basedefender"))
+    implementation(project(":games:keyreader"))
 
     // Core Android dependencies
     implementation(libs.androidx.core.ktx)
