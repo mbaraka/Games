@@ -30,7 +30,9 @@ fun PinPromptDialog(onDismiss: () -> Unit, onUnlocked: () -> Unit) {
     val context = LocalContext.current
     val pinAlreadySet = remember { ParentalControls.isPinSet(context) }
     var pin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }
+    var mismatch by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -49,8 +51,25 @@ fun PinPromptDialog(onDismiss: () -> Unit, onUnlocked: () -> Unit) {
                     isError = error,
                     modifier = Modifier.padding(top = 8.dp)
                 )
+                if (!pinAlreadySet) {
+                    OutlinedTextField(
+                        value = confirmPin,
+                        onValueChange = { confirmPin = it.filter { c -> c.isDigit() }.take(6); mismatch = false },
+                        label = { Text("Confirm PIN") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        visualTransformation = PasswordVisualTransformation(),
+                        isError = mismatch,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                    if (mismatch) {
+                        Text("PINs don't match", color = androidx.compose.ui.graphics.Color.Red)
+                    }
+                }
                 if (error) {
-                    Text("Incorrect PIN", color = androidx.compose.ui.graphics.Color.Red)
+                    Text(
+                        if (pinAlreadySet) "Incorrect PIN" else "PIN must be at least 4 digits",
+                        color = androidx.compose.ui.graphics.Color.Red
+                    )
                 }
             }
         },
@@ -62,6 +81,8 @@ fun PinPromptDialog(onDismiss: () -> Unit, onUnlocked: () -> Unit) {
                 }
                 if (pinAlreadySet) {
                     if (ParentalControls.checkPin(context, pin)) onUnlocked() else error = true
+                } else if (pin != confirmPin) {
+                    mismatch = true
                 } else {
                     ParentalControls.setPin(context, pin)
                     onUnlocked()
