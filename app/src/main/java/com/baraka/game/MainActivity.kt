@@ -56,11 +56,18 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import com.baraka.game.arcshot.ArcShotActivity
 import com.baraka.game.asteroids.AsteroidsActivity
 import com.baraka.game.basedefender.BaseDefenderGame
 import com.baraka.game.battleship.BattleShipActivity
 import com.baraka.game.breakout.BreakoutActivity
 import com.baraka.game.clashdecks.ClashDecksActivity
+import com.baraka.game.cratecrew.CrateCrewActivity
 import com.baraka.game.dreadnought.DreadnoughtActivity
 import com.baraka.game.keyreader.KeyReaderActivity
 import com.baraka.game.knightsurvivor.KnightSurvivorActivity
@@ -110,7 +117,9 @@ data class GameCatalogEntry(
     val color: Color,
     val activityClass: Class<out ComponentActivity>,
     /** Shows a multiplayer badge on the game's card (co-op, or several local players). */
-    val multiplayer: Boolean = false
+    val multiplayer: Boolean = false,
+    /** Broad categories this game belongs to, used only to filter the hub by genre. */
+    val genres: Set<GameGenre> = emptySet()
 )
 
 val GAME_CATALOG: List<GameCatalogEntry> = listOf(
@@ -119,56 +128,64 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         title = "Road Rush",
         description = "Retro arcade-style vertical racer — shift lanes to dodge oncoming traffic before you run out of lives.",
         color = Color(0xFFE53935),
-        activityClass = RoadRushActivity::class.java
+        activityClass = RoadRushActivity::class.java,
+        genres = setOf(GameGenre.ARCADE, GameGenre.RACING)
     ),
     GameCatalogEntry(
         id = "breakout",
         title = "Brick Blitz",
         description = "Retro arcade-style paddle & ball — smash every brick, catch power-ups, climb the levels.",
         color = Color(0xFF4FC3F7),
-        activityClass = BreakoutActivity::class.java
+        activityClass = BreakoutActivity::class.java,
+        genres = setOf(GameGenre.ARCADE)
     ),
     GameCatalogEntry(
         id = "space_invaders",
         title = "Star Invasion",
         description = "Retro arcade-style alien shooter — hold the line behind your bunkers as the formation marches down.",
         color = Color(0xFF66BB6A),
-        activityClass = SpaceInvadersActivity::class.java
+        activityClass = SpaceInvadersActivity::class.java,
+        genres = setOf(GameGenre.ARCADE, GameGenre.SHOOTER)
     ),
     GameCatalogEntry(
         id = "missile_command",
         title = "Silo Defense",
         description = "Retro arcade-style defense — tap to detonate interceptors and save your cities from the falling missiles.",
         color = Color(0xFFFF7043),
-        activityClass = MissileCommandActivity::class.java
+        activityClass = MissileCommandActivity::class.java,
+        genres = setOf(GameGenre.ARCADE, GameGenre.STRATEGY)
     ),
     GameCatalogEntry(
         id = "snake",
         title = "Snake",
         description = "Retro arcade-style classic — swipe to turn, eat fruit, don't hit the walls or yourself.",
         color = Color(0xFF66BB6A),
-        activityClass = SnakeActivity::class.java
+        activityClass = SnakeActivity::class.java,
+        genres = setOf(GameGenre.ARCADE, GameGenre.PUZZLE)
     ),
     GameCatalogEntry(
         id = "asteroids",
         title = "Rock Blaster",
         description = "Retro arcade-style vector shooter — rotate, thrust and blast drifting rocks that split as you hit them.",
         color = Color(0xFF9E9E9E),
-        activityClass = AsteroidsActivity::class.java
+        activityClass = AsteroidsActivity::class.java,
+        genres = setOf(GameGenre.ARCADE, GameGenre.SHOOTER)
     ),
     GameCatalogEntry(
         id = "knight_survivor",
         title = "Knight Survivor",
         description = "Arena survivor — auto-attack hordes, level up, and outlast the clock!",
         color = Color(0xFF7B1FA2),
-        activityClass = KnightSurvivorActivity::class.java
+        activityClass = KnightSurvivorActivity::class.java,
+        genres = setOf(GameGenre.SURVIVAL, GameGenre.ACTION)
     ),
     GameCatalogEntry(
         id = "number_corridor",
         title = "Number Corridor",
         description = "Forward-scrolling shooter — blast obstacle walls, grab +/-/x/÷ buff walls for damage, fire rate, and squad size.",
         color = Color(0xFF00ACC1),
-        activityClass = NumberCorridorActivity::class.java
+        activityClass = NumberCorridorActivity::class.java,
+        genres = setOf(GameGenre.ARCADE, GameGenre.SHOOTER)
     ),
     GameCatalogEntry(
         id = "clash_decks",
@@ -176,21 +193,24 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         description = "Card duel vs computer — Attack, Defense, Support, and status-effect tactics.",
         color = Color(0xFF3949AB),
         activityClass = ClashDecksActivity::class.java,
-        multiplayer = true
+        multiplayer = true,
+        genres = setOf(GameGenre.CARD, GameGenre.STRATEGY)
     ),
     GameCatalogEntry(
         id = "memory_match",
         title = "Memory Match",
         description = "Find matching pairs of gaming cards!",
         color = Color(0xFF2196F3),
-        activityClass = MemoryMatchGame::class.java
+        activityClass = MemoryMatchGame::class.java,
+        genres = setOf(GameGenre.PUZZLE)
     ),
     GameCatalogEntry(
         id = "number_cruncher",
         title = "Number Cruncher",
         description = "Combine numbers to reach the target!",
         color = Color(0xFFFF6B6B),
-        activityClass = NumberCruncherGame::class.java
+        activityClass = NumberCruncherGame::class.java,
+        genres = setOf(GameGenre.PUZZLE)
     ),
     GameCatalogEntry(
         id = "snakes_ladders",
@@ -198,14 +218,16 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         description = "2D board — 2–6 players, each human or CPU.",
         color = Color(0xFF00897B),
         activityClass = SnakeLadderActivity::class.java,
-        multiplayer = true
+        multiplayer = true,
+        genres = setOf(GameGenre.BOARD)
     ),
     GameCatalogEntry(
         id = "base_defender",
         title = "Base Defender",
         description = "Defend your base! Aim and shoot at incoming enemies!",
         color = Color(0xFFFF5722),
-        activityClass = BaseDefenderGame::class.java
+        activityClass = BaseDefenderGame::class.java,
+        genres = setOf(GameGenre.ARCADE, GameGenre.STRATEGY)
     ),
     GameCatalogEntry(
         id = "battleship",
@@ -213,7 +235,8 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         description = "Local 2 players or vs computer — place fleets, then take turns firing.",
         color = Color(0xFF0277BD),
         activityClass = BattleShipActivity::class.java,
-        multiplayer = true
+        multiplayer = true,
+        genres = setOf(GameGenre.BOARD, GameGenre.STRATEGY)
     ),
     GameCatalogEntry(
         id = "train_survivor",
@@ -221,21 +244,24 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         description = "Ride an armored train through zombie hordes - earn coins, upgrade the train and its gunners.",
         color = Color(0xFF8B0000),
         activityClass = TrainSurvivorActivity::class.java,
-        multiplayer = true
+        multiplayer = true,
+        genres = setOf(GameGenre.SURVIVAL, GameGenre.ACTION)
     ),
     GameCatalogEntry(
         id = "dreadnought",
         title = "Dreadnought",
         description = "Command a battleship - steer, aim your turrets, lead your shots and sink waves of destroyers, submarines, cruisers and carriers.",
         color = Color(0xFF2E5E7E),
-        activityClass = DreadnoughtActivity::class.java
+        activityClass = DreadnoughtActivity::class.java,
+        genres = setOf(GameGenre.ACTION, GameGenre.STRATEGY)
     ),
     GameCatalogEntry(
         id = "tunnel_crew",
         title = "Tunnel Crew",
         description = "Lemmings-style puzzler - give your tiny crew skills (dig, build, bash, climb...) to guide them safely to the exit.",
         color = Color(0xFF8D6E63),
-        activityClass = TunnelCrewActivity::class.java
+        activityClass = TunnelCrewActivity::class.java,
+        genres = setOf(GameGenre.PUZZLE, GameGenre.STRATEGY)
     ),
     GameCatalogEntry(
         id = "minesweeper",
@@ -243,14 +269,32 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         description = "Classic solo Minesweeper, plus two-phone Bluetooth play - clear the board together or race for cells.",
         color = Color(0xFF4DD0E1),
         activityClass = MinesweeperActivity::class.java,
-        multiplayer = true
+        multiplayer = true,
+        genres = setOf(GameGenre.PUZZLE)
+    ),
+    GameCatalogEntry(
+        id = "crate_crew",
+        title = "Crate Crew",
+        description = "Classic box-pushing puzzler - push every crate onto its target across 13 hand-verified levels. Undo anytime.",
+        color = Color(0xFFC9892F),
+        activityClass = CrateCrewActivity::class.java,
+        genres = setOf(GameGenre.PUZZLE)
+    ),
+    GameCatalogEntry(
+        id = "arc_shot",
+        title = "Arc Shot",
+        description = "Slingshot physics puzzler - drag back to aim, arc your shot over obstacles and land it on the target in as few tries as possible.",
+        color = Color(0xFFE05353),
+        activityClass = ArcShotActivity::class.java,
+        genres = setOf(GameGenre.PUZZLE, GameGenre.ARCADE)
     ),
     GameCatalogEntry(
         id = "key_reader",
         title = "Key Reader",
         description = "Scan NFC keys and manage saved entries.",
         color = Color(0xFF2E7D32),
-        activityClass = KeyReaderActivity::class.java
+        activityClass = KeyReaderActivity::class.java,
+        genres = setOf(GameGenre.UTILITY)
     )
 )
 
@@ -297,6 +341,9 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
             remainingMinutes = ParentalControls.getRemainingMinutes(context)
         })
     }
+
+    var selectedGenre by remember { mutableStateOf<GameGenre?>(null) }
+    val genreFiltered = selectedGenre?.let { genre -> GAME_CATALOG.filter { genre in it.genres }.sortedBy { it.title } }
 
     val mostPlayed = GAME_CATALOG
         .filter { (playCounts[it.id] ?: 0) > 0 }
@@ -355,6 +402,8 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
                 modifier = Modifier
             )
 
+            GenreFilterRow(selectedGenre = selectedGenre, onSelect = { selectedGenre = it })
+
             if (timeUp) {
                 Text(
                     text = "Time's up for today! Ask a parent for more time.",
@@ -376,15 +425,22 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
                 }
             }
 
-            if (mostPlayed.isNotEmpty()) {
-                Section(text = "Most Played", textColor = GameColors.TextSecondary, fontSize = 18.sp, fontWeight = FontWeight.Normal)
-
+            if (genreFiltered != null) {
+                Section(
+                    text = "${selectedGenre?.label} (${genreFiltered.size})",
+                    textColor = GameColors.TextSecondary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Normal
+                )
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    mostPlayed.forEach { entry ->
+                    if (genreFiltered.isEmpty()) {
+                        Text("No games in this category yet.", color = GameColors.TextMuted, fontSize = 14.sp)
+                    }
+                    genreFiltered.forEach { entry ->
                         GameCard(
                             title = entry.title,
                             description = entry.description,
@@ -395,38 +451,59 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
                         )
                     }
                 }
-            }
+            } else {
+                if (mostPlayed.isNotEmpty()) {
+                    Section(text = "Most Played", textColor = GameColors.TextSecondary, fontSize = 18.sp, fontWeight = FontWeight.Normal)
 
-            var allGamesExpanded by remember(mostPlayed.isEmpty()) {
-                mutableStateOf(mostPlayed.isEmpty())
-            }
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        mostPlayed.forEach { entry ->
+                            GameCard(
+                                title = entry.title,
+                                description = entry.description,
+                                color = entry.color,
+                                multiplayer = entry.multiplayer,
+                                enabled = !timeUp,
+                                onClick = { onGameSelected(entry) }
+                            )
+                        }
+                    }
+                }
 
-            Section(
-                text = if (mostPlayed.isEmpty()) "All Games" else "Other Games",
-                textColor = GameColors.TextSecondary,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Normal,
-                modifier = Modifier.clickable { allGamesExpanded = !allGamesExpanded },
-                trailingContent = { ExpandChevron(expanded = allGamesExpanded) }
-            )
+                var allGamesExpanded by remember(mostPlayed.isEmpty()) {
+                    mutableStateOf(mostPlayed.isEmpty())
+                }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .animateContentSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                if (allGamesExpanded) {
-                    remainingGames.forEach { entry ->
-                        GameCard(
-                            title = entry.title,
-                            description = entry.description,
-                            color = entry.color,
-                            multiplayer = entry.multiplayer,
-                            enabled = !timeUp,
-                            onClick = { onGameSelected(entry) }
-                        )
+                Section(
+                    text = if (mostPlayed.isEmpty()) "All Games" else "Other Games",
+                    textColor = GameColors.TextSecondary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Normal,
+                    modifier = Modifier.clickable { allGamesExpanded = !allGamesExpanded },
+                    trailingContent = { ExpandChevron(expanded = allGamesExpanded) }
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    if (allGamesExpanded) {
+                        remainingGames.forEach { entry ->
+                            GameCard(
+                                title = entry.title,
+                                description = entry.description,
+                                color = entry.color,
+                                multiplayer = entry.multiplayer,
+                                enabled = !timeUp,
+                                onClick = { onGameSelected(entry) }
+                            )
+                        }
                     }
                 }
             }
@@ -447,6 +524,38 @@ fun GameSelectionScreen(onGameSelected: (GameCatalogEntry) -> Unit) {
         }
     }
 
+}
+
+/** A horizontally scrolling row of genre chips ("All" plus every [GameGenre]) that drives the hub's filter. */
+@Composable
+private fun GenreFilterRow(selectedGenre: GameGenre?, onSelect: (GameGenre?) -> Unit) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            FilterChip(
+                selected = selectedGenre == null,
+                onClick = { onSelect(null) },
+                label = { Text("All") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
+        }
+        items(GameGenre.entries) { genre ->
+            FilterChip(
+                selected = selectedGenre == genre,
+                onClick = { onSelect(if (selectedGenre == genre) null else genre) },
+                label = { Text(genre.label) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
+        }
+    }
 }
 
 /**

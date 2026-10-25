@@ -175,6 +175,21 @@
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:screenOrientation="sensorLandscape"
             android:theme="@style/Theme.Game" />
+
+        <activity
+            android:name=".cratecrew.CrateCrewActivity"
+            android:exported="false"
+            android:label="Crate Crew"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Game" />
+
+        <activity
+            android:name=".arcshot.ArcShotActivity"
+            android:exported="false"
+            android:label="Arc Shot"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@style/Theme.Game" />
     </application>
 
 </manifest>
