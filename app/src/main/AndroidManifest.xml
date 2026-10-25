@@ -57,13 +57,7 @@
             android:label="Number Cruncher"
             android:theme="@style/Theme.Game" />
 
-        <activity
-            android:name=".trainsurvivor.TrainSurvivorActivity"
-            android:exported="false"
-            android:label="Train Survivor"
-            android:configChanges="orientation|screenSize|keyboardHidden"
-            android:screenOrientation="sensorLandscape"
-            android:theme="@style/Theme.Game" />
+        <!-- Train Survivor's activity entry lives in its own module now (games/trainsurvivor/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
         <activity
             android:name=".dreadnought.DreadnoughtActivity"

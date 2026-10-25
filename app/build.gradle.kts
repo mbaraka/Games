@@ -46,10 +46,12 @@ fun git(vararg args: String): String? = try {
 fun gameBuild(vararg paths: String): Int =
     git(*(arrayOf("rev-list", "--count", "HEAD", "--") + paths))?.toIntOrNull() ?: 0
 
-val trainSurvivorBuild = gameBuild("app/src/main/java/com/baraka/game/trainsurvivor", "app/src/main/java/com/baraka/game/coop")
-val knightSurvivorBuild = gameBuild("app/src/main/java/com/baraka/game/knightsurvivor", "app/src/main/java/com/baraka/game/coop")
-val minesweeperBuild = gameBuild("app/src/main/java/com/baraka/game/minesweeper", "app/src/main/java/com/baraka/game/coop")
-val clashDecksBuild = gameBuild("app/src/main/java/com/baraka/game/clashdecks", "app/src/main/java/com/baraka/game/coop")
+// Train Survivor moved to its own module (games/trainsurvivor/build.gradle.kts) and computes its
+// own version there, the same way - see AGENTS.md's "Splitting a game into its own module".
+val coopPaths = arrayOf("core/src/main/java/com/baraka/game/coop", "app/src/main/java/com/baraka/game/coop")
+val knightSurvivorBuild = gameBuild(*arrayOf("app/src/main/java/com/baraka/game/knightsurvivor") + coopPaths)
+val minesweeperBuild = gameBuild(*arrayOf("app/src/main/java/com/baraka/game/minesweeper") + coopPaths)
+val clashDecksBuild = gameBuild(*arrayOf("app/src/main/java/com/baraka/game/clashdecks") + coopPaths)
 val battleshipBuild = gameBuild("app/src/main/java/com/baraka/game/battleship")
 val dreadnoughtBuild = gameBuild("app/src/main/java/com/baraka/game/dreadnought")
 val baseDefenderBuild = gameBuild("app/src/main/java/com/baraka/game/basedefender")
@@ -64,8 +66,6 @@ android {
         targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersionName
-        buildConfigField("int", "TRAIN_SURVIVOR_BUILD", "$trainSurvivorBuild")
-        buildConfigField("String", "TRAIN_SURVIVOR_VERSION", "\"1.$trainSurvivorBuild\"")
         buildConfigField("int", "KNIGHT_SURVIVOR_BUILD", "$knightSurvivorBuild")
         buildConfigField("String", "KNIGHT_SURVIVOR_VERSION", "\"1.$knightSurvivorBuild\"")
         buildConfigField("int", "MINESWEEPER_BUILD", "$minesweeperBuild")
@@ -173,6 +173,10 @@ afterEvaluate {
 }
 
 dependencies {
+    // Games split into their own module - see AGENTS.md's "Splitting a game into its own module".
+    implementation(project(":core"))
+    implementation(project(":games:trainsurvivor"))
+
     // Core Android dependencies
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

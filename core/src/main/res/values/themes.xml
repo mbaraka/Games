@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Shared base theme for every game's Activity, since each lives in its own module now and
+         resources defined here are visible to any module that depends on :core. -->
+    <style name="Theme.Game" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

@@ -21,4 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Game"
 include(":app")
- 
+include(":core")
+include(":games:trainsurvivor")

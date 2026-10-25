@@ -7,10 +7,15 @@ releasing, or adding a game. Human-oriented release background lives in
 ## Project in one paragraph
 
 "Game Hub": one Android app (Kotlin + Jetpack Compose, package `com.baraka.game`) that
-launches many small games. Each game is its own Activity in its own package under
-`app/src/main/java/com/baraka/game/<game>/`, registered in two places:
-`GAME_CATALOG` in `MainActivity.kt` and `AndroidManifest.xml`. GitHub repo:
-`mbaraka/Games` (branch `master`).
+launches many small games. Most games are still a package under
+`app/src/main/java/com/baraka/game/<game>/`, registered in two places: `GAME_CATALOG` in
+`MainActivity.kt` and `AndroidManifest.xml`. A game can also be **its own Gradle module**
+under `games/<game>/` (Train Survivor is; see "Splitting a game into its own module"
+below) - either way the package stays `com.baraka.game.<game>` and the `GAME_CATALOG` /
+manifest registration works the same, since Gradle modules are just where the source
+files physically live. Code shared by multiple games (`coop`, the settings/debug/theme
+UI kit) lives in the `:core` module so every game module and `:app` can use it without
+depending on each other. GitHub repo: `mbaraka/Games` (branch `master`).
 
 ## Build and install locally
 
@@ -28,7 +33,8 @@ launches many small games. Each game is its own Activity in its own package unde
   many games. Each game that wants one has its OWN version, computed in `app/build.gradle.kts` as the number of commits that
   touched that game's code (Train Survivor: `1.<n>`, in `BuildConfig.TRAIN_SURVIVOR_VERSION`, shown in its Settings screen; Minesweeper: `1.<n>`, in `BuildConfig.MINESWEEPER_VERSION`, also its co-op protocol number; Dreadnought: `1.<n>`, in `BuildConfig.DREADNOUGHT_VERSION`, shown in its Settings screen).
   It goes up by one with every commit to that game and never because of another game. Do not edit it by hand; to give another
-  game a version add a `gameBuild(...)` line and two `buildConfigField`s there.
+  game a version add a `gameBuild(...)` line and two `buildConfigField`s there (in `app/build.gradle.kts` for a game still in
+  `:app`, or in the game's own `games/<game>/build.gradle.kts` if it has its own module).
 - Prefer verifying with a build over writing unit tests (the owner asked for no tests in
   this app). If tests are ever needed, see the Gradle test-runner PATH note in the
   owner's memory notes: `testDebugUnitTest` breaks on this machine's PATH, compilation
@@ -134,7 +140,7 @@ adding it is part of the next change you make to that game.
   (e.g. screen shake, damage numbers), and a "Show FPS counter" toggle. Every sound or
   effect the game has must be controllable - never ship audio with no setting for it.
 - Build it from the shared rows in
-  `app/src/main/java/com/baraka/game/ui/components/SettingsControls.kt`
+  `core/src/main/java/com/baraka/game/ui/components/SettingsControls.kt`
   (`SettingsSection`, `SettingsToggleRow`, `SettingsSliderRow`) so all games look alike.
 - Keep a small immutable settings data class per game (see
   `trainsurvivor/data/GameSettings.kt`) stored through the game's repository.
@@ -143,7 +149,7 @@ adding it is part of the next change you make to that game.
 ### 2. A debug tool
 
 - Every game ships a developer panel built on the shared kit in
-  `app/src/main/java/com/baraka/game/ui/debug/DebugKit.kt`:
+  `core/src/main/java/com/baraka/game/ui/debug/DebugKit.kt`:
   - describe cheats as `DebugSection`s of `DebugItem.Action` / `Toggle` / `Info`;
   - show them with `DebugPanel(...)`; gate with `DebugKit.isUnlocked(context)` (true for
     debuggable builds, or after the 7-tap unlock in Settings);
@@ -192,9 +198,16 @@ every game fixes its look **before** building any UI:
 ## Adding a new game (checklist)
 
 1. Create the package `com.baraka.game.<game>` with an `Activity` that wraps a Compose
-   screen in `GameTheme` (copy the shape of `asteroids/AsteroidsActivity.kt`).
-2. Register the Activity in `app/src/main/AndroidManifest.xml` (set
-   `screenOrientation`; landscape games use `sensorLandscape`).
+   screen in `GameTheme` (copy the shape of `asteroids/AsteroidsActivity.kt`). A small game
+   is fine as a package under `app/src/main/java/com/baraka/game/<game>/`; a game expected to
+   grow large (lots of files, its own co-op protocol) is better off started as its own module
+   under `games/<game>/` straight away - see "Splitting a game into its own module" below for
+   the module shape, then just create the game inside it from the start instead of moving it
+   later.
+2. Register the Activity: in `app/src/main/AndroidManifest.xml` if the game lives in `:app`
+   (set `screenOrientation`; landscape games use `sensorLandscape`), or in the game module's
+   own `games/<game>/src/main/AndroidManifest.xml` if it has one (same activity element; no
+   change needed in `:app`'s manifest, it merges in automatically).
 3. Add a `GameCatalogEntry` to `GAME_CATALOG` in `MainActivity.kt` and a row to the
    table in `README.md`.
 3b. **Multiplayer badge:** if the game has any multiplayer (Bluetooth co-op, or 2+ local human
@@ -208,6 +221,83 @@ every game fixes its look **before** building any UI:
    screen awake automatically via `GameApplication` - nothing to do.
 7. Verify with `./gradlew :app:assembleDebug`, then release it as a new **MINOR**.
 
+## Splitting a game into its own module
+
+Most games are small enough to live as a package inside `:app`. A game with a lot of code,
+its own co-op protocol, or that keeps colliding with other in-progress work (merge conflicts,
+one game's broken WIP blocking everyone else's build) is worth giving its own Gradle module
+instead - it still builds as part of the same app, but compiles and can be reasoned about on
+its own, and another game's half-finished code can't block it. Train Survivor is the first
+one done this way (`games/trainsurvivor/`); follow the same shape for the next one.
+
+**The shape:**
+
+- `:app` - the thin hub: `MainActivity` (`GAME_CATALOG`), `GameApplication`, signing and
+  versioning, the root `AndroidManifest.xml`, and games that haven't been split out yet.
+  Depends on `:core` and every `:games:*` module.
+- `:core` - an Android library module holding code **shared by more than one game**:
+  `com.baraka.game.coop` (Bluetooth co-op), `com.baraka.game.ui.theme` (`GameTheme`),
+  `com.baraka.game.ui.components` (`SettingsSection`/`SettingsToggleRow`/`SettingsSliderRow`),
+  `com.baraka.game.ui.debug` (`DebugKit`/`DebugPanel`/`FpsOverlay`), and the shared
+  `Theme.Game` style (`core/src/main/res/values/themes.xml`). Nothing game-specific belongs
+  here - if only one game would use it, it stays in that game's own module.
+- `games/<game>/` - an Android library module (Gradle path `:games:<game>`) holding exactly
+  that game's package, `com.baraka.game.<game>`. Depends on `:core`; never depends on `:app`
+  or another game module directly (that would be circular, since `:app` depends on it).
+
+**Recipe (moving an existing game from `:app` into `games/<game>/`):**
+
+1. `git mv app/src/main/java/com/baraka/game/<game> games/<game>/src/main/java/com/baraka/game/<game>`
+   (a plain `git mv` on the whole package directory; git detects it as a rename per file).
+   If the game has code under a second path (e.g. a `coop/<game>` subpackage), move that too.
+2. Create `games/<game>/build.gradle.kts`: `com.android.library` + `kotlin.android` +
+   `kotlin.compose` plugins, `namespace = "com.baraka.game.<game>"`, matching `compileSdk`/
+   `minSdk`/`compileOptions`/`kotlinOptions` from `app/build.gradle.kts`, `buildFeatures {
+   compose = true; buildConfig = true }`, and `implementation(project(":core"))` plus whatever
+   AndroidX/Compose libs the game actually uses (copy from `app/build.gradle.kts`'s own
+   dependency list - every game module keeps its own copy of these lines, there is no shared
+   convention plugin for this project).
+3. Give the module its own version counter in that same `build.gradle.kts`: copy the `git()`
+   and `gameBuild()` helper functions from `app/build.gradle.kts` (small enough to duplicate
+   per module) and compute `val <game>Build = gameBuild(<new path>, <old path>, ...)` -
+   **pass both the new and the old (pre-move) path** so `git rev-list --count` keeps counting
+   the commits made before the move; dropping the old path resets the version to a small
+   number, which is wrong (the version is also the co-op protocol number other phones compare
+   against). If the game uses `:core`'s shared packages (most do, at least `coop`), include
+   both the old and new path for those too, the same way the existing `knightSurvivorBuild`/
+   `minesweeperBuild`/`clashDecksBuild` lines in `app/build.gradle.kts` do today for `coop`.
+   Then add the two `buildConfigField`s (`int ..._BUILD`, `String ..._VERSION`) there instead
+   of in `app/build.gradle.kts`, and remove the game's old `gameBuild(...)` line and
+   `buildConfigField`s from `app/build.gradle.kts`.
+4. Fix any reference to the app module's generated `BuildConfig` inside the moved code
+   (`com.baraka.game.BuildConfig.<GAME>_BUILD`/`_VERSION`) to the game module's own
+   `com.baraka.game.<game>.BuildConfig.<GAME>_BUILD`/`_VERSION` - a library module's
+   `BuildConfig` lives in its own `namespace` package, generated from the `buildConfigField`s
+   added in step 3. `grep -rn "com.baraka.game.BuildConfig"` inside the moved package finds
+   every spot that needs this.
+5. Create `games/<game>/src/main/AndroidManifest.xml`: just a `<manifest
+   xmlns:android="http://schemas.android.com/apk/res/android"><application>` wrapping that
+   game's `<activity>` element(s), moved as-is from `app/src/main/AndroidManifest.xml`
+   (**use the real `android` namespace URI above, not `res-auto`** - `res-auto` is for custom
+   library attributes and silently breaks every `android:` attribute, including `android:name`,
+   with a confusing "missing name" manifest-merger error). Delete the matching `<activity>`
+   block from `app/src/main/AndroidManifest.xml` (leave a one-line comment pointing at the new
+   file) - AGP merges a library's manifest into the app's automatically, so nothing else needs
+   to change, and `MainActivity.kt`'s `GAME_CATALOG` entry and import keep working unchanged
+   since the package name never changes, only which module physically contains it.
+6. Add `include(":games:<game>")` to `settings.gradle.kts`, and
+   `implementation(project(":games:<game>"))` to `:app`'s `dependencies {}` block in
+   `app/build.gradle.kts`.
+7. If the game references a style only `:app` used to define (like `@style/Theme.Game`) and
+   the new module can't see it, move that resource into `core/src/main/res/` instead (`:app`
+   already depends on `:core`, so it still resolves there too) rather than duplicating it.
+8. Verify: `./gradlew :core:compileDebugKotlin :games:<game>:compileDebugKotlin` first (fast,
+   isolates the new modules from any unrelated breakage elsewhere in `:app`), then
+   `./gradlew :app:assembleDebug` for the full picture.
+
+A new game that starts life as its own module from day one just does steps 2, 3 (with a
+single path, no "old path" needed), 5 and 6 - no move required.
+
 ## Train Survivor: architecture and how to extend it
 
 Train Survivor is built so content is data plus small plug-in pieces. **Never hard-code content in the
@@ -215,7 +305,9 @@ engine, renderer or UI**: no `when (type)` over content enums in `TrainGame.kt` 
 behaviour flags and registries below), and no hand-maintained lists of content in screens (derive them from
 `Enum.entries`). Adding content must never require editing more files than the recipe says.
 
-Code is in `app/src/main/java/com/baraka/game/trainsurvivor/`:
+Train Survivor is its own Gradle module (`games/trainsurvivor/`, see "Splitting a game into
+its own module" below). Code is in
+`games/trainsurvivor/src/main/java/com/baraka/game/trainsurvivor/`:
 
 - `model/` - pure data, one file per concept: `Enemies.kt` (ZombieType, EliteTrait), `Routes.kt` (Biome, Spawn,
   HazardKind), `Survivors.kt` (crew, avatar looks, perks), `TrainStyle.kt` (TrainShape, Livery), `Upgrades.kt`
@@ -279,7 +371,8 @@ a weapon with new behaviour needs a branch in `TrainGame.fire` plus art in `draw
 
 ### Co-op for any game (shared layer)
 
-Two-phone Bluetooth co-op lives in `com.baraka.game.coop` and is shared by every game: **do not copy it into a game.**
+Two-phone Bluetooth co-op lives in `core/src/main/java/com/baraka/game/coop/` (package `com.baraka.game.coop`,
+in the `:core` module so every game module and `:app` can use it) and is shared by every game: **do not copy it into a game.**
 It has `CoopLink<M>` (non-blocking send/poll), `BluetoothLink`/`BluetoothHost`/`CoopBluetooth` (classic RFCOMM between
 paired phones), `SimulatedPartner<M>` (base for a pretend partner so a game can be tried on one phone), `CoopLaunch`
 (connected link + `CoopSide` HOST/GUEST) and the generic `CoopLobbyScreen` (pair, host, join, practice, permissions).
