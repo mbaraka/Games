@@ -22,6 +22,12 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,6 +55,16 @@ private val PORTRAIT_BG = Color(0xFF2A3342)
 @Composable
 fun WorkshopScreen(save: SaveData, onChange: (SaveData) -> Unit, onClose: () -> Unit) {
     BackHandler(onBack = onClose)
+    val time = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) {
+        var last = 0L
+        while (true) {
+            withFrameNanos { now ->
+                if (last != 0L) time.floatValue += ((now - last) / 1_000_000_000f).coerceAtMost(0.05f)
+                last = now
+            }
+        }
+    }
     val today = Progression.today()
     val todays = craftedWeaponForDay(today)
     val owned = todays.let { save.workshopOwned.contains(today) }
@@ -70,7 +86,12 @@ fun WorkshopScreen(save: SaveData, onChange: (SaveData) -> Unit, onClose: () -> 
             item { Text("TODAY'S PARTS", color = MUTED, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PartCard("Form", todays.form.displayName, todays.form.blurb, Modifier.weight(1f))
                     PartCard("Archetype", todays.archetype.displayName, todays.archetype.blurb, Modifier.weight(1f))
+                }
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     PartCard("Element", todays.kind.displayName, "Matters against elemental enemies", Modifier.weight(1f))
                     PartCard("Effect", todays.effect.label.substringBefore(":"), todays.effect.label.substringAfter(": ", ""), Modifier.weight(1f))
                 }
@@ -80,7 +101,7 @@ fun WorkshopScreen(save: SaveData, onChange: (SaveData) -> Unit, onClose: () -> 
             }
 
             item { Text("RESULT", color = MUTED, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp)) }
-            item { ResultCard(todays, owned, save.workshopActive == today, Shop.workshopCost(save), save.coins, onChange, save, today) }
+            item { ResultCard(todays, time.floatValue, owned, save.workshopActive == today, Shop.workshopCost(save), save.coins, onChange, save, today) }
 
             val others = save.workshopOwned.sortedDescending().filter { it != today }
             if (others.isNotEmpty()) {
@@ -89,7 +110,7 @@ fun WorkshopScreen(save: SaveData, onChange: (SaveData) -> Unit, onClose: () -> 
                     val w = craftedWeaponForDay(day)
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("Crafted ${LocalDate.ofEpochDay(day)}", color = MUTED, fontSize = 10.sp)
-                        ResultCard(w, owned = true, active = save.workshopActive == day, cost = 0, coins = save.coins, onChange = onChange, save = save, day = day)
+                        ResultCard(w, time.floatValue, owned = true, active = save.workshopActive == day, cost = 0, coins = save.coins, onChange = onChange, save = save, day = day)
                     }
                 }
             }
@@ -112,6 +133,7 @@ private fun PartCard(label: String, title: String, subtitle: String, modifier: M
 @Composable
 private fun ResultCard(
     weapon: CraftedWeapon,
+    time: Float,
     owned: Boolean,
     active: Boolean,
     cost: Int?,
@@ -126,7 +148,7 @@ private fun ResultCard(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.size(width = 72.dp, height = 88.dp).clip(RoundedCornerShape(10.dp)).background(PORTRAIT_BG)) {
-            Canvas(Modifier.fillMaxSize().padding(8.dp)) { drawWorkshopPortrait(weapon) }
+            Canvas(Modifier.fillMaxSize().padding(8.dp)) { drawWorkshopPortrait(weapon, time) }
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(weapon.name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)

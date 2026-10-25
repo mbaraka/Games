@@ -19,6 +19,14 @@ enum class WeaponArchetype(val displayName: String, val blurb: String) {
     MARKSMAN("Marksman", "Moderate rate, long reach")
 }
 
+/** What the crafted weapon looks like and how it moves on the train - render/TrainRenderer.kt draws each one;
+ * the targeting and damage math (TrainGame.fireWorkshop) is the same regardless, only the presentation changes. */
+enum class WeaponForm(val displayName: String, val blurb: String) {
+    TURRET("Mounted Turret", "Bolted to the roof, swivels to aim"),
+    BLADES("Spinning Blades", "A ring of blades that whirls around the mount"),
+    FAMILIAR("Flying Familiar", "A small dragon that darts out to bite its target")
+}
+
 /** One procedurally-crafted weapon (a standalone turret - see TrainGame.workshop - not a passenger's gun),
  * plus the parts that were combined to make it: an [archetype], an element ([kind]), an [effect], and
  * optionally [inspiredBy] a random passenger, whose own perk (model/Survivors.kt) becomes a bonus here. */
@@ -33,6 +41,7 @@ class CraftedWeapon(
     val groundOnly: Boolean,
     val effect: WeaponEffect,
     val archetype: WeaponArchetype,
+    val form: WeaponForm,
     val inspiredBy: Survivor?,
     /** Chance (0 = never) for a shot to deal 2.5x damage - only set when inspired by a CRIT passenger. */
     val critChance: Float = 0f,
@@ -60,6 +69,7 @@ private val WORKSHOP_NOUNS = arrayOf(
 fun craftedWeaponForDay(day: Long): CraftedWeapon {
     val random = Random(day * 48271L + 101L)
     val archetype = WeaponArchetype.entries[random.nextInt(WeaponArchetype.entries.size)]
+    val form = WeaponForm.entries[random.nextInt(WeaponForm.entries.size)]
     val kind = DamageKind.entries[random.nextInt(DamageKind.entries.size)]
     val effect = WeaponEffect.entries[random.nextInt(WeaponEffect.entries.size)]
     val inspiredBy = if (random.nextFloat() < 0.5f) null else SURVIVORS[random.nextInt(SURVIVORS.size)]
@@ -95,6 +105,6 @@ fun craftedWeaponForDay(day: Long): CraftedWeapon {
     val name = "${WORKSHOP_PREFIXES[random.nextInt(WORKSHOP_PREFIXES.size)]} ${WORKSHOP_NOUNS[random.nextInt(WORKSHOP_NOUNS.size)]}"
     return CraftedWeapon(
         name, damage, interval, range, pierce, splash, kind, groundOnly = false,
-        effect = effect, archetype = archetype, inspiredBy = inspiredBy, critChance = critChance, coinBonus = coinBonus
+        effect = effect, archetype = archetype, form = form, inspiredBy = inspiredBy, critChance = critChance, coinBonus = coinBonus
     )
 }

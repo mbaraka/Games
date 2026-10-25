@@ -32,6 +32,7 @@ import com.baraka.game.trainsurvivor.model.ShotStyle
 import com.baraka.game.trainsurvivor.model.TrailLook
 import com.baraka.game.trainsurvivor.model.TrailShapeKind
 import com.baraka.game.trainsurvivor.model.WeaponEffect
+import com.baraka.game.trainsurvivor.model.WeaponForm
 import com.baraka.game.trainsurvivor.model.ZombieType
 import com.baraka.game.trainsurvivor.systems.CAR_W
 import com.baraka.game.trainsurvivor.systems.COWCATCHER
@@ -814,36 +815,78 @@ private fun DrawScope.drawTesla(g: TrainGame) {
  * from its effect, so any procedurally-crafted weapon (model/Workshop.kt) always has something to draw without
  * needing hand-authored art. */
 private fun DrawScope.drawWorkshop(g: TrainGame, w: CraftedWeapon) {
-    drawWorkshopRig(g.workshopX, g.workshopY, w, g.workshopFlash > 0f)
+    val sinceShot = g.time - g.workshopShotAt
+    val dartPhase = (sinceShot / 0.35f).coerceIn(0f, 1f)
+    val dartT = if (dartPhase >= 1f) 0f else if (dartPhase < 0.5f) dartPhase * 2f else (1f - dartPhase) * 2f
+    drawWorkshopRig(g.workshopX, g.workshopY, w, g.workshopFlash > 0f, g.time, dartT, g.workshopTargetX, g.workshopTargetY)
 }
 
 /** A Workshop portrait for the Craft screen and shop cards: no hand-authored art exists per weapon, so
- * the rig is assembled from a few parametric shapes, coloured by element and detailed by effect. */
-fun DrawScope.drawWorkshopPortrait(weapon: CraftedWeapon) {
+ * the rig is assembled from a few parametric shapes, coloured by element, detailed by effect and shaped by form. */
+fun DrawScope.drawWorkshopPortrait(weapon: CraftedWeapon, time: Float = 0f) {
     val k = size.height / 70f
     withTransform({ translate(size.width / 2f, size.height * 0.7f); scale(k, k, Offset.Zero) }) {
-        drawWorkshopRig(0f, 0f, weapon, flash = false)
+        drawWorkshopRig(0f, 0f, weapon, flash = false, time, dartT = 0f, dartX = 0f, dartY = 0f)
     }
 }
 
-/** The crafted turret's rig, mount at ([x], [y]): shared by the live train render and portrait previews. */
-private fun DrawScope.drawWorkshopRig(x: Float, y: Float, w: CraftedWeapon, flash: Boolean) {
+/** The crafted weapon's rig, mount at ([x], [y]): shared by the live train render and portrait previews.
+ * [dartT] (0..1) and ([dartX], [dartY]) animate the Flying Familiar form darting out to its last target. */
+private fun DrawScope.drawWorkshopRig(x: Float, y: Float, w: CraftedWeapon, flash: Boolean, time: Float, dartT: Float, dartX: Float, dartY: Float) {
     val tint = when (w.kind) {
         DamageKind.FIRE -> Color(0xFFFF7043)
         DamageKind.ELECTRIC -> Color(0xFF40E0FF)
         DamageKind.EARTH -> Color(0xFF8D6E63)
         DamageKind.PHYSICAL -> Color(0xFFCFD8DC)
     }
-    box(Color(0xFF37474F), x - 10f, y - 8f, 20f, 8f) // mount
-    box(Color(0xFF263238), x - 4f, y - 20f, 8f, 14f) // barrel base
-    box(tint, x - 3f, y - 26f, 6f, 8f) // barrel tip, coloured by element
-    if (w.effect == WeaponEffect.VOLATILE) drawCircle(tint.copy(alpha = 0.6f), 6f, Offset(x, y - 22f)) // bulging charge
-    if (w.effect == WeaponEffect.PRECISE) { box(Color(0xFF263238), x + 4f, y - 24f, 7f, 3f); drawCircle(tint, 1.6f, Offset(x + 10f, y - 22.5f)) } // scope
-    if (w.effect == WeaponEffect.OVERCHARGED) { box(tint.copy(alpha = 0.7f), x - 8f, y - 18f, 2.4f, 10f); box(tint.copy(alpha = 0.7f), x + 5.6f, y - 18f, 2.4f, 10f) } // vents
-    if (w.inspiredBy != null) drawCircle(Color(w.inspiredBy.look.shirt), 2.2f, Offset(x, y - 30f)) // inspiration badge, in the passenger's colour
-    if (flash) {
-        drawCircle(Color.White.copy(alpha = 0.8f), 5f, Offset(x, y - 26f))
-        drawCircle(tint.copy(alpha = 0.5f), 10f, Offset(x, y - 26f))
+    val soul = w.inspiredBy?.look?.shirt?.let { Color(it) } // "channels" the inspiring passenger's colour
+
+    box(Color(0xFF37474F), x - 10f, y - 8f, 20f, 8f) // mount, every form stands on one
+    if (w.inspiredBy != null) drawCircle(soul!!, 2.2f, Offset(x, y - 2f)) // inspiration badge, in the passenger's colour
+
+    when (w.form) {
+        WeaponForm.TURRET -> {
+            box(Color(0xFF263238), x - 4f, y - 20f, 8f, 14f) // barrel base
+            box(tint, x - 3f, y - 26f, 6f, 8f) // barrel tip, coloured by element
+            if (w.effect == WeaponEffect.VOLATILE) drawCircle(tint.copy(alpha = 0.6f), 6f, Offset(x, y - 22f)) // bulging charge
+            if (w.effect == WeaponEffect.PRECISE) { box(Color(0xFF263238), x + 4f, y - 24f, 7f, 3f); drawCircle(tint, 1.6f, Offset(x + 10f, y - 22.5f)) } // scope
+            if (w.effect == WeaponEffect.OVERCHARGED) { box(tint.copy(alpha = 0.7f), x - 8f, y - 18f, 2.4f, 10f); box(tint.copy(alpha = 0.7f), x + 5.6f, y - 18f, 2.4f, 10f) } // vents
+            if (flash) {
+                drawCircle(Color.White.copy(alpha = 0.8f), 5f, Offset(x, y - 26f))
+                drawCircle(tint.copy(alpha = 0.5f), 10f, Offset(x, y - 26f))
+            }
+        }
+        WeaponForm.BLADES -> {
+            val cx = x
+            val cy = y - 20f
+            val spin = time * 5f
+            for (i in 0..2) {
+                val a = spin + i * (2f * PI.toFloat() / 3f)
+                val bx = cx + cos(a) * 14f
+                val by = cy + sin(a) * 14f
+                withTransform({ rotate(Math.toDegrees(a.toDouble()).toFloat() + 90f, Offset(bx, by)) }) {
+                    box((soul ?: tint), bx - 1.2f, by - 7f, 2.4f, 14f) // a spinning blade
+                    box(Color(0xFFECEFF1), bx - 1.2f, by - 7f, 2.4f, 3f) // glinting edge
+                }
+            }
+            drawCircle(tint, 4f, Offset(cx, cy)) // hub
+            if (flash) drawCircle(Color.White.copy(alpha = 0.6f), 18f, Offset(cx, cy))
+        }
+        WeaponForm.FAMILIAR -> {
+            val hoverX = x
+            val hoverY = y - 32f + sin(time * 3f) * 3f
+            val px = hoverX + (dartX - hoverX) * dartT
+            val py = hoverY + (dartY - hoverY) * dartT
+            val flap = sin(time * 10f) * 5f
+            drawLine(tint.copy(alpha = 0.85f), Offset(px - 2f, py), Offset(px - 11f, py - 5f - flap), 2.5f, cap = StrokeCap.Round) // left wing
+            drawLine(tint.copy(alpha = 0.85f), Offset(px + 2f, py), Offset(px + 11f, py - 5f + flap), 2.5f, cap = StrokeCap.Round) // right wing
+            path.rewind(); path.moveTo(px - 4.5f, py + 3f); path.lineTo(px + 4.5f, py + 3f); path.lineTo(px, py - 6f); path.close()
+            drawPath(path, tint) // head
+            drawLine(Color(0xFF263238), Offset(px - 2f, py - 4f), Offset(px - 3.5f, py - 9f), 1.4f) // horns
+            drawLine(Color(0xFF263238), Offset(px + 2f, py - 4f), Offset(px + 3.5f, py - 9f), 1.4f)
+            drawCircle(soul ?: Color(0xFFFFEB3B), 1.4f, Offset(px - 1.6f, py)) // eye, glowing with its soul if inspired
+            if (flash || dartT > 0.4f) drawCircle(tint.copy(alpha = 0.5f), 7f, Offset(px, py + 2f)) // bite flash
+        }
     }
 }
 

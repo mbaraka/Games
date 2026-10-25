@@ -363,6 +363,11 @@ class TrainGame(
     var mortarCooldown = 2f
     var workshopCooldown = 1f
     var workshopFlash = 0f
+    /** The target of the Workshop weapon's last shot and when it fired - lets the renderer dart its
+     * Spinning Blades or Flying Familiar form out toward it (render/TrainRenderer.kt). */
+    var workshopTargetX = 0f
+    var workshopTargetY = 0f
+    var workshopShotAt = -10f
     /** True only while fireWorkshop() is dealing its damage, so killZombieFx can apply its coin bonus. */
     private var workshopFiring = false
     private var healTextGap = 0f
@@ -2091,6 +2096,9 @@ class TrainGame(
         workshopFlash = 0.1f
         val tx = target.x
         val ty = targetY(target)
+        workshopTargetX = tx
+        workshopTargetY = ty
+        workshopShotAt = time
         val crit = w.critChance > 0f && rng.nextFloat() < w.critChance
         val dmg = w.damage * (if (crit) 2.5f else 1f) * (if (buffTime > 0f) 1.3f else 1f)
         val color = when (w.kind) {
