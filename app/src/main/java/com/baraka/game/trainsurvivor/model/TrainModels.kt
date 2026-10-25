@@ -201,6 +201,14 @@ object Shop {
     fun selectTrail(save: SaveData, day: Long): SaveData =
         if (day == -1L || save.trailsOwned.contains(day)) save.copy(selectedTrail = day) else save
 
+    /** Drops a trail from the collection (no refund - it was already paid for once), so it never has to keep growing. */
+    fun scrapTrail(save: SaveData, day: Long): SaveData =
+        if (!save.trailsOwned.contains(day)) save
+        else save.copy(
+            trailsOwned = save.trailsOwned - day,
+            selectedTrail = if (save.selectedTrail == day) -1L else save.selectedTrail
+        )
+
     /** Refunds half a weapon's cost and removes it (not the starting Pistol or a signature weapon -
      * [signatureOwnerOf], model/Survivors.kt) so there is always something to fall back on. */
     fun scrapWeapon(save: SaveData, index: Int, weapon: WeaponType): SaveData? {

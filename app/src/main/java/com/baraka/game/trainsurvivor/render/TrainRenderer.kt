@@ -814,8 +814,20 @@ private fun DrawScope.drawTesla(g: TrainGame) {
  * from its effect, so any procedurally-crafted weapon (model/Workshop.kt) always has something to draw without
  * needing hand-authored art. */
 private fun DrawScope.drawWorkshop(g: TrainGame, w: CraftedWeapon) {
-    val x = g.workshopX
-    val y = g.workshopY
+    drawWorkshopRig(g.workshopX, g.workshopY, w, g.workshopFlash > 0f)
+}
+
+/** A Workshop portrait for the Craft screen and shop cards: no hand-authored art exists per weapon, so
+ * the rig is assembled from a few parametric shapes, coloured by element and detailed by effect. */
+fun DrawScope.drawWorkshopPortrait(weapon: CraftedWeapon) {
+    val k = size.height / 70f
+    withTransform({ translate(size.width / 2f, size.height * 0.7f); scale(k, k, Offset.Zero) }) {
+        drawWorkshopRig(0f, 0f, weapon, flash = false)
+    }
+}
+
+/** The crafted turret's rig, mount at ([x], [y]): shared by the live train render and portrait previews. */
+private fun DrawScope.drawWorkshopRig(x: Float, y: Float, w: CraftedWeapon, flash: Boolean) {
     val tint = when (w.kind) {
         DamageKind.FIRE -> Color(0xFFFF7043)
         DamageKind.ELECTRIC -> Color(0xFF40E0FF)
@@ -828,7 +840,8 @@ private fun DrawScope.drawWorkshop(g: TrainGame, w: CraftedWeapon) {
     if (w.effect == WeaponEffect.VOLATILE) drawCircle(tint.copy(alpha = 0.6f), 6f, Offset(x, y - 22f)) // bulging charge
     if (w.effect == WeaponEffect.PRECISE) { box(Color(0xFF263238), x + 4f, y - 24f, 7f, 3f); drawCircle(tint, 1.6f, Offset(x + 10f, y - 22.5f)) } // scope
     if (w.effect == WeaponEffect.OVERCHARGED) { box(tint.copy(alpha = 0.7f), x - 8f, y - 18f, 2.4f, 10f); box(tint.copy(alpha = 0.7f), x + 5.6f, y - 18f, 2.4f, 10f) } // vents
-    if (g.workshopFlash > 0f) {
+    if (w.inspiredBy != null) drawCircle(Color(w.inspiredBy.look.shirt), 2.2f, Offset(x, y - 30f)) // inspiration badge, in the passenger's colour
+    if (flash) {
         drawCircle(Color.White.copy(alpha = 0.8f), 5f, Offset(x, y - 26f))
         drawCircle(tint.copy(alpha = 0.5f), 10f, Offset(x, y - 26f))
     }
@@ -1522,13 +1535,26 @@ private fun DrawScope.drawGlowTrim(g: TrainGame) {
 
 /** A procedurally-generated trail (model/Trails.kt) streaming behind the train; immediate-mode, so no particle pool needed. */
 private fun DrawScope.drawCoinTrail(g: TrainGame, look: TrailLook) {
-    val baseX = g.rearEnd
+    drawTrailMotes(g.rearEnd, 450f, g.time, look)
+}
+
+/** A trail preview for the Trails screen and shop cards: streams the same motes in a small canvas, scaled
+ * to fit, so a procedurally-generated trail never needs hand-authored preview art. */
+fun DrawScope.drawTrailPortrait(look: TrailLook, time: Float) {
+    val k = size.width / 300f
+    withTransform({ translate(size.width * 0.78f, size.height / 2f); scale(k, k, Offset.Zero) }) {
+        drawTrailMotes(0f, 0f, time, look)
+    }
+}
+
+/** The trail's motes streaming left from ([baseX], [baseY]); shared by the live train render and portrait previews. */
+private fun DrawScope.drawTrailMotes(baseX: Float, baseY: Float, time: Float, look: TrailLook) {
     val c1 = Color(look.color1)
     val c2 = Color(look.color2)
     for (i in 0 until look.density) {
-        val t = ((g.time * look.speed + i / look.density.toFloat()) % 1f)
+        val t = ((time * look.speed + i / look.density.toFloat()) % 1f)
         val x = baseX - t * 260f
-        val y = 450f + sin(g.time * 3f + i) * look.spread * t
+        val y = baseY + sin(time * 3f + i) * look.spread * t
         val mote = lerp(c1, c2, t).copy(alpha = (1f - t) * 0.9f)
         val size = 6.5f - t * 4.5f
         when (look.shape) {

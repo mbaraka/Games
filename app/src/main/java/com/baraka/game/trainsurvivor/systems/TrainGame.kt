@@ -363,6 +363,8 @@ class TrainGame(
     var mortarCooldown = 2f
     var workshopCooldown = 1f
     var workshopFlash = 0f
+    /** True only while fireWorkshop() is dealing its damage, so killZombieFx can apply its coin bonus. */
+    private var workshopFiring = false
     private var healTextGap = 0f
 
     // ---- events ----
@@ -1676,6 +1678,7 @@ class TrainGame(
         if (z.elite != null) mult *= 2.5f
         if (hordeTime > 0f) mult *= 1.5f
         if (shooter >= 0 && shooter <= slotCount) mult *= coinPerk[shooter]
+        if (workshopFiring) mult *= (workshop?.coinBonus ?: 1f)
         val coins = max(1, (z.type.coins * mult).roundToInt())
         runCoins += coins
         if (texts.size < MAX_TEXTS) addText(FloatingText(z.x, z.y - 60f * z.type.size, "+$coins", 1.0f, 0xFFFFD54F.toInt(), 22f))
@@ -2088,7 +2091,8 @@ class TrainGame(
         workshopFlash = 0.1f
         val tx = target.x
         val ty = targetY(target)
-        val dmg = w.damage * (if (buffTime > 0f) 1.3f else 1f)
+        val crit = w.critChance > 0f && rng.nextFloat() < w.critChance
+        val dmg = w.damage * (if (crit) 2.5f else 1f) * (if (buffTime > 0f) 1.3f else 1f)
         val color = when (w.kind) {
             DamageKind.FIRE -> 0xFFFF7043
             DamageKind.ELECTRIC -> 0xFF40E0FF
@@ -2100,7 +2104,8 @@ class TrainGame(
         sound(TrainSoundCue.ZAP)
         shooter = -1
         strikeKind = w.kind
-        damageZombie(target, dmg, crit = false)
+        workshopFiring = true
+        damageZombie(target, dmg, crit = crit)
         if (w.pierce > 1) {
             struck.clear()
             repeat(w.pierce - 1) {
@@ -2123,6 +2128,7 @@ class TrainGame(
                 if (abs(z.x - tx) <= w.splashRadius) damageZombie(z, dmg * 0.6f)
             }
         }
+        workshopFiring = false
         strikeKind = DamageKind.PHYSICAL
     }
 
