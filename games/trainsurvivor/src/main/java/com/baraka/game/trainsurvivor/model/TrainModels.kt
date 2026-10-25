@@ -58,11 +58,16 @@ data class SaveData(
     val trailsOwned: List<Long> = emptyList(),
     /** The owned trail currently shown behind the train; -1 means none selected. */
     val selectedTrail: Long = -1L,
-    /** Day numbers of every crafted turret bought from the Workshop (see model/Workshop.kt); like
-     * [trailsOwned], each one's stats are regenerated from its day rather than stored. */
+    /** Ids of every crafted turret bought from the Workshop (see model/Workshop.kt): a positive id is a
+     * day number (see Progression.today) for the free daily one, a negative id is a paid random craft
+     * (see [workshopCrafted]). Like [trailsOwned], each one's stats are regenerated from its id rather
+     * than stored. */
     val workshopOwned: List<Long> = emptyList(),
     /** The owned crafted weapon currently mounted on the train; -1 means none installed. */
-    val workshopActive: Long = -1L
+    val workshopActive: Long = -1L,
+    /** How many paid random weapons have been crafted; also picks each new one's (negative) id, so ids
+     * never repeat even as the free daily one changes every day. */
+    val workshopCrafted: Int = 0
 ) {
     /** A title for how far the player's co-op runs have gone. */
     val coopRank: String get() = when {
@@ -221,13 +226,29 @@ object Shop {
         )
     }
 
-    /** Price of today's Workshop weapon: a steady sink, same idea as [trailCost] but pricier (it affects combat). */
+    /** Price of a paid Workshop craft: an uncapped sink that only grows as the collection does, for
+     * once the daily free one isn't enough to spend down a surplus. */
     fun workshopCost(save: SaveData): Int = (900.0 * 1.22.pow(save.workshopOwned.size)).roundToInt()
 
-    fun craftWorkshopWeapon(save: SaveData, day: Long): SaveData? {
+    /** Claims today's free Workshop weapon - one per day, no coins needed. */
+    fun claimDailyWorkshopWeapon(save: SaveData, day: Long): SaveData? {
+        if (save.workshopOwned.contains(day)) return null
+        return save.copy(workshopOwned = save.workshopOwned + day, workshopActive = day)
+    }
+
+    /** Pays [workshopCost] to craft a fresh random weapon on top of the free daily one - a bottomless
+     * sink for a surplus of coins. Its id is negative (picked by [SaveData.workshopCrafted]) so it can
+     * never collide with a day number, and it has no "today" to preview before paying for it. */
+    fun craftRandomWorkshopWeapon(save: SaveData): SaveData? {
         val cost = workshopCost(save)
-        if (save.workshopOwned.contains(day) || save.coins < cost) return null
-        return save.copy(coins = save.coins - cost, workshopOwned = save.workshopOwned + day, workshopActive = day)
+        if (save.coins < cost) return null
+        val id = -(save.workshopCrafted + 1).toLong()
+        return save.copy(
+            coins = save.coins - cost,
+            workshopOwned = save.workshopOwned + id,
+            workshopActive = id,
+            workshopCrafted = save.workshopCrafted + 1
+        )
     }
 
     /** Mounts an owned crafted weapon (or -1 for none); free. */

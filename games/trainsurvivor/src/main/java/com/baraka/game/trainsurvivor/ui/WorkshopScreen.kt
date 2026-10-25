@@ -68,6 +68,7 @@ fun WorkshopScreen(save: SaveData, onChange: (SaveData) -> Unit, onClose: () -> 
     val today = Progression.today()
     val todays = craftedWeaponForDay(today)
     val owned = todays.let { save.workshopOwned.contains(today) }
+    val randomCost = Shop.workshopCost(save)
 
     Column(
         modifier = Modifier
@@ -101,7 +102,33 @@ fun WorkshopScreen(save: SaveData, onChange: (SaveData) -> Unit, onClose: () -> 
             }
 
             item { Text("RESULT", color = MUTED, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp)) }
-            item { ResultCard(todays, time.floatValue, owned, save.workshopActive == today, Shop.workshopCost(save), save.coins, onChange, save, today) }
+            item {
+                ResultCard(
+                    weapon = todays, time = time.floatValue, owned = owned, active = save.workshopActive == today, coins = save.coins,
+                    buyLabel = "CLAIM FREE", cost = null,
+                    onBuy = { Shop.claimDailyWorkshopWeapon(save, today)?.let(onChange) },
+                    onMount = { onChange(Shop.selectWorkshopWeapon(save, today)) },
+                    onScrap = { onChange(Shop.scrapWorkshopWeapon(save, today)) }
+                )
+            }
+
+            item { Text("CRAFT A RANDOM WEAPON", color = MUTED, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp)) }
+            item {
+                Row(
+                    Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Mystery blueprint", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            "A fresh roll of all five parts, on top of the free daily one - a bottomless sink for a coin pile with nowhere else to go.",
+                            color = MUTED, fontSize = 11.sp
+                        )
+                    }
+                    BuyButton("CRAFT", randomCost, save.coins >= randomCost, Modifier) { Shop.craftRandomWorkshopWeapon(save)?.let(onChange) }
+                }
+            }
 
             val others = save.workshopOwned.sortedDescending().filter { it != today }
             if (others.isNotEmpty()) {
@@ -109,8 +136,13 @@ fun WorkshopScreen(save: SaveData, onChange: (SaveData) -> Unit, onClose: () -> 
                 items(others) { day ->
                     val w = craftedWeaponForDay(day)
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Crafted ${LocalDate.ofEpochDay(day)}", color = MUTED, fontSize = 10.sp)
-                        ResultCard(w, time.floatValue, owned = true, active = save.workshopActive == day, cost = 0, coins = save.coins, onChange = onChange, save = save, day = day)
+                        Text(if (day >= 0) "Crafted ${LocalDate.ofEpochDay(day)}" else "Random craft #${-day}", color = MUTED, fontSize = 10.sp)
+                        ResultCard(
+                            weapon = w, time = time.floatValue, owned = true, active = save.workshopActive == day, coins = save.coins,
+                            buyLabel = "CRAFT", cost = null, onBuy = {},
+                            onMount = { onChange(Shop.selectWorkshopWeapon(save, day)) },
+                            onScrap = { onChange(Shop.scrapWorkshopWeapon(save, day)) }
+                        )
                     }
                 }
             }
@@ -136,11 +168,12 @@ private fun ResultCard(
     time: Float,
     owned: Boolean,
     active: Boolean,
-    cost: Int?,
     coins: Int,
-    onChange: (SaveData) -> Unit,
-    save: SaveData,
-    day: Long
+    buyLabel: String,
+    cost: Int?,
+    onBuy: () -> Unit,
+    onMount: () -> Unit,
+    onScrap: () -> Unit
 ) {
     Row(
         Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(12.dp)).padding(12.dp),
@@ -163,13 +196,13 @@ private fun ResultCard(
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             when {
-                !owned -> BuyButton("CRAFT", cost, cost != null && coins >= cost, Modifier, { Shop.craftWorkshopWeapon(save, day)?.let(onChange) })
+                !owned -> BuyButton(buyLabel, cost, cost == null || coins >= cost, Modifier, onBuy)
                 active -> Text("MOUNTED", color = AMBER, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
-                else -> Button(onClick = { onChange(Shop.selectWorkshopWeapon(save, day)) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) { Text("MOUNT", fontSize = 12.sp) }
+                else -> Button(onClick = onMount, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) { Text("MOUNT", fontSize = 12.sp) }
             }
             if (owned) {
                 OutlinedButton(
-                    onClick = { onChange(Shop.scrapWorkshopWeapon(save, day)) },
+                    onClick = onScrap,
                     colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent, contentColor = Color(0xFFEF9A9A))
                 ) { Text("SCRAP", fontSize = 12.sp) }
             }

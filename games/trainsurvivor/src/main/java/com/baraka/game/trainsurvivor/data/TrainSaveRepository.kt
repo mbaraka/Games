@@ -55,7 +55,8 @@ class TrainSaveRepository private constructor(private val prefs: SharedPreferenc
         trailsOwned = decodeLongs(prefs.getString("trails_owned", "") ?: ""),
         selectedTrail = prefs.getLong("selected_trail", -1L),
         workshopOwned = decodeLongs(prefs.getString("workshop_owned", "") ?: ""),
-        workshopActive = prefs.getLong("workshop_active", -1L)
+        workshopActive = prefs.getLong("workshop_active", -1L),
+        workshopCrafted = prefs.getInt("workshop_crafted", 0)
     )
 
     fun save(data: SaveData) {
@@ -92,6 +93,7 @@ class TrainSaveRepository private constructor(private val prefs: SharedPreferenc
             putLong("selected_trail", data.selectedTrail)
             putString("workshop_owned", data.workshopOwned.joinToString(","))
             putLong("workshop_active", data.workshopActive)
+            putInt("workshop_crafted", data.workshopCrafted)
         }.apply()
     }
 
