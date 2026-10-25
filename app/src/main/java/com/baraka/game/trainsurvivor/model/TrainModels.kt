@@ -118,10 +118,12 @@ object Shop {
         return save.copy(coins = save.coins - cost, unlockedSlots = save.unlockedSlots + 1)
     }
 
-    /** Buys [weapon] for the passenger at [index]; any weapon can be bought in any order. */
+    /** Buys [weapon] for the passenger at [index]; any weapon can be bought in any order, except a
+     * signature weapon, which only the survivor it belongs to can buy. */
     fun buyWeapon(save: SaveData, index: Int, weapon: WeaponType): SaveData? {
         val slot = save.slots[index]
-        if (slot.owns(weapon) || save.coins < weapon.unlockCost) return null
+        val owner = signatureOwnerOf(weapon)
+        if (slot.owns(weapon) || save.coins < weapon.unlockCost || (owner != null && owner != index)) return null
         return save.copy(
             coins = save.coins - weapon.unlockCost,
             slots = save.slots.replaced(index, slot.copy(owned = slot.owned or (1 shl weapon.ordinal)))

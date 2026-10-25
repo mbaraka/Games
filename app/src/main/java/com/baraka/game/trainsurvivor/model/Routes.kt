@@ -230,6 +230,13 @@ enum class Biome(
             signature(ZombieType.RIOT, 12f, weight = 3f) + signature(ZombieType.DRONE, 28f, weight = 2f, perSecond = 1f / 90f),
         hazards = listOf(HazardKind.COLLAPSE), coopOnly = true
     ),
+    PYRAMID(
+        "Pyramid Valley", "Towering pyramids line the rails and a colossal Sphinx blocks the way: scarab swarms, bandaged mummies and spear-throwing Anubis guards",
+        1.65f, 1.2f, 1.15f, 1.15f, 0xFFD4AF37, ZombieType.SPHINX,
+        commonSpawns(walker = 0.7f, runner = 0.8f, brute = 1f, bloater = 0.5f, bat = 0.5f, balloon = 0f, clown = 0f) +
+            signature(ZombieType.SCARAB, 6f, weight = 6f) + signature(ZombieType.MUMMY, 15f, weight = 4f) +
+            signature(ZombieType.ANUBIS_GUARD, 30f, weight = 3f, perSecond = 1f / 70f)
+    ),
     FAULT_LINE(
         "Fault Line (SHARED)", "Shared worlds only: the lower track faces the ground horde, the upper track an air raid. Guns reach both, so cover each other's weak side.",
         2.1f, 1.3f, 1.2f, 1.25f, 0xFFE57373, ZombieType.TITAN,

@@ -50,6 +50,8 @@ internal fun registerMobLooks() {
     l.set(ZombieType.DROWNED, 0xFF6FA58A, 0xFF3E6B5A)
     l.set(ZombieType.TENTACLE, 0xFF7E57C2, 0xFF5E35B1)
     l.set(ZombieType.RIOT, 0xFF86B864, 0xFF37474F)
+    l.set(ZombieType.MUMMY, 0xFFC9B896, 0xFFE2D4B0)
+    l.set(ZombieType.ANUBIS_GUARD, 0xFF8D6E4A, 0xFF1A1A1A)
 }
 
 internal fun registerMobArts() {
@@ -121,6 +123,28 @@ private fun registerRouteMobs() {
             rbox(Color(0xFF90CAF9).copy(alpha = 0.55f), 12f, -44f + bob, 8f, 40f, 3f) // riot shield
             box(Color(0xFFE3F2FD), 12f, -44f + bob, 8f, 2f)
             box(Color(0xFFE3F2FD), 12f, -6f + bob, 8f, 2f)
+        }
+    }
+    HumanoidExtras.register(ZombieType.MUMMY) { s, z, headY, bob, _, _ ->
+        with(s) {
+            for (k in 0..3) drawLine(Color(0xFFE2D4B0), Offset(-10f + k * 2f, headY - 9f + bob), Offset(10f - k * 2f, headY + 9f + bob), 2.4f) // wrapped head
+            for (k in 0..2) drawLine(Color(0xFFD8C79E), Offset(-9f, -30f + k * 6f + bob), Offset(9f, -32f + k * 6f + bob), 2.2f) // wrapped torso
+            drawCircle(Color(0xFFFF3B30).copy(alpha = 0.5f + 0.5f * sin(z.anim * 2f)), 1.4f, Offset(-2f, headY - 1f))
+            drawCircle(Color(0xFFFF3B30).copy(alpha = 0.5f + 0.5f * sin(z.anim * 2f)), 1.4f, Offset(4f, headY - 1f))
+        }
+    }
+    HumanoidExtras.register(ZombieType.ANUBIS_GUARD) { s, _, headY, bob, _, _ ->
+        with(s) {
+            box(Color(0xFF1A1A1A), -7f, headY - 10f, 14f, 11f) // jackal mask
+            path.rewind(); path.moveTo(-6f, headY - 10f); path.lineTo(-9f, headY - 20f); path.lineTo(-3f, headY - 10f); path.close()
+            drawPath(path, Color(0xFF1A1A1A)) // left ear
+            path.rewind(); path.moveTo(6f, headY - 10f); path.lineTo(9f, headY - 20f); path.lineTo(3f, headY - 10f); path.close()
+            drawPath(path, Color(0xFF1A1A1A)) // right ear
+            box(Color(0xFFD4AF37), -2f, headY - 2f, 4f, 7f) // snout stripe
+            box(Color(0xFFD4AF37), -9f, headY + 4f, 18f, 3f) // gold collar
+            drawLine(Color(0xFF8D6E63), Offset(14f, -40f + bob), Offset(22f, -8f + bob), 2.5f) // spear shaft
+            path.rewind(); path.moveTo(20f, -44f + bob); path.lineTo(26f, -40f + bob); path.lineTo(20f, -36f + bob); path.close()
+            drawPath(path, Color(0xFFCFD8DC)) // spearhead
         }
     }
 }

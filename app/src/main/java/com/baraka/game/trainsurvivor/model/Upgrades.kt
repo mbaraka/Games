@@ -23,7 +23,14 @@ enum class WeaponType(
     MINIGUN("Minigun", 13f, 0.07f, 400f, 0f, 1, 2000, "Bullet hose that overheats", heatPerShot = 0.03f),
     CANNON("Cannon", 180f, 1.6f, 480f, 120f, 1, 4500, "Explosive shells (ground only)", groundOnly = true, kind = DamageKind.EARTH),
     ROCKET("Rocket Launcher", 190f, 1.9f, 540f, 150f, 1, 8000, "Big blasts, hits flyers too", kind = DamageKind.FIRE),
-    LASER("Laser Rifle", 42f, 0.22f, 620f, 0f, 5, 14000, "Piercing beam, very long range, overheats", heatPerShot = 0.1f, kind = DamageKind.ELECTRIC)
+    LASER("Laser Rifle", 42f, 0.22f, 620f, 0f, 5, 14000, "Piercing beam, very long range, overheats", heatPerShot = 0.1f, kind = DamageKind.ELECTRIC),
+
+    // Signature weapons: each is exclusive to one survivor (see Survivor.signatureWeapon in model/Survivors.kt).
+    CONDUCTORS_REVOLVER("Conductor's Revolver", 70f, 0.7f, 380f, 0f, 1, 1200, "Cole's own: a heavy service revolver, one steady shot at a time"),
+    TWIN_KUNAI("Twin Kunai", 6f, 0.09f, 300f, 0f, 1, 2500, "Mara's own: a storm of thrown blades, too fast to follow", heatPerShot = 0.045f),
+    ANUBIS_CURSE("Curse of Anubis", 50f, 0.5f, 560f, 0f, 4, 10000, "Khufu's staff: a dark bolt leaps between the cursed", kind = DamageKind.ELECTRIC),
+    TRAUMA_BEAM("Trauma Beam", 36f, 0.3f, 480f, 0f, 2, 6000, "Doc's own: a diagnostic beam repurposed to zap", kind = DamageKind.ELECTRIC),
+    SCRAP_CANNON("Scrap Cannon", 140f, 1.3f, 360f, 90f, 1, 5000, "Rocco's own: welded-together junk that still packs a punch", groundOnly = true, kind = DamageKind.EARTH)
 }
 
 enum class TrainUpgrade(

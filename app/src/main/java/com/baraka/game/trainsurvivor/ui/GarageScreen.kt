@@ -66,6 +66,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.verticalScroll
 import com.baraka.game.trainsurvivor.model.SURVIVORS
+import com.baraka.game.trainsurvivor.model.signatureOwnerOf
 import com.baraka.game.ui.debug.DebugSection
 
 private val BG = Color(0xFF10131A)
@@ -399,8 +400,9 @@ private fun CrewCard(index: Int, slot: CrewSlot, save: SaveData, onPurchase: (Sa
             "${inHand.displayName}: ${Math.round(inHand.damage * damageFactor)} damage per shot (base ${inHand.damage.toInt()}, +${Math.round((damageFactor - 1f) * 100f)}%)",
             color = Color(0xFFFFD54F), fontSize = 11.sp, fontWeight = FontWeight.Bold
         )
+        val availableHere = WeaponType.entries.count { signatureOwnerOf(it)?.let { o -> o == index } ?: true }
         Text(
-            "${slot.ownedWeapons.size}/${WeaponType.entries.size} weapons  •  power ${slot.power}/$MAX_POWER (+${slot.power * 30}% damage)  •  car armor ${slot.armor}/$MAX_CAR_ARMOR",
+            "${slot.ownedWeapons.size}/$availableHere weapons  •  power ${slot.power}/$MAX_POWER (+${slot.power * 30}% damage)  •  car armor ${slot.armor}/$MAX_CAR_ARMOR",
             color = MUTED, fontSize = 11.sp
         )
 
@@ -412,8 +414,8 @@ private fun CrewCard(index: Int, slot: CrewSlot, save: SaveData, onPurchase: (Sa
             }
         }
 
-        // Weapons still available to buy.
-        val locked = WeaponType.entries.filter { !slot.owns(it) }
+        // Weapons still available to buy (signature weapons only show up for the survivor they belong to).
+        val locked = WeaponType.entries.filter { !slot.owns(it) && (signatureOwnerOf(it)?.let { o -> o == index } ?: true) }
         if (locked.isNotEmpty()) {
             Text("Buy more weapons", color = MUTED, fontSize = 11.sp)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {

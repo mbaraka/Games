@@ -132,7 +132,13 @@ enum class ZombieType(
     STRIKER("Striker", 70f, 120f, 9f, 8, 1.0f, armor = 3f, aimHeight = 26f),
     TWIN_BULWARK("Twin Bulwark", 1500f, 22f, 30f, 230, 2.4f, boss = true, armor = 8f, specialEvery = 7f, summon = STRIKER, summonCount = 3, callout = "STRIKERS!", partnerOnly = true),
     MIRROR_WARDEN("Mirror Warden", 1300f, 30f, 24f, 230, 2.3f, boss = true, armor = 6f, ranged = 320f, specialEvery = 6f, summon = STRIKER, summonCount = 2, callout = "ECHO!", partnerOnly = true),
-    SUN_KING("Sun King", 1100f, 36f, 24f, 210, 2.3f, boss = true, armor = 6f, ranged = 330f, fireImmune = true, specialEvery = 7f, summon = SOLAR_SPRITE, summonCount = 3, callout = "BURN!")
+    SUN_KING("Sun King", 1100f, 36f, 24f, 210, 2.3f, boss = true, armor = 6f, ranged = 330f, fireImmune = true, specialEvery = 7f, summon = SOLAR_SPRITE, summonCount = 3, callout = "BURN!"),
+
+    // Pyramid Valley.
+    SCARAB("Scarab Swarm", 9f, 115f, 3f, 2, 0.6f, aimHeight = 9f, packSize = 5),
+    MUMMY("Mummy", 95f, 26f, 9f, 7, 1.05f, armor = 4f),
+    ANUBIS_GUARD("Anubis Guard", 120f, 42f, 10f, 9, 1.15f, armor = 3f, ranged = 260f),
+    SPHINX("The Sphinx", 1450f, 24f, 28f, 220, 2.8f, boss = true, armor = 10f, aimHeight = 30f, specialEvery = 7f, summon = SCARAB, summonCount = 3, callout = "RIDDLE!")
 }
 
 /** A random upgrade some zombies spawn with; elites are tougher, worth 2.5x coins, and each trait calls for a different answer. */

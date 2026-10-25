@@ -863,6 +863,32 @@ private fun DrawScope.drawWeapon(weapon: WeaponType, recoil: Float) {
                 box(Color(0xFFECEFF1), 6f, -4f, 36f, 8f); box(Color(0xFF40E0FF), 14f, -1.5f, 24f, 3f)
                 box(dark, 40f, -3f, 10f, 6f); drawCircle(Color(0xFF80F0FF), 3.2f, Offset(50f, 0f)); box(dark, 10f, 3f, 5f, 8f)
             }
+            WeaponType.ANUBIS_CURSE -> {
+                box(Color(0xFF1A1A1A), 4f, -3f, 38f, 5f) // dark staff shaft
+                box(Color(0xFFD4AF37), 38f, -9f, 7f, 17f) // gold head
+                drawCircle(Color(0xFF7C4DFF).copy(alpha = 0.6f), 6f, Offset(44f, -1f)) // curse glow
+                drawCircle(Color(0xFF1565C0), 2.6f, Offset(44f, -1f)) // lapis eye
+            }
+            WeaponType.CONDUCTORS_REVOLVER -> {
+                box(wood, 2f, -2f, 8f, 6f); box(Color(0xFF5D4037), 8f, -3f, 6f, 8f) // cylinder
+                box(dark, 14f, -2f, 16f, 5f); box(Color(0xFFFFCC80), 8f, -4f, 3f, 2f) // brass lantern bead on the barrel
+            }
+            WeaponType.TWIN_KUNAI -> {
+                box(dark, 4f, -4f, 6f, 3f) // grip wrap
+                path.rewind(); path.moveTo(10f, -4f); path.lineTo(30f, -3f); path.lineTo(10f, -2f); path.close()
+                drawPath(path, steel) // upper blade
+                box(dark, 4f, 1f, 6f, 3f)
+                path.rewind(); path.moveTo(10f, 1f); path.lineTo(30f, 2f); path.lineTo(10f, 3f); path.close()
+                drawPath(path, steel) // lower blade
+            }
+            WeaponType.TRAUMA_BEAM -> {
+                box(Color(0xFFECEFF1), 6f, -3f, 30f, 6f); box(Color(0xFFE53935), 12f, -1f, 20f, 2.4f)
+                box(dark, 34f, -3f, 8f, 6f); drawCircle(Color(0xFFFF8A80), 2.6f, Offset(42f, 0f))
+            }
+            WeaponType.SCRAP_CANNON -> {
+                box(Color(0xFF6D4C41), 6f, -9f, 36f, 18f); box(Color(0xFFFF8F00), 10f, -7f, 6f, 6f) // welded patch
+                box(dark, 40f, -10f, 8f, 20f); drawCircle(Color(0xFF263238), 7f, Offset(16f, 14f))
+            }
         }
     }
 }
@@ -1134,6 +1160,15 @@ private fun DrawScope.drawCreature(z: Zombie, dir: Float) {
                 drawCircle(Color(0xFFE0A0A0), 3f, Offset(8f, -16f))
                 drawLine(Color(0xFFD7A0A0), Offset(-13f, -9f), Offset(-26f, -14f + scuttle * 2f), 1.8f)
                 drawCircle(Color(0xFFFF3B30), 1.3f, Offset(15f, -11f))
+            }
+            ZombieType.SCARAB -> {
+                val shell = tint(0xFF1B2E1C.toInt())
+                val sheen = tint(0xFF4CAF50.toInt())
+                for (k in 0..2) box(shell, -8f + k * 7f + sin(z.anim * 2.4f + k) * 2.5f, -6f, 3f, 6f)
+                drawOval(shell, Offset(-12f, -16f), Size(24f, 12f))
+                drawOval(sheen.copy(alpha = 0.5f), Offset(-9f, -15f), Size(10f, 9f))
+                drawLine(shell, Offset(0f, -16f), Offset(0f, -5f), 1.6f) // wing-case seam
+                drawCircle(Color(0xFFFF3B30), 1.3f, Offset(9f, -12f))
             }
             ZombieType.SCORPION -> {
                 val shell = tint(0xFFB8803F.toInt())
@@ -1526,6 +1561,22 @@ private fun DrawScope.drawAvatarHat(look: AvatarLook) {
         HatStyle.HELMET -> { drawArc(hat, 180f, 180f, true, Offset(-7f, -52f), Size(16f, 14f)); box(hat, -8f, -46f, 18f, 2f) }
         HatStyle.BANDANA -> { box(hat, -7f, -48f, 16f, 3f); box(hat, -10f, -47f, 4f, 5f) }
         HatStyle.BEANIE -> { drawArc(hat, 180f, 180f, true, Offset(-7f, -54f), Size(16f, 14f)); drawCircle(hat, 2f, Offset(1f, -55f)) }
+        HatStyle.PHARAOH -> {
+            val stripe = Color(look.accent)
+            box(hat, -7f, -58f, 16f, 7f) // flat crown
+            path.rewind(); path.moveTo(-9f, -52f); path.lineTo(-5f, -52f); path.lineTo(-7f, -38f); path.lineTo(-11f, -38f); path.close()
+            drawPath(path, hat) // left lappet, hanging past the shoulder
+            path.rewind(); path.moveTo(7f, -52f); path.lineTo(11f, -52f); path.lineTo(13f, -38f); path.lineTo(9f, -38f); path.close()
+            drawPath(path, hat) // right lappet
+            box(stripe, -7f, -55f, 16f, 1.6f) // lapis stripe across the crown
+            drawCircle(stripe, 1.6f, Offset(1f, -53f)) // uraeus cobra at the brow
+        }
+        HatStyle.NINJA -> {
+            box(hat, -7f, -52f, 15f, 11f) // hood wrapping the head and lower face
+            box(Color(0xFFECEFF1), -5f, -47f, 11f, 2.2f) // eye slit
+            path.rewind(); path.moveTo(-7f, -46f); path.lineTo(-14f, -40f); path.lineTo(-7f, -41f); path.close()
+            drawPath(path, hat) // trailing hood tail
+        }
     }
 }
 
@@ -1553,7 +1604,7 @@ private fun installRenderRegistries() {
     }
     TrainShapeArtRegistry.register(TrainShape.STEAM, SteamShapeArt)
     MobArtRegistry.register(listOf(ZombieType.BAT, ZombieType.GARGOYLE)) { s, z, d -> with(s) { drawBat(z, d) } }
-    MobArtRegistry.register(listOf(ZombieType.ZOMBIE_DOG, ZombieType.ICE_WOLF, ZombieType.RAT, ZombieType.SCORPION, ZombieType.CROCODILE)) { s, z, d -> with(s) { drawCreature(z, d) } }
+    MobArtRegistry.register(listOf(ZombieType.ZOMBIE_DOG, ZombieType.ICE_WOLF, ZombieType.RAT, ZombieType.SCORPION, ZombieType.CROCODILE, ZombieType.SCARAB)) { s, z, d -> with(s) { drawCreature(z, d) } }
     registerMobLooks()
     registerMobArts()
     registerRouteArts()

@@ -39,6 +39,7 @@ internal fun registerRouteArts() {
     RouteArtRegistry.register(Biome.SOLAR, SolarArt)
     RouteArtRegistry.register(Biome.TWIN_BRIDGE, TwinBridgeArt)
     RouteArtRegistry.register(Biome.ECHO_MINE, EchoMineArt)
+    RouteArtRegistry.register(Biome.PYRAMID, PyramidArt)
 }
 
 // ------------------------------------------------------------------ helpers
@@ -603,4 +604,140 @@ private object SeaBridgeArt : RouteArt {
     }
 
     override fun trainKit(s: DrawScope, g: TrainGame, alpha: Float) = with(s) { tintTrain(g, Color(0xFF26C6DA).copy(alpha = 0.1f), alpha) }
+}
+
+// ------------------------------------------------------------------ Pyramid Valley
+
+// The route alternates open desert with a stretch inside a pyramid (like a tunnel embedded in the dunes):
+// every PYRAMID_PERIOD of travel, the train passes through two carved doorways and PYRAMID_INSIDE of track
+// between them is dark, torch-lit stone. pyramidInside() is 0 outside and eases to 1 between the doors.
+private const val PYRAMID_PERIOD = 2600f
+private const val PYRAMID_INSIDE = 900f
+private const val PYRAMID_FADE = 220f
+
+private fun pyramidInside(scroll: Float): Float {
+    val phase = wrap(scroll, PYRAMID_PERIOD)
+    val start = (PYRAMID_PERIOD - PYRAMID_INSIDE) / 2f
+    val end = start + PYRAMID_INSIDE
+    return when {
+        phase in start..end -> 1f
+        phase in (start - PYRAMID_FADE)..start -> (phase - (start - PYRAMID_FADE)) / PYRAMID_FADE
+        phase in end..(end + PYRAMID_FADE) -> 1f - (phase - end) / PYRAMID_FADE
+        else -> 0f
+    }
+}
+
+/** A carved doorway in a pyramid's wall, at screen x [x] (off-screen calls are skipped). */
+private fun DrawScope.drawPyramidDoorway(x: Float) {
+    if (x < -220f || x > 1400f) return
+    val base = HORIZON + 2f
+    box(Color(0xFF8A6A42), x - 90f, base - 230f, 180f, 230f) // stone facade
+    path.rewind(); path.moveTo(x - 90f, base - 230f); path.lineTo(x, base - 330f); path.lineTo(x + 90f, base - 230f); path.close()
+    drawPath(path, Color(0xFFD1A964)) // capstone
+    drawArc(Color.Black, 180f, 180f, true, Offset(x - 46f, base - 92f), Size(92f, 100f)) // dark doorway arch
+    for (k in 0..3) box(Color(0xFFD4AF37).copy(alpha = 0.7f), x - 70f + k * 22f, base - 222f, 10f, 10f) // lintel hieroglyphs
+}
+
+private object PyramidArt : RouteArt {
+    override fun backdrop(s: DrawScope, g: TrainGame, light: Float, sunset: Float) {
+        with(s) {
+            fillSky(g, Color(0xFF3B6FA0), Color(0xFFFFDE9E))
+            val sx = g.worldW * 0.75f
+            drawCircle(Brush.radialGradient(listOf(Color(0xFFFFEFC0).copy(alpha = 0.6f), Color.Transparent), center = Offset(sx, HORIZON - 120f), radius = 140f), 140f, Offset(sx, HORIZON - 120f))
+            drawCircle(Color(0xFFFFF3D0), 46f, Offset(sx, HORIZON - 120f))
+            drawRange(g, HORIZON - 4f, 120f, 0.005f, 0.08f, SolidColor(Color(0xFFD9B778)), 0.4f)
+            fillGround(g, Color(0xFFE2C089), Color(0xFF9C7B46))
+            scenery(g, 520f, 0.45f, 0.1f) { x, r ->
+                val base = HORIZON + 2f
+                if (r > 0.86f) { // the Sphinx: a rare, monumental landmark among the pyramids
+                    val w = 170f
+                    val h = 100f
+                    box(Color(0xFFC9A969), x - w * 0.2f, base - h * 0.55f, w * 0.72f, h * 0.55f) // reclining body
+                    drawOval(Color(0xFFC9A969), Offset(x - w * 0.46f, base - h * 0.9f), Size(w * 0.4f, h * 0.9f)) // haunches
+                    box(Color(0xFFB08F52), x + w * 0.2f, base - h, w * 0.26f, h * 0.7f) // head block
+                    box(Color(0xFFD4AF37), x + w * 0.18f, base - h, w * 0.3f, h * 0.14f) // nemes band
+                    outlinedText("THE SPHINX", x, base - h - 10f, 12f, 0xFFFFE9B0.toInt())
+                } else {
+                    val w = 180f + r * 120f
+                    val h = 150f + r * 110f
+                    path.rewind(); path.moveTo(x - w / 2f, base); path.lineTo(x, base - h); path.lineTo(x + w / 2f, base); path.close()
+                    drawPath(path, Color(0xFFD1A964))
+                    path.rewind(); path.moveTo(x, base - h); path.lineTo(x + w / 2f, base); path.lineTo(x + 4f, base); path.close()
+                    drawPath(path, Color(0xFFAD8650)) // shaded face
+                    for (k in 1..4) drawLine(Color(0xFFB08F52).copy(alpha = 0.5f), Offset(x - w / 2f + k * (w / 10f), base - k * (h / 5f)), Offset(x + w / 2f - k * (w / 10f), base - k * (h / 5f)), 1.6f)
+                }
+            }
+
+            // The two doorways this period, wherever they currently sit on screen.
+            val first = ((g.scroll - 300f) / PYRAMID_PERIOD).toInt() - 1
+            val last = ((g.scroll + g.worldW + 300f) / PYRAMID_PERIOD).toInt() + 1
+            for (i in first..last) {
+                val periodStart = i * PYRAMID_PERIOD
+                val doorStart = periodStart + (PYRAMID_PERIOD - PYRAMID_INSIDE) / 2f
+                val doorEnd = doorStart + PYRAMID_INSIDE
+                drawPyramidDoorway(doorStart - g.scroll)
+                drawPyramidDoorway(doorEnd - g.scroll)
+            }
+
+            val inside = pyramidInside(g.scroll)
+            if (inside > 0.01f) {
+                drawRect(Color(0xFF241A12).copy(alpha = 0.94f * inside), Offset(-200f, -1200f), Size(g.worldW + 400f, HORIZON + 1230f)) // stone ceiling replaces the sky
+                drawRect(Color(0xFF1C140D).copy(alpha = 0.9f * inside), Offset(-200f, HORIZON), Size(g.worldW + 400f, 800f)) // stone floor
+                scenery(g, 170f, 1f, 0.05f) { x, r -> // torches lining the passage
+                    val y = 420f + r * 60f
+                    val flick = 0.7f + 0.3f * sin(g.time * 9f + r * 10f)
+                    drawCircle(Brush.radialGradient(listOf(Color(0xFFFFAB40).copy(alpha = 0.5f * inside * flick), Color.Transparent), center = Offset(x, y), radius = 36f), 36f, Offset(x, y))
+                    box(Color(0xFF3E2723).copy(alpha = inside), x - 2f, y - 4f, 4f, 20f) // bracket
+                    drawCircle(Color(0xFFFFD54F).copy(alpha = inside * flick), 4f, Offset(x, y - 6f)) // flame
+                }
+                scenery(g, 140f, 1f, 0.2f) { x, r -> // carved hieroglyph reliefs on the walls
+                    val y = 520f + r * 70f
+                    box(Color(0xFFD4AF37).copy(alpha = 0.55f * inside), x, y, 10f, 10f)
+                    box(Color(0xFFD4AF37).copy(alpha = 0.55f * inside), x + 14f, y + 6f, 6f, 6f)
+                }
+            }
+        }
+    }
+
+    override fun foreground(s: DrawScope, g: TrainGame, light: Float) {
+        with(s) {
+            scenery(g, 260f, 1.3f, 0.35f) { x, r ->
+                val y = 650f + r * 40f
+                drawOval(Color(0xFFD9B778), Offset(x, y), Size(70f + r * 40f, 18f))
+                if (r > 0.75f) box(Color(0xFF8A6A3E), x - 3f, y - 36f, 6f, 36f) // small obelisk
+            }
+            val inside = pyramidInside(g.scroll)
+            if (inside > 0.01f) {
+                scenery(g, 210f, 1.4f, 0.1f) { x, _ -> // carved columns passing close by
+                    box(Color(0xFF1C140D).copy(alpha = 0.9f * inside), x - 10f, 300f, 20f, 420f)
+                    box(Color(0xFFD4AF37).copy(alpha = 0.5f * inside), x - 10f, 300f, 20f, 14f)
+                    box(Color(0xFFD4AF37).copy(alpha = 0.5f * inside), x - 10f, 706f, 20f, 14f)
+                }
+            }
+        }
+    }
+
+    override fun weather(s: DrawScope, g: TrainGame) {
+        with(s) {
+            val span = g.worldW + 300f
+            for (i in 0 until 14) { // drifting sand haze
+                val x = wrap(hash(i) * span - g.time * (90f + hash(i + 3) * 60f), span) - 100f
+                val y = 560f + hash(i + 7) * 160f
+                drawLine(Color(0xFFFFE9B0).copy(alpha = 0.22f), Offset(x, y), Offset(x + 50f, y), 2f)
+            }
+            for (i in 0 until 6) { // heat shimmer over the dunes
+                val x = wrap(i * 260f - g.time * 20f, span) - 80f
+                val wobble = sin(g.time * 3f + i) * 4f
+                drawLine(Color.White.copy(alpha = 0.08f), Offset(x + wobble, 600f), Offset(x - wobble, 560f), 10f)
+            }
+        }
+    }
+
+    override fun darkness(night: Float) = night * 0.45f
+
+    override fun trainKit(s: DrawScope, g: TrainGame, alpha: Float) = with(s) {
+        tintTrain(g, Color(0xFFE2C089).copy(alpha = 0.16f), alpha)
+        val inside = pyramidInside(g.scroll)
+        if (inside > 0.01f) tintTrain(g, Color(0xFFFF8F00).copy(alpha = 0.22f * inside), alpha)
+    }
 }

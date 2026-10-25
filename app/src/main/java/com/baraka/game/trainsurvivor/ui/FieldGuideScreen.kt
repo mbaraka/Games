@@ -77,7 +77,7 @@ private val zombieNotes: Map<ZombieType, ZombieNote> = mapOf(
     ZombieType.MAGMA_GOLEM to ZombieNote("Volcano Line, after ~40 s", "A walking lava rock, armor 5. Fire cannot hurt it, so the Flamethrower does nothing.", "Sniper, Rocket, Cannon, Tesla Coil."),
     ZombieType.ICE_WOLF to ZombieNote("Frozen Tundra, from ~10 s", "A fast wolf that runs in pairs and slides in on the ice.", "Short-range fast guns; the blizzard cuts your range, so keep close weapons ready."),
     ZombieType.FROST_WRAITH to ZombieNote("Frozen Tundra, after ~30 s", "A translucent flying ghost that drifts over the train and claws from above.", "Flak Turret and any gun except the Cannon."),
-    ZombieType.GUNSLINGER to ZombieNote("Ghost Town, from ~18 s", "Stops far from the train and SHOOTS it instead of walking up. It does not queue, so only range reaches it.", "Sniper, Laser and Rocket outrange it. Hawk's range perk helps."),
+    ZombieType.GUNSLINGER to ZombieNote("Ghost Town, from ~18 s", "Stops far from the train and SHOOTS it instead of walking up. It does not queue, so only range reaches it.", "Sniper, Laser and Rocket outrange it. Khufu's range perk helps."),
     ZombieType.JUGGLER to ZombieNote("Carnival, from ~15 s", "A clown that stands back and pelts the train with juggling balls. Pops into two mini clowns when killed.", "Kill it at range; splash weapons clear its minis."),
     ZombieType.STRONGMAN to ZombieNote("Carnival, after ~45 s", "A huge armored (5) circus strongman.", "Big hitters: Sniper, Rocket, Cannon."),
     ZombieType.MINI_CLOWN to ZombieNote("Carnival (from popped clowns)", "A small fast clown that appears when a clown or juggler pops.", "Shotgun, Tesla and Mortar clear them in bulk."),
@@ -125,7 +125,11 @@ private val zombieNotes: Map<ZombieType, ZombieNote> = mapOf(
     ZombieType.EMBER to ZombieNote("Solar Rail, from ~8 s", "A burning zombie with a flaming head. Fire cannot hurt it, so the Flamethrower does nothing.", "Any gun works; Tesla and Mortar are good too."),
     ZombieType.SOLAR_SPRITE to ZombieNote("Solar Rail, after ~22 s", "A flickering ball of plasma that darts around erratically. Fire-proof, and solar flares can't burn it.", "Rapid-fire guns and Flak Turret."),
     ZombieType.SUN_PRIEST to ZombieNote("Solar Rail, after ~35 s", "A robed priest that stays back and hurls fire at the train from a distance. Fire-proof.", "Outrange it: Sniper, Laser and Rocket."),
-    ZombieType.CROCODILE to ZombieNote("Murky Swamp, from ~10 s", "Creeps out of the bog, then LUNGES in short bursts. Armor 3 and a brutal bite.", "Kill it before it lunges into range: Sniper and Rocket work best.")
+    ZombieType.CROCODILE to ZombieNote("Murky Swamp, from ~10 s", "Creeps out of the bog, then LUNGES in short bursts. Armor 3 and a brutal bite.", "Kill it before it lunges into range: Sniper and Rocket work best."),
+    ZombieType.SCARAB to ZombieNote("Pyramid Valley, from ~6 s", "A tiny iridescent beetle that swarms in packs of five.", "Splash and chain weapons shine: Shotgun, Tesla Coil, Mortar."),
+    ZombieType.MUMMY to ZombieNote("Pyramid Valley, after ~15 s", "A bandaged walker, armor 4, shambling in from the sand.", "Mid-damage weapons and the Flamethrower handle them."),
+    ZombieType.ANUBIS_GUARD to ZombieNote("Pyramid Valley, after ~30 s", "A jackal-masked guard, armor 3, that stops and throws its spear from a distance.", "Sniper, Laser and Rocket outrange it."),
+    ZombieType.SPHINX to ZombieNote("Boss of Pyramid Valley", "A colossal stone guardian. Every few seconds it poses a RIDDLE and skitters three scarabs into the fight.", "Armor 10: stack Dynamite, Rockets, Sniper shots and Tesla chains; splash weapons clear the scarabs.")
 )
 
 @Composable

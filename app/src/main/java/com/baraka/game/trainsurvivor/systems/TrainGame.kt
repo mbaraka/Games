@@ -178,6 +178,11 @@ fun weaponLength(weapon: WeaponType): Float = when (weapon) {
     WeaponType.CANNON -> 46f
     WeaponType.ROCKET -> 46f
     WeaponType.LASER -> 44f
+    WeaponType.CONDUCTORS_REVOLVER -> 20f
+    WeaponType.TWIN_KUNAI -> 20f
+    WeaponType.ANUBIS_CURSE -> 44f
+    WeaponType.TRAUMA_BEAM -> 40f
+    WeaponType.SCRAP_CANNON -> 42f
 }
 
 /**
@@ -1875,6 +1880,11 @@ class TrainGame(
             }
             WeaponType.LASER -> addTracer(Tracer(mx, my, tx + g.facing * 240f, ty, 0.12f, 3.5f, 0xFF40E0FF.toInt()))
             WeaponType.MINIGUN -> addTracer(Tracer(mx, my, tx, ty, 0.05f, 1.8f, 0xFFFFCC80.toInt()))
+            WeaponType.ANUBIS_CURSE -> addTracer(Tracer(mx, my, tx, ty, 0.1f, 3f, 0xFF7C4DFF.toInt()))
+            WeaponType.CONDUCTORS_REVOLVER -> addTracer(Tracer(mx, my, tx, ty, 0.08f, 2.5f, 0xFFFFB74D.toInt()))
+            WeaponType.TWIN_KUNAI -> addTracer(Tracer(mx, my, tx, ty, 0.05f, 1.6f, 0xFFE0E0E0.toInt()))
+            WeaponType.TRAUMA_BEAM -> addTracer(Tracer(mx, my, tx + g.facing * 200f, ty, 0.1f, 2.8f, 0xFFE53935.toInt()))
+            WeaponType.SCRAP_CANNON -> { addTracer(Tracer(mx, my, tx, ty, 0.12f, 5f, 0xFF8D6E63.toInt())); explosion(tx, ty, 24f) }
             else -> addTracer(Tracer(mx, my, tx, ty, 0.06f, 1.6f, 0xFFFFF59D.toInt()))
         }
         spark(mx, my)
@@ -1887,6 +1897,11 @@ class TrainGame(
                 WeaponType.CANNON -> TrainSoundCue.CANNON
                 WeaponType.ROCKET -> TrainSoundCue.ROCKET
                 WeaponType.LASER -> TrainSoundCue.LASER
+                WeaponType.ANUBIS_CURSE -> TrainSoundCue.ZAP
+                WeaponType.CONDUCTORS_REVOLVER -> TrainSoundCue.PISTOL
+                WeaponType.TWIN_KUNAI -> TrainSoundCue.SMG
+                WeaponType.TRAUMA_BEAM -> TrainSoundCue.ZAP
+                WeaponType.SCRAP_CANNON -> TrainSoundCue.CANNON
             }
         )
 
