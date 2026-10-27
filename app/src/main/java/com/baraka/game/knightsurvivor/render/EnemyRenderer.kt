@@ -6,7 +6,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.baraka.game.knightsurvivor.balance.GameTunables
 import com.baraka.game.knightsurvivor.model.EnemyInstance
-import com.baraka.game.knightsurvivor.model.VectorIcon
+import com.baraka.game.ui.icons.VectorIcon
+import com.baraka.game.ui.icons.drawHeart
+import com.baraka.game.ui.icons.drawVectorIcon
 
 /**
  * Draws every enemy using its [com.baraka.game.knightsurvivor.model.EnemyKind.icon]

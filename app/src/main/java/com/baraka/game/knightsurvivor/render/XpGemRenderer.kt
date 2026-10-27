@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.baraka.game.knightsurvivor.balance.GameTunables
 import com.baraka.game.knightsurvivor.model.XpGem
+import com.baraka.game.ui.icons.drawDiamond
 
 private val XP_GEM_COLOR = Color(0xFF7CFC00)
 

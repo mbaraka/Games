@@ -1,4 +1,4 @@
-package com.baraka.game.knightsurvivor.render
+package com.baraka.game.ui.icons
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -6,7 +6,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import com.baraka.game.knightsurvivor.model.VectorIcon
 
 private val EYE_COLOR = Color(0xFF1A1A1A)
 private val TUSK_COLOR = Color(0xFFFFFDE7)

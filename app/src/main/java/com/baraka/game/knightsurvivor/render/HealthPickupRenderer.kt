@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.baraka.game.knightsurvivor.balance.GameTunables
 import com.baraka.game.knightsurvivor.model.HealthPickup
+import com.baraka.game.ui.icons.drawHeart
 
 private val HEALTH_PICKUP_COLOR = Color(0xFFE53935)
 

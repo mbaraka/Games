@@ -13,6 +13,7 @@ import com.baraka.game.knightsurvivor.model.WeaponActivationEvent
 import com.baraka.game.knightsurvivor.model.WeaponKind
 import com.baraka.game.knightsurvivor.model.WeaponTargeting
 import com.baraka.game.knightsurvivor.systems.WeaponFiringSystem
+import com.baraka.game.ui.icons.drawVectorIcon
 
 private val INVULNERABLE_FLASH_COLOR = Color(0xFFFF5252)
 private val PARTNER_DEFAULT_BODY_COLOR = Color(0xFFFFA726)

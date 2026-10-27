@@ -49,9 +49,9 @@ import com.baraka.game.clashdecks.model.StatusEffect
 import com.baraka.game.clashdecks.model.VfxSide
 import com.baraka.game.clashdecks.model.showsAmount
 import com.baraka.game.knightsurvivor.model.KnightDesign
-import com.baraka.game.knightsurvivor.model.VectorIcon
+import com.baraka.game.ui.icons.VectorIcon
 import com.baraka.game.knightsurvivor.render.drawKnightIcon
-import com.baraka.game.knightsurvivor.render.drawVectorIcon
+import com.baraka.game.ui.icons.drawVectorIcon
 import com.baraka.game.ui.theme.GameColors
 import kotlinx.coroutines.delay
 

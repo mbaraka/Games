@@ -1,5 +1,7 @@
 package com.baraka.game.knightsurvivor.model
 
+import com.baraka.game.ui.icons.VectorIcon
+
 /**
  * One selectable choice offered on the level-up screen.
  *

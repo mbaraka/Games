@@ -1,4 +1,4 @@
-package com.baraka.game.knightsurvivor.render
+package com.baraka.game.ui.icons
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect

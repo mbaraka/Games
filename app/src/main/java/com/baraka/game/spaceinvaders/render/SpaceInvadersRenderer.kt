@@ -16,8 +16,8 @@ import com.baraka.game.spaceinvaders.model.Shield
 import com.baraka.game.spaceinvaders.model.SpaceInvadersState
 import com.baraka.game.spaceinvaders.model.alienX
 import com.baraka.game.spaceinvaders.model.alienY
-import com.baraka.game.knightsurvivor.model.VectorIcon
-import com.baraka.game.knightsurvivor.render.drawVectorIcon
+import com.baraka.game.ui.icons.VectorIcon
+import com.baraka.game.ui.icons.drawVectorIcon
 
 private val PLAYER_COLOR = Color(0xFF66BB6A)
 private val PLAYER_BULLET_COLOR = Color(0xFFECEFF1)

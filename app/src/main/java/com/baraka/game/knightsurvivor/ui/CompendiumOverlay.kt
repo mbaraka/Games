@@ -43,7 +43,7 @@ import com.baraka.game.knightsurvivor.model.PlayerState
 import com.baraka.game.knightsurvivor.model.WeaponInstance
 import com.baraka.game.knightsurvivor.model.WeaponKind
 import com.baraka.game.knightsurvivor.render.drawKnightIcon
-import com.baraka.game.knightsurvivor.render.drawVectorIcon
+import com.baraka.game.ui.icons.drawVectorIcon
 import com.baraka.game.ui.theme.GameColors
 
 private enum class CompendiumTab(val label: String) {

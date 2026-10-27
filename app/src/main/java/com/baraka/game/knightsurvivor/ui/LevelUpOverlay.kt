@@ -33,8 +33,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.knightsurvivor.model.UpgradeDisplay
-import com.baraka.game.knightsurvivor.model.VectorIcon
-import com.baraka.game.knightsurvivor.render.drawVectorIcon
+import com.baraka.game.ui.icons.VectorIcon
+import com.baraka.game.ui.icons.drawVectorIcon
 import com.baraka.game.ui.theme.GameColors
 
 /** One already-owned weapon or passive, shown in the loadout strip above the upgrade cards. */
