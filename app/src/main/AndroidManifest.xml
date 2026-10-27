@@ -43,11 +43,7 @@
 
         <!-- Memory Match's activity entry lives in its own module now (games/memorymatch/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
-        <activity
-            android:name=".numbercruncher.NumberCruncherGame"
-            android:exported="false"
-            android:label="Number Cruncher"
-            android:theme="@style/Theme.Game" />
+        <!-- Number Cruncher's activity entry lives in its own module now (games/numbercruncher/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
         <!-- Train Survivor's activity entry lives in its own module now (games/trainsurvivor/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
@@ -104,12 +100,7 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
 
-        <activity
-            android:name=".missilecommand.MissileCommandActivity"
-            android:exported="false"
-            android:label="Silo Defense"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.Game" />
+        <!-- Missile Command's activity entry lives in its own module now (games/missilecommand/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
         <!-- Snake's activity entry lives in its own module now (games/snake/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
@@ -122,12 +113,7 @@
 
         <!-- Tunnel Crew's activity entry lives in its own module now (games/tunnelcrew/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
-        <activity
-            android:name=".cratecrew.CrateCrewActivity"
-            android:exported="false"
-            android:label="Crate Crew"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.Game" />
+        <!-- Crate Crew's activity entry lives in its own module now (games/cratecrew/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
         <!-- Arc Shot's activity entry lives in its own module now (games/arcshot/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
     </application>

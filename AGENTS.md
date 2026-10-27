@@ -229,11 +229,12 @@ one game's broken WIP blocking everyone else's build) is worth giving its own Gr
 instead - it still builds as part of the same app, but compiles and can be reasoned about on
 its own, and another game's half-finished code can't block it. Train Survivor is the first
 one done this way (`games/trainsurvivor/`); Battleship, Dreadnought, Base Defender, Key
-Reader, Memory Match, Snake, Snakes & Ladders, Road Rush, Arc Shot, Minesweeper and Tunnel
-Crew followed (`games/battleship/`, `games/dreadnought/`, `games/basedefender/`,
-`games/keyreader/`, `games/memorymatch/`, `games/snake/`, `games/snakeladder/`,
-`games/roadrush/`, `games/arcshot/`, `games/minesweeper/`, `games/tunnelcrew/`) - follow the
-same shape for the next one.
+Reader, Memory Match, Snake, Snakes & Ladders, Road Rush, Arc Shot, Minesweeper, Tunnel
+Crew, Number Cruncher, Crate Crew and Missile Command followed (`games/battleship/`,
+`games/dreadnought/`, `games/basedefender/`, `games/keyreader/`, `games/memorymatch/`,
+`games/snake/`, `games/snakeladder/`, `games/roadrush/`, `games/arcshot/`,
+`games/minesweeper/`, `games/tunnelcrew/`, `games/numbercruncher/`, `games/cratecrew/`,
+`games/missilecommand/`) - follow the same shape for the next one.
 
 Clash Decks is **not yet split** even though it would benefit (it's one of the larger games):
 it imports `VectorIcon`/`KnightDesign`/`drawVectorIcon`/`drawKnightIcon` from Knight Survivor,

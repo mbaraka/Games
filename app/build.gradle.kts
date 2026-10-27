@@ -182,6 +182,9 @@ dependencies {
     implementation(project(":games:arcshot"))
     implementation(project(":games:minesweeper"))
     implementation(project(":games:tunnelcrew"))
+    implementation(project(":games:numbercruncher"))
+    implementation(project(":games:cratecrew"))
+    implementation(project(":games:missilecommand"))
 
     // Core Android dependencies
     implementation(libs.androidx.core.ktx)
