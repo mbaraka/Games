@@ -31,7 +31,11 @@ enum class Refit(
     }
 }
 
-/** A sea to fight on. Palettes are ARGB; later theatres unlock by reaching a wave in any sortie. */
+/**
+ * A sea to fight on. Palettes are ARGB; later seas unlock by reaching a wave in any sortie. Each sea looks and feels
+ * different, all from data: how big and fast the swell is, foam crests, sun glitter, coral shallows, ice floes and
+ * icebergs, and the weather laid over the whole scene (rain, snow, fog, lightning).
+ */
 enum class Theatre(
     val label: String,
     val blurb: String,
@@ -39,9 +43,33 @@ enum class Theatre(
     val deep: Long,
     val shallow: Long,
     val swell: Long,
-    val ice: Boolean = false
+    val ice: Boolean = false,
+    val bergs: Boolean = false,
+    /** Swell size and speed (1 = normal), foam crests and sun glitter (0..1), coral shallows. */
+    val swellScale: Float = 1f,
+    val swellSpeed: Float = 1f,
+    val whitecaps: Float = 0f,
+    val glitter: Float = 0f,
+    val coral: Boolean = false,
+    /** Weather: rain and snow density (0..1), fog colour (ARGB, 0 = clear), lightning flashes. */
+    val rain: Float = 0f,
+    val snow: Float = 0f,
+    val fog: Long = 0L,
+    val lightning: Boolean = false
 ) {
-    ATLANTIC("North Atlantic", "Grey swell and long shadows.", 0, 0xFF1D3B52, 0xFF27506C, 0xFF6F93AB),
-    PACIFIC("Pacific", "Deep blue, bright water.", 5, 0xFF0D4A78, 0xFF1768A3, 0xFF8EC8EC),
-    ARCTIC("Arctic Convoy", "Ice floes drifting in black water.", 10, 0xFF132F44, 0xFF1D4560, 0xFFB6D4E6, ice = true)
+    ATLANTIC(
+        "North Atlantic", "A storm: heavy grey swell, white-capped waves, driving rain, fog and lightning.", 0,
+        0xFF182B3A, 0xFF2A4658, 0xFFA3B9C6,
+        swellScale = 1.7f, swellSpeed = 1.9f, whitecaps = 0.9f, rain = 0.8f, fog = 0x4075909F, lightning = true
+    ),
+    PACIFIC(
+        "Pacific", "Calm turquoise water, bright sun glitter and coral shallows.", 5,
+        0xFF0A5C8C, 0xFF19A3C7, 0xFFCDF1FF,
+        swellScale = 0.8f, swellSpeed = 0.7f, whitecaps = 0.12f, glitter = 1f, coral = true
+    ),
+    ARCTIC(
+        "Arctic", "Black water, ice floes, towering icebergs and drifting snow.", 10,
+        0xFF0E2231, 0xFF1B3B50, 0xFFB6D4E6,
+        ice = true, bergs = true, swellScale = 1.2f, swellSpeed = 0.5f, snow = 0.8f, fog = 0x33BFDCEB
+    )
 }

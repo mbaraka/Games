@@ -4,6 +4,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
@@ -102,6 +103,7 @@ class NavalRenderer {
         drawPlanes(g, t)
         drawShells(g)
         drawParticles(g, under = false)
+        drawWeather(theatre, t)
         drawAim(g, st)
         drawNumbers(g)
         drawEdgeArrows(g)
@@ -121,6 +123,8 @@ class NavalRenderer {
         drawRect(Color(th.deep))
         val shallow = Color(th.shallow)
         val swell = Color(th.swell)
+        val sz = th.swellScale
+        val sp = th.swellSpeed
         val x0 = camX - halfW / scale
         val x1 = camX + halfW / scale
         val y0 = camY - halfH / scale
@@ -143,7 +147,41 @@ class NavalRenderer {
             ix++
         }
 
-        // swell streaks
+        // coral shallows: pale turquoise water over reefs, with a sand bank and coral heads
+        if (th.coral) {
+            val reef = 640f
+            ix = floor((x0 - 220f) / reef).toInt()
+            while (ix * reef < x1 + 220f) {
+                var iy = floor((y0 - 220f) / reef).toInt()
+                while (iy * reef < y1 + 220f) {
+                    val h = hash01(ix, iy, 51)
+                    if (h > 0.5f) {
+                        val cx = worldToScreenX((ix + hash01(ix, iy, 53)) * reef)
+                        val cy = worldToScreenY((iy + hash01(ix, iy, 54)) * reef)
+                        val r = (110f + 90f * hash01(ix, iy, 52)) * scale
+                        val c = Offset(cx, cy)
+                        drawCircle(Color(0x4D3CCFD6), r, c)
+                        drawCircle(Color(0x4D7FE6D8), r * 0.62f, c)
+                        drawCircle(Color(0x99EAD9A0), r * 0.2f, Offset(cx + r * 0.12f, cy - r * 0.08f))
+                        for (k in 0 until 7) {
+                            val a = hash01(ix, iy, 60 + k) * 6.28f
+                            val d = r * 0.6f * hash01(ix, iy, 70 + k)
+                            val dot = (3f + 3f * hash01(ix, iy, 80 + k)) * scale
+                            val col = when (k % 3) {
+                                0 -> Color(0xCCEC6A8C)
+                                1 -> Color(0xCCFF9A5A)
+                                else -> Color(0xCC2E8B57)
+                            }
+                            drawCircle(col, dot, Offset(cx + cos(a) * d, cy + sin(a) * d))
+                        }
+                    }
+                    iy++
+                }
+                ix++
+            }
+        }
+
+        // swell streaks, and white foam crests where the sea is rough
         val cell = 64f
         ix = floor(x0 / cell).toInt()
         while (ix * cell < x1) {
@@ -151,19 +189,60 @@ class NavalRenderer {
             while (iy * cell < y1) {
                 val h = hash01(ix, iy, 7)
                 if (h > 0.42f) {
-                    val wx = (ix + hash01(ix, iy, 8)) * cell + sin(t * 0.35f + h * 6.28f) * 4f
+                    val wx = (ix + hash01(ix, iy, 8)) * cell + sin(t * 0.35f * sp + h * 6.28f) * 4f * sz
                     val wy = (iy + hash01(ix, iy, 9)) * cell
-                    val len = (14f + 24f * hash01(ix, iy, 10)) * scale
-                    val a = 0.07f + 0.15f * (0.5f + 0.5f * sin(t * 0.8f + h * 12f))
+                    val len = (14f + 24f * hash01(ix, iy, 10)) * scale * sz
+                    val a = 0.07f + 0.15f * (0.5f + 0.5f * sin(t * 0.8f * sp + h * 12f))
                     val sx = worldToScreenX(wx)
                     val sy = worldToScreenY(wy)
-                    val w = max(1f, 1.1f * scale)
+                    val w = max(1f, 1.1f * scale * sz)
                     drawLine(swell.copy(alpha = a), Offset(sx, sy), Offset(sx + len * 0.55f, sy - len * 0.12f), w)
                     drawLine(swell.copy(alpha = a), Offset(sx + len * 0.55f, sy - len * 0.12f), Offset(sx + len, sy), w)
+                }
+                if (th.whitecaps > 0f) {
+                    val c = hash01(ix, iy, 31)
+                    if (c < th.whitecaps * 0.3f) {
+                        val fx = worldToScreenX((ix + hash01(ix, iy, 32)) * cell)
+                        val fy = worldToScreenY((iy + hash01(ix, iy, 33)) * cell)
+                        val pulse = 0.5f + 0.5f * sin(t * 1.6f * sp + c * 40f)
+                        val fl = (10f + 14f * c) * scale * sz
+                        val fa = 0.25f + 0.45f * pulse
+                        val fw = max(1.2f, 1.4f * scale)
+                        drawLine(Color.White.copy(alpha = fa), Offset(fx, fy), Offset(fx + fl * 0.5f, fy - fl * 0.28f), fw)
+                        drawLine(Color.White.copy(alpha = fa), Offset(fx + fl * 0.5f, fy - fl * 0.28f), Offset(fx + fl, fy + fl * 0.02f), fw)
+                        drawCircle(Color.White.copy(alpha = fa * 0.8f), fw, Offset(fx + fl * 0.2f, fy + fl * 0.12f))
+                        drawCircle(Color.White.copy(alpha = fa * 0.8f), fw, Offset(fx + fl * 0.75f, fy + fl * 0.1f))
+                    }
                 }
                 iy++
             }
             ix++
+        }
+
+        // sun glitter: points that flash as the swell tilts them towards the sun
+        if (th.glitter > 0f) {
+            val gc = 46f
+            ix = floor(x0 / gc).toInt()
+            while (ix * gc < x1) {
+                var iy = floor(y0 / gc).toInt()
+                while (iy * gc < y1) {
+                    val h = hash01(ix, iy, 41)
+                    if (h < th.glitter * 0.45f) {
+                        val s = sin(t * 3f + h * 60f)
+                        if (s > 0.6f) {
+                            val a = (s - 0.6f) / 0.4f
+                            val gx = worldToScreenX((ix + hash01(ix, iy, 42)) * gc)
+                            val gy = worldToScreenY((iy + hash01(ix, iy, 43)) * gc)
+                            val l = (2.5f + 4f * a) * scale.coerceAtLeast(1f)
+                            val col = Color.White.copy(alpha = a * 0.9f)
+                            drawLine(col, Offset(gx - l, gy), Offset(gx + l, gy), 1.4f)
+                            drawLine(col, Offset(gx, gy - l), Offset(gx, gy + l), 1.4f)
+                        }
+                    }
+                    iy++
+                }
+                ix++
+            }
         }
 
         if (th.ice) {
@@ -173,7 +252,7 @@ class NavalRenderer {
                 var iy = floor((y0 - 60f) / ice).toInt()
                 while (iy * ice < y1 + 60f) {
                     val h = hash01(ix, iy, 21)
-                    if (h > 0.55f) {
+                    if (h > 0.5f) {
                         val cx = (ix + hash01(ix, iy, 22)) * ice + sin(t * 0.12f + h * 9f) * 5f
                         val cy = (iy + hash01(ix, iy, 23)) * ice
                         val r = (12f + 22f * hash01(ix, iy, 24)) * scale
@@ -181,6 +260,7 @@ class NavalRenderer {
                         val sy = worldToScreenY(cy)
                         drawCircle(Color(0x44000000), r * 1.1f, Offset(sx + r * 0.12f, sy + r * 0.16f))
                         drawCircle(Color(0xFFDCEBF4), r, Offset(sx, sy))
+                        drawCircle(Color(0x558FB8D0), r, Offset(sx, sy), style = Stroke(max(1f, 1.2f * scale)))
                         drawCircle(Color(0xFFF4FAFD), r * 0.62f, Offset(sx - r * 0.18f, sy - r * 0.12f))
                         drawCircle(Color(0xFFDCEBF4), r * 0.5f, Offset(sx + r * 0.85f, sy + r * 0.3f))
                     }
@@ -188,6 +268,82 @@ class NavalRenderer {
                 }
                 ix++
             }
+        }
+
+        // icebergs: a big pale mass with a shaded side, and the drowned part glowing through the water
+        if (th.bergs) {
+            val berg = 900f
+            ix = floor((x0 - 160f) / berg).toInt()
+            while (ix * berg < x1 + 160f) {
+                var iy = floor((y0 - 160f) / berg).toInt()
+                while (iy * berg < y1 + 160f) {
+                    val h = hash01(ix, iy, 91)
+                    if (h > 0.6f) {
+                        val cx = (ix + hash01(ix, iy, 92)) * berg + sin(t * 0.08f + h * 9f) * 6f
+                        val cy = (iy + hash01(ix, iy, 93)) * berg
+                        val r = (38f + 40f * hash01(ix, iy, 94)) * scale
+                        val sx = worldToScreenX(cx)
+                        val sy = worldToScreenY(cy)
+                        drawCircle(Color(0x334FB3D9), r * 1.7f, Offset(sx, sy))
+                        drawCircle(Color(0x55000000), r * 1.05f, Offset(sx + r * 0.18f, sy + r * 0.24f))
+                        drawOval(Color(0xFFCFE6F2), Offset(sx - r, sy - r * 0.8f), androidx.compose.ui.geometry.Size(r * 2f, r * 1.6f))
+                        drawOval(Color(0xFFEAF6FC), Offset(sx - r * 0.85f, sy - r * 0.75f), androidx.compose.ui.geometry.Size(r * 1.2f, r * 0.9f))
+                        drawOval(Color(0xFFA9CBE0), Offset(sx + r * 0.05f, sy - r * 0.1f), androidx.compose.ui.geometry.Size(r * 0.85f, r * 0.75f))
+                        drawLine(Color(0x668FB8D0), Offset(sx - r * 0.2f, sy - r * 0.6f), Offset(sx + r * 0.1f, sy + r * 0.5f), max(1f, 1.2f * scale))
+                    }
+                    iy++
+                }
+                ix++
+            }
+        }
+    }
+
+    // --- weather ----------------------------------------------------------------------------------------
+
+    private var fogBrush: Brush? = null
+    private var fogKey = 0L
+
+    private fun wrap(v: Float, m: Float) = v - floor(v / m) * m
+
+    /** Fog, rain, snow and lightning laid over the whole scene (the HUD is drawn after it, so it stays clear). */
+    private fun DrawScope.drawWeather(th: Theatre, t: Float) {
+        val w = size.width
+        val h = size.height
+        val d = density
+        if (th.fog != 0L) {
+            val key = (w.toInt() * 31L + h.toInt()) * 7L + th.ordinal
+            var b = fogBrush
+            if (b == null || key != fogKey) {
+                val fc = Color(th.fog)
+                b = Brush.radialGradient(listOf(fc.copy(alpha = fc.alpha * 0.2f), fc), Offset(w / 2f, h / 2f), max(w, h) * 0.75f)
+                fogBrush = b
+                fogKey = key
+            }
+            drawRect(b)
+        }
+        if (th.rain > 0f) {
+            val n = (150f * th.rain).toInt()
+            val col = Color(0x77CFE3F2)
+            for (i in 0 until n) {
+                val x = wrap(hash01(i, 3, 5) * w - t * 260f * d * 0.35f, w)
+                val y = wrap(hash01(i, 4, 6) * h + t * (1100f + 500f * hash01(i, 5, 7)) * d * 0.5f, h)
+                drawLine(col, Offset(x, y), Offset(x - 7f * d, y + 22f * d), 1.2f * d)
+            }
+        }
+        if (th.snow > 0f) {
+            val n = (110f * th.snow).toInt()
+            for (i in 0 until n) {
+                val z = hash01(i, 8, 9)
+                val x = wrap(hash01(i, 3, 5) * w + sin(t * 0.7f + i) * 30f * d + t * 40f * d, w)
+                val y = wrap(hash01(i, 4, 6) * h + t * (40f + 70f * z) * d, h)
+                drawCircle(Color.White.copy(alpha = 0.55f + 0.35f * z), (1.1f + 2.2f * z) * d, Offset(x, y))
+            }
+        }
+        if (th.lightning) {
+            // a short double flash every few seconds; kept faint so it never glares
+            val u = t % 9f
+            val a = if (u < 0.16f) 0.2f * (1f - u / 0.16f) else if (u in 0.3f..0.4f) 0.12f * (1f - (u - 0.3f) / 0.1f) else 0f
+            if (a > 0f) drawRect(Color.White.copy(alpha = a))
         }
     }
 
