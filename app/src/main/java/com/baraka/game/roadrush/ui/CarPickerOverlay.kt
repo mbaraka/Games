@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.roadrush.model.CarDesign
 import com.baraka.game.roadrush.model.Difficulty
+import com.baraka.game.ui.components.HubBackButton
 import com.baraka.game.ui.theme.GameColors
 
 /**
@@ -96,6 +97,7 @@ fun CarPickerOverlay(
                 Text("Start Driving")
             }
         }
+        HubBackButton(modifier = Modifier.align(Alignment.TopStart).padding(16.dp))
     }
 }
 

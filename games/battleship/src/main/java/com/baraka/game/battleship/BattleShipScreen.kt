@@ -19,14 +19,25 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DirectionsBoat
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -139,35 +150,49 @@ private fun MenuContent(onChooseMode: (BattleShipGameMode) -> Unit) {
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(vertical = 12.dp)
         )
-        Button(
-            onClick = { onChooseMode(BattleShipGameMode.LocalTwoPlayer) },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = OceanDark, contentColor = Color.White)
-        ) {
-            Text("Local 2 players")
-        }
-        Spacer(modifier = Modifier.height(10.dp))
-        Text(
-            text = "Pass the device between players. Each places ships without seeing the other’s grid.",
-            color = GameColors.TextMuted,
-            fontSize = 12.sp,
-            textAlign = TextAlign.Center
+        ModeCard(
+            icon = Icons.Default.Group,
+            accent = OceanDark,
+            title = "Local 2 players",
+            body = "Pass the device between players. Each places ships without seeing the other's grid.",
+            onClick = { onChooseMode(BattleShipGameMode.LocalTwoPlayer) }
         )
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = { onChooseMode(BattleShipGameMode.VsComputer) },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00695C), contentColor = Color.White)
-        ) {
-            Text("Vs computer")
-        }
-        Spacer(modifier = Modifier.height(10.dp))
-        Text(
-            text = "You place your fleet; the computer places randomly. You shoot first.",
-            color = GameColors.TextMuted,
-            fontSize = 12.sp,
-            textAlign = TextAlign.Center
+        Spacer(modifier = Modifier.height(14.dp))
+        ModeCard(
+            icon = Icons.Default.SmartToy,
+            accent = Color(0xFF00695C),
+            title = "Vs computer",
+            body = "You place your fleet; the computer places randomly. You shoot first.",
+            onClick = { onChooseMode(BattleShipGameMode.VsComputer) }
         )
+    }
+}
+
+/** One big, icon-led mode choice - bigger tap target and fewer words than a plain text button. */
+@Composable
+private fun ModeCard(icon: androidx.compose.ui.graphics.vector.ImageVector, accent: Color, title: String, body: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(accent)
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .background(Color.White.copy(alpha = 0.18f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(body, color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp)
+        }
     }
 }
 
@@ -266,53 +291,70 @@ private fun BattleContent(
         Spacer(modifier = Modifier.height(6.dp))
         Text(text = it, color = GameColors.Warning, fontSize = 14.sp)
     }
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 
     val viewAsPlayer = if (uiState.isVsComputer) 1 else turn
+    // One board at a time instead of both stacked, so the screen fits without scrolling.
+    // Defaults to whichever board the player can act on right now.
+    var showEnemyBoard by remember { mutableStateOf(canFire) }
+    LaunchedEffect(canFire) { showEnemyBoard = canFire }
 
-    Text(text = "Your fleet (enemy shots)", color = GameColors.TextSecondary, fontSize = 14.sp)
-    Spacer(modifier = Modifier.height(6.dp))
-    val myIds = if (viewAsPlayer == 1) uiState.player1Ids else uiState.player2Ids
-    val shotsAtMe = if (viewAsPlayer == 1) uiState.player2Shots else uiState.player1Shots
-    val mySunk = sunkFlags(myIds, shotsAtMe)
-    Board(
-        ids = myIds,
-        shots = shotsAtMe,
-        visible = AllVisible,
-        sunk = mySunk,
-        modifier = Modifier.fillMaxWidth()
-    )
-    Spacer(modifier = Modifier.height(6.dp))
-    FleetStatus(sunk = mySunk)
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        BoardTab("Your fleet", selected = !showEnemyBoard, modifier = Modifier.weight(1f)) { showEnemyBoard = false }
+        BoardTab("Enemy waters", selected = showEnemyBoard, modifier = Modifier.weight(1f)) { showEnemyBoard = true }
+    }
+    Spacer(modifier = Modifier.height(10.dp))
 
-    Spacer(modifier = Modifier.height(20.dp))
-    Text(
-        text = if (canFire) "Enemy waters (tap to fire)" else "Enemy waters",
-        color = GameColors.TextSecondary,
-        fontSize = 14.sp
-    )
-    Spacer(modifier = Modifier.height(6.dp))
-    val myShots = if (viewAsPlayer == 1) uiState.player1Shots else uiState.player2Shots
-    val enemyIds = if (viewAsPlayer == 1) uiState.player2Ids else uiState.player1Ids
-    val enemySunk = sunkFlags(enemyIds, myShots)
-    Board(
-        ids = enemyIds,
-        shots = myShots,
-        visible = enemySunk, // enemy ships stay hidden until they are sunk
-        sunk = enemySunk,
-        modifier = Modifier.fillMaxWidth(),
-        fog = true,
-        onCellClick = if (canFire) {
-            { idx -> if (myShots[idx] == null) onFire(idx) }
-        } else {
-            null
-        }
-    )
-    Spacer(modifier = Modifier.height(6.dp))
-    FleetStatus(sunk = enemySunk)
+    if (showEnemyBoard) {
+        val myShots = if (viewAsPlayer == 1) uiState.player1Shots else uiState.player2Shots
+        val enemyIds = if (viewAsPlayer == 1) uiState.player2Ids else uiState.player1Ids
+        val enemySunk = sunkFlags(enemyIds, myShots)
+        Board(
+            ids = enemyIds,
+            shots = myShots,
+            visible = enemySunk, // enemy ships stay hidden until they are sunk
+            sunk = enemySunk,
+            modifier = Modifier.fillMaxWidth(),
+            fog = true,
+            onCellClick = if (canFire) {
+                { idx -> if (myShots[idx] == null) onFire(idx) }
+            } else {
+                null
+            }
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        FleetStatus(sunk = enemySunk)
+    } else {
+        val myIds = if (viewAsPlayer == 1) uiState.player1Ids else uiState.player2Ids
+        val shotsAtMe = if (viewAsPlayer == 1) uiState.player2Shots else uiState.player1Shots
+        val mySunk = sunkFlags(myIds, shotsAtMe)
+        Board(
+            ids = myIds,
+            shots = shotsAtMe,
+            visible = AllVisible,
+            sunk = mySunk,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        FleetStatus(sunk = mySunk)
+    }
+
     Spacer(modifier = Modifier.height(12.dp))
     Legend()
-    Spacer(modifier = Modifier.height(48.dp))
+}
+
+@Composable
+private fun BoardTab(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) OceanDark else Color(0xFF263238))
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, color = Color.White, fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+    }
 }
 
 @Composable
@@ -366,26 +408,36 @@ private fun sunkFlags(ids: List<Int>, shots: List<ShotKind?>): BooleanArray =
 private val AllVisible = BooleanArray(BattleShipFleetLengths.size) { true }
 private val NoneSunk = BooleanArray(BattleShipFleetLengths.size)
 
+/** A boat icon plus a pip per cell of length, instead of a name/number text label - readable at
+ *  a glance without needing to read "Battleship 4" (see AGENTS.md UI-consistency rules). */
 @Composable
 private fun FleetStatus(sunk: BooleanArray) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         for (id in BattleShipFleetLengths.indices) {
             val gone = sunk[id]
+            val color = if (gone) Color(0xFFFFCDD2) else Color(0xFFECEFF1)
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(6.dp))
                     .background(if (gone) Color(0xFF7F1D1D) else Color(0xFF263238))
-                    .padding(vertical = 4.dp),
+                    .padding(vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "${BattleShipNames[id]} ${BattleShipFleetLengths[id]}",
-                    color = if (gone) Color(0xFFFFCDD2) else Color(0xFFECEFF1),
-                    fontSize = 9.sp,
-                    maxLines = 1,
-                    textDecoration = if (gone) TextDecoration.LineThrough else null
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.DirectionsBoat,
+                        contentDescription = "${BattleShipNames[id]}, ${BattleShipFleetLengths[id]} cells" + if (gone) ", sunk" else "",
+                        tint = color,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        repeat(BattleShipFleetLengths[id]) {
+                            Box(Modifier.size(4.dp).clip(CircleShape).background(color))
+                        }
+                    }
+                }
             }
         }
     }

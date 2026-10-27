@@ -14,14 +14,14 @@ enum class Refit(
     val stat: (ShipClass, Int) -> String,
     val maxLevel: Int = 5
 ) {
-    MAIN_DAMAGE("Heavy shells", "Your big shells hit harder (carrier: plane bombs).", 60, { c, l -> if (c.heroPlanes > 0 && c.mainCount == 0) "${(c.heroBomb * (1f + 0.12f * l)).toInt()} damage per bomb" else "${(c.mainDamage * c.heroMain * (1f + 0.12f * l)).toInt()} damage per shell" }),
-    RELOAD("Autoloaders", "Big guns reload faster (carrier: planes rearm faster).", 70, { c, l -> if (c.heroPlanes > 0 && c.mainCount == 0) "planes rearm in %.1f s".format(3.5f * (1f - 0.08f * l)) else "%.1f s between salvos".format(c.mainReload * (1f - 0.08f * l)) }),
-    FIRE_CONTROL("Fire control", "Shells land closer to where you aim (carrier: bombs land closer).", 60, { c, l -> if (c.heroPlanes > 0 && c.mainCount == 0) "bomb scatter %.0f m".format(14f * (1f - 0.14f * l)) else "scatter %.1f%% of range".format(3.5f * (1f - 0.14f * l)) }),
-    RANGE("Rangefinders", "Big guns reach further (carrier: planes strike from further).", 45, { c, l -> "${(c.mainRange * (1f + 0.07f * l)).toInt()} m reach" }),
-    ARMOR("Belt armour", "More hull points: the ship survives more hits.", 75, { c, l -> "${(c.heroHp * (1f + 0.14f * l)).toInt()} hull points" }),
-    ENGINES("Engines", "A faster ship that also turns quicker; good for dodging torpedoes.", 55, { c, l -> "top speed ${(c.maxSpeed * (1f + 0.07f * l)).toInt()} m/s" }),
-    SECONDARIES("Secondary guns", "The small side guns shoot nearby ships by themselves, and hit harder.", 50, { c, l -> "${(c.secDamage * c.heroSec * (1f + 0.18f * l)).toInt()} damage per small shell" }),
-    DAMAGE_CONTROL("Damage control", "The REPAIR button heals more and is ready again sooner.", 65, { _, l -> "REPAIR heals ${28 + 4 * l}% every ${(REPAIR_COOLDOWN - 4f * l).toInt()} s" });
+    MAIN_DAMAGE("Heavy shells", "Your big shells hit harder (carrier: plane bombs).", 60, { c, l -> if (c.heroPlanes > 0 && c.mainCount == 0) "${(c.heroBomb * (1f + 0.12f * l)).toInt()} dmg/bomb" else "${(c.mainDamage * c.heroMain * (1f + 0.12f * l)).toInt()} dmg/shell" }),
+    RELOAD("Autoloaders", "Big guns reload faster (carrier: planes rearm faster).", 70, { c, l -> if (c.heroPlanes > 0 && c.mainCount == 0) "%.1fs rearm".format(3.5f * (1f - 0.08f * l)) else "%.1fs reload".format(c.mainReload * (1f - 0.08f * l)) }),
+    FIRE_CONTROL("Fire control", "Shells land closer to where you aim (carrier: bombs land closer).", 60, { c, l -> if (c.heroPlanes > 0 && c.mainCount == 0) "%.0fm scatter".format(14f * (1f - 0.14f * l)) else "%.1f%% scatter".format(3.5f * (1f - 0.14f * l)) }),
+    RANGE("Rangefinders", "Big guns reach further (carrier: planes strike from further).", 45, { c, l -> "${(c.mainRange * (1f + 0.07f * l)).toInt()}m range" }),
+    ARMOR("Belt armour", "More hull points: the ship survives more hits.", 75, { c, l -> "${(c.heroHp * (1f + 0.14f * l)).toInt()} HP" }),
+    ENGINES("Engines", "A faster ship that also turns quicker; good for dodging torpedoes.", 55, { c, l -> "${(c.maxSpeed * (1f + 0.07f * l)).toInt()} m/s" }),
+    SECONDARIES("Secondary guns", "The small side guns shoot nearby ships by themselves, and hit harder.", 50, { c, l -> "${(c.secDamage * c.heroSec * (1f + 0.18f * l)).toInt()} dmg/shell" }),
+    DAMAGE_CONTROL("Damage control", "The REPAIR button heals more and is ready again sooner.", 65, { _, l -> "${28 + 4 * l}% / ${(REPAIR_COOLDOWN - 4f * l).toInt()}s" });
 
     /** Price of the next level when [level] have been bought. */
     fun cost(level: Int): Int = baseCost * (level + 1)

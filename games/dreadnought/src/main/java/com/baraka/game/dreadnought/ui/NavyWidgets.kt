@@ -2,16 +2,28 @@ package com.baraka.game.dreadnought.ui
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Autorenew
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.baraka.game.dreadnought.model.Refit
 
 /**
  * Dreadnought's palette, decided once. Nothing else in the game hard-codes a UI colour: dark navy surfaces with
@@ -62,6 +74,34 @@ fun NavyButton(
 }
 
 @Composable
-fun NavyLabel(text: String, modifier: Modifier = Modifier, size: TextUnit = 14.sp, color: Color = NavyColors.Text, bold: Boolean = false) {
-    Text(text, modifier = modifier, color = color, fontSize = size, fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal)
+fun NavyLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+    size: TextUnit = 14.sp,
+    color: Color = NavyColors.Text,
+    bold: Boolean = false,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip
+) {
+    Text(
+        text,
+        modifier = modifier,
+        color = color,
+        fontSize = size,
+        fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+        maxLines = maxLines,
+        overflow = overflow
+    )
+}
+
+/** One icon per refit, so its card reads at a glance instead of only by its label text. */
+fun Refit.icon(): ImageVector = when (this) {
+    Refit.MAIN_DAMAGE -> Icons.Default.Whatshot
+    Refit.RELOAD -> Icons.Default.Autorenew
+    Refit.FIRE_CONTROL -> Icons.Default.GpsFixed
+    Refit.RANGE -> Icons.Default.Visibility
+    Refit.ARMOR -> Icons.Default.Shield
+    Refit.ENGINES -> Icons.Default.Speed
+    Refit.SECONDARIES -> Icons.Default.FlashOn
+    Refit.DAMAGE_CONTROL -> Icons.Default.Favorite
 }

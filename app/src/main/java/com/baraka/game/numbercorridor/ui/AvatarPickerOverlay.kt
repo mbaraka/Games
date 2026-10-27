@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.numbercorridor.model.AvatarDesign
+import com.baraka.game.ui.components.HubBackButton
 import com.baraka.game.ui.theme.GameColors
 
 /**
@@ -74,6 +75,7 @@ fun AvatarPickerOverlay(
                 modifier = Modifier.clickable(onClick = onOpenGuide)
             )
         }
+        HubBackButton(modifier = Modifier.align(Alignment.TopStart).padding(16.dp))
     }
 }
 

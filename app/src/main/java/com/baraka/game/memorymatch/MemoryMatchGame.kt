@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.baraka.game.ui.components.HubBackButton
 import com.baraka.game.ui.components.Section
 import com.baraka.game.ui.theme.GameColors
 import com.baraka.game.ui.theme.GameTheme
@@ -68,10 +69,10 @@ fun MemoryMatchGameScreen() {
 
 @Composable
 fun DifficultySelectScreen(onSelect: (Difficulty) -> Unit) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -100,6 +101,8 @@ fun DifficultySelectScreen(onSelect: (Difficulty) -> Unit) {
                 Text("${diff.label} (${diff.pairs} pairs)", fontSize = 18.sp, color = GameColors.TextPrimary)
             }
         }
+    }
+        HubBackButton(modifier = Modifier.align(Alignment.TopStart).padding(16.dp))
     }
 }
 

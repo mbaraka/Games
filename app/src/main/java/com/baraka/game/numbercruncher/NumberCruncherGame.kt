@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.ui.components.GameScreenContainer
+import com.baraka.game.ui.components.HubBackButton
 import com.baraka.game.ui.theme.GameColors
 import com.baraka.game.ui.theme.GameTheme
 import kotlinx.coroutines.delay
@@ -63,14 +64,17 @@ fun NumberCruncherGameScreen() {
     }
 
     GameScreenContainer(horizontalAlignment = Alignment.CenterHorizontally) {
-        // Game title
-        Text(
-            text = "Number Cruncher",
-            color = GameColors.TextPrimary,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+        // Back-to-hub + title
+        Box(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+            HubBackButton(modifier = Modifier.align(Alignment.CenterStart))
+            Text(
+                text = "Number Cruncher",
+                color = GameColors.TextPrimary,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
 
         // Game stats
         Row(

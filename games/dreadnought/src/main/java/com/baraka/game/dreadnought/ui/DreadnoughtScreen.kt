@@ -9,16 +9,23 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +45,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -471,25 +479,38 @@ private fun RefitOverlay(game: NavalGame) {
     Scrim {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             NavyLabel("WAVE ${game.wave} CLEARED - CHOOSE A REFIT", size = 18.sp, bold = true, color = NavyColors.Accent)
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 for (i in 0 until 3) {
                     val r = Refit.entries[game.refitOffer[i]]
                     Column(
                         Modifier.width(190.dp)
+                            .fillMaxHeight()
                             .background(NavyColors.Card, RoundedCornerShape(14.dp))
                             .clickable { game.pickRefit(i) }
                             .padding(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        NavyLabel(r.label, size = 16.sp, bold = true)
-                        NavyLabel(r.blurb, size = 12.sp, color = NavyColors.Muted)
+                        Icon(r.icon(), contentDescription = null, tint = NavyColors.Accent, modifier = Modifier.size(28.dp))
+                        NavyLabel(r.label, size = 15.sp, bold = true)
+                        NavyLabel(
+                            r.blurb,
+                            size = 11.sp,
+                            color = NavyColors.Muted,
+                            modifier = Modifier.weight(1f, fill = false),
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         val now = game.level(r)
-                        NavyLabel("Now: " + r.stat(game.player.cls, now), size = 12.sp)
-                        NavyLabel("Next: " + r.stat(game.player.cls, now + 1), size = 12.sp, color = NavyColors.Accent, bold = true)
-                        NavyLabel("Lasts until this sortie ends", size = 11.sp, color = NavyColors.Muted)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            NavyLabel(r.stat(game.player.cls, now), size = 12.sp, color = NavyColors.Muted)
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = NavyColors.Accent, modifier = Modifier.size(12.dp))
+                            NavyLabel(r.stat(game.player.cls, now + 1), size = 13.sp, color = NavyColors.Accent, bold = true)
+                        }
                     }
                 }
             }
+            NavyLabel("Refits last until this sortie ends", size = 11.sp, color = NavyColors.Muted)
         }
     }
 }
