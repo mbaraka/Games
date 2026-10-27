@@ -41,11 +41,7 @@
 
         <!-- Base Defender's activity entry lives in its own module now (games/basedefender/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
-        <activity
-            android:name=".memorymatch.MemoryMatchGame"
-            android:exported="false"
-            android:label="Memory Match"
-            android:theme="@style/Theme.Game" />
+        <!-- Memory Match's activity entry lives in its own module now (games/memorymatch/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
         <activity
             android:name=".numbercruncher.NumberCruncherGame"
@@ -65,11 +61,7 @@
             android:label="Open Source Licenses"
             android:theme="@style/Theme.Game" />
 
-        <activity
-            android:name=".snakeladder.SnakeLadderActivity"
-            android:exported="false"
-            android:label="Snakes &amp; Ladders"
-            android:theme="@style/Theme.Game" />
+        <!-- Snakes & Ladders' activity entry lives in its own module now (games/snakeladder/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
         <!-- Battleship's activity entry lives in its own module now (games/battleship/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
@@ -101,12 +93,7 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
 
-        <activity
-            android:name=".roadrush.RoadRushActivity"
-            android:exported="false"
-            android:label="Road Rush"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.Game" />
+        <!-- Road Rush's activity entry lives in its own module now (games/roadrush/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
         <activity
             android:name=".breakout.BreakoutActivity"
@@ -129,12 +116,7 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
 
-        <activity
-            android:name=".snake.SnakeActivity"
-            android:exported="false"
-            android:label="Snake"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.Game" />
+        <!-- Snake's activity entry lives in its own module now (games/snake/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
         <activity
             android:name=".asteroids.AsteroidsActivity"

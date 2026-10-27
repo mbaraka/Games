@@ -1,4 +1,4 @@
-package com.baraka.game.roadrush.ui
+package com.baraka.game.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -19,9 +19,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.ui.theme.GameColors
 
-/** A small pause-and-tweak panel, reachable mid-run from the gear button in [RoadRushHud] — currently just the sound toggle, but its own screen so more options have somewhere to go later. */
+/** A small pause-and-tweak panel - currently just the sound toggle, but its own screen so more options have somewhere to go later. Shared by several games. */
 @Composable
-fun RoadRushSettingsOverlay(soundEnabled: Boolean, onSoundEnabledChanged: (Boolean) -> Unit, onClose: () -> Unit) {
+fun SoundSettingsOverlay(soundEnabled: Boolean, onSoundEnabledChanged: (Boolean) -> Unit, onClose: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()

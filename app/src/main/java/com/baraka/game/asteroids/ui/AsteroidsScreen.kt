@@ -25,7 +25,7 @@ import com.baraka.game.asteroids.data.AsteroidsSoundEngine
 import com.baraka.game.asteroids.model.GamePhase
 import com.baraka.game.asteroids.render.AsteroidsRenderer
 import com.baraka.game.asteroids.systems.AsteroidsLoop
-import com.baraka.game.roadrush.ui.RoadRushSettingsOverlay
+import com.baraka.game.ui.components.SoundSettingsOverlay
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -149,7 +149,7 @@ fun AsteroidsScreen() {
             }
 
             if (showSettings) {
-                RoadRushSettingsOverlay(
+                SoundSettingsOverlay(
                     soundEnabled = soundEnabled,
                     onSoundEnabledChanged = { enabled ->
                         soundEnabled = enabled

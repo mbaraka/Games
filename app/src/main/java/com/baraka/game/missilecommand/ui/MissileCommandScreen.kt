@@ -27,7 +27,7 @@ import com.baraka.game.missilecommand.data.MissileCommandSoundEngine
 import com.baraka.game.missilecommand.model.GamePhase
 import com.baraka.game.missilecommand.render.MissileCommandRenderer
 import com.baraka.game.missilecommand.systems.MissileCommandLoop
-import com.baraka.game.roadrush.ui.RoadRushSettingsOverlay
+import com.baraka.game.ui.components.SoundSettingsOverlay
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -161,7 +161,7 @@ fun MissileCommandScreen() {
             }
 
             if (showSettings) {
-                RoadRushSettingsOverlay(
+                SoundSettingsOverlay(
                     soundEnabled = soundEnabled,
                     onSoundEnabledChanged = { enabled ->
                         soundEnabled = enabled

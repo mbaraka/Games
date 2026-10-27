@@ -21,7 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.baraka.game.roadrush.ui.RoadRushSettingsOverlay
+import com.baraka.game.ui.components.SoundSettingsOverlay
 import com.baraka.game.snake.data.SnakeSettingsRepository
 import com.baraka.game.snake.data.SnakeSoundCue
 import com.baraka.game.snake.data.SnakeSoundEngine
@@ -160,7 +160,7 @@ fun SnakeScreen() {
             }
 
             if (showSettings) {
-                RoadRushSettingsOverlay(
+                SoundSettingsOverlay(
                     soundEnabled = soundEnabled,
                     onSoundEnabledChanged = { enabled ->
                         soundEnabled = enabled

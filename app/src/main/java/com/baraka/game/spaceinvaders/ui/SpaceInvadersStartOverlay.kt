@@ -21,7 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.baraka.game.roadrush.ui.SoundToggleRow
+import com.baraka.game.ui.components.SoundToggleRow
 import com.baraka.game.spaceinvaders.model.Difficulty
 import com.baraka.game.ui.components.HubBackButton
 import com.baraka.game.ui.theme.GameColors

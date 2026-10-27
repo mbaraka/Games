@@ -177,6 +177,10 @@ dependencies {
     implementation(project(":games:dreadnought"))
     implementation(project(":games:basedefender"))
     implementation(project(":games:keyreader"))
+    implementation(project(":games:memorymatch"))
+    implementation(project(":games:snake"))
+    implementation(project(":games:snakeladder"))
+    implementation(project(":games:roadrush"))
 
     // Core Android dependencies
     implementation(libs.androidx.core.ktx)

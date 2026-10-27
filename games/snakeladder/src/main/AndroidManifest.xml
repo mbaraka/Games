@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <activity
+            android:name=".SnakeLadderActivity"
+            android:exported="false"
+            android:label="Snakes &amp; Ladders"
+            android:theme="@style/Theme.Game" />
+    </application>
+</manifest>

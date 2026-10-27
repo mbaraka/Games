@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.baraka.game.roadrush.model.CarDesign
 import com.baraka.game.roadrush.model.Difficulty
 import com.baraka.game.ui.components.HubBackButton
+import com.baraka.game.ui.components.SoundToggleRow
 import com.baraka.game.ui.theme.GameColors
 
 /**

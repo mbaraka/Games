@@ -28,6 +28,7 @@ import com.baraka.game.roadrush.model.GamePhase
 import com.baraka.game.roadrush.model.RoadState
 import com.baraka.game.roadrush.render.RoadRenderer
 import com.baraka.game.roadrush.systems.RoadGameLoop
+import com.baraka.game.ui.components.SoundSettingsOverlay
 import kotlinx.coroutines.delay
 
 private val BACKGROUND_COLOR = Color(0xFF0C0D12)
@@ -144,7 +145,7 @@ fun RoadRushScreen() {
             }
 
             if (showSettings) {
-                RoadRushSettingsOverlay(
+                SoundSettingsOverlay(
                     soundEnabled = soundEnabled,
                     onSoundEnabledChanged = { enabled ->
                         soundEnabled = enabled

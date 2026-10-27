@@ -228,16 +228,19 @@ its own co-op protocol, or that keeps colliding with other in-progress work (mer
 one game's broken WIP blocking everyone else's build) is worth giving its own Gradle module
 instead - it still builds as part of the same app, but compiles and can be reasoned about on
 its own, and another game's half-finished code can't block it. Train Survivor is the first
-one done this way (`games/trainsurvivor/`); Battleship, Dreadnought, Base Defender and Key
-Reader followed (`games/battleship/`, `games/dreadnought/`, `games/basedefender/`,
-`games/keyreader/`) - follow the same shape for the next one.
+one done this way (`games/trainsurvivor/`); Battleship, Dreadnought, Base Defender, Key
+Reader, Memory Match, Snake, Snakes & Ladders and Road Rush followed (`games/battleship/`,
+`games/dreadnought/`, `games/basedefender/`, `games/keyreader/`, `games/memorymatch/`,
+`games/snake/`, `games/snakeladder/`, `games/roadrush/`) - follow the same shape for the
+next one.
 
 Clash Decks is **not yet split** even though it would benefit (it's one of the larger games):
-it imports `VectorIcon`/`KnightDesign`/`drawVectorIcon`/`drawKnightIcon` from Knight Survivor
-and `SoundToggleRow` from Road Rush, both of which are still packages inside `:app`. A game
-module can't depend on another game module or on `:app` (circular), so moving Clash Decks
-first needs those shared bits lifted into `:core` (they're generic icon/sound-row UI, not
-really Knight Survivor/Road Rush-specific) - or Knight Survivor and Road Rush split too.
+it imports `VectorIcon`/`KnightDesign`/`drawVectorIcon`/`drawKnightIcon` from Knight Survivor,
+still a package inside `:app`. (`SoundToggleRow`, the other blocker, is no longer one - it moved
+to `:core`'s `com.baraka.game.ui.components` when Road Rush and Snake were split into their own
+modules, since both needed it and a game module can't depend on another game module.) Moving
+Clash Decks still needs the icon helpers lifted into `:core` too (they're generic icon-drawing
+UI, not really Knight Survivor-specific) - or Knight Survivor split into its own module instead.
 
 **The shape:**
 

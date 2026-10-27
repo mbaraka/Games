@@ -22,7 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.baraka.game.roadrush.ui.RoadRushSettingsOverlay
+import com.baraka.game.ui.components.SoundSettingsOverlay
 import com.baraka.game.spaceinvaders.data.SpaceInvadersSettingsRepository
 import com.baraka.game.spaceinvaders.data.SpaceInvadersSoundCue
 import com.baraka.game.spaceinvaders.data.SpaceInvadersSoundEngine
@@ -170,7 +170,7 @@ fun SpaceInvadersScreen() {
             }
 
             if (showSettings) {
-                RoadRushSettingsOverlay(
+                SoundSettingsOverlay(
                     soundEnabled = soundEnabled,
                     onSoundEnabledChanged = { enabled ->
                         soundEnabled = enabled

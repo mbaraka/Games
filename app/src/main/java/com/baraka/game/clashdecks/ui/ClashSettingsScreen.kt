@@ -29,7 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.baraka.game.roadrush.ui.SoundToggleRow
+import com.baraka.game.ui.components.SoundToggleRow
 import com.baraka.game.ui.components.SettingsSection
 import com.baraka.game.ui.debug.DebugKit
 import com.baraka.game.ui.debug.DebugPanel

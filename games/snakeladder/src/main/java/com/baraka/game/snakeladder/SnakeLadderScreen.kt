@@ -74,7 +74,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.baraka.game. R
+import com.baraka.game.snakeladder.R
 import com.baraka.game.ui.theme.GameColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive

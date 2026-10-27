@@ -29,7 +29,7 @@ import com.baraka.game.breakout.model.BreakoutState
 import com.baraka.game.breakout.model.GamePhase
 import com.baraka.game.breakout.render.BreakoutRenderer
 import com.baraka.game.breakout.systems.BreakoutGameLoop
-import com.baraka.game.roadrush.ui.RoadRushSettingsOverlay
+import com.baraka.game.ui.components.SoundSettingsOverlay
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -172,7 +172,7 @@ fun BreakoutScreen() {
             }
 
             if (showSettings) {
-                RoadRushSettingsOverlay(
+                SoundSettingsOverlay(
                     soundEnabled = soundEnabled,
                     onSoundEnabledChanged = { enabled ->
                         soundEnabled = enabled
