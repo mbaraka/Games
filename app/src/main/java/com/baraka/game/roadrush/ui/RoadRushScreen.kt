@@ -1,7 +1,6 @@
 package com.baraka.game.roadrush.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -18,7 +17,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.baraka.game.roadrush.data.RoadRushSettingsRepository
@@ -38,8 +36,9 @@ private const val TICK_MS = 16L
 /**
  * Owns the run's [RoadState] and its ~60fps loop, same shape as numbercorridor's
  * NumberCorridorScreen: this file wires input and persistence, systems/RoadGameLoop.kt makes
- * every gameplay decision. The only input is the two steering buttons, each mapped straight
- * to [RoadGameLoop.moveLeft]/[RoadGameLoop.moveRight].
+ * every gameplay decision. The only input is the two steering buttons; their held/released
+ * state ([isLeftHeld]/[isRightHeld]) is sampled every tick into a -1/0/1 `steerDirection` so
+ * the car moves continuously while a side is held, not lane-stepping per tap.
  */
 @Composable
 fun RoadRushScreen() {
@@ -53,6 +52,8 @@ fun RoadRushScreen() {
     var soundEnabled by remember { mutableStateOf(settingsRepository.isSoundEnabled()) }
     var roadState by remember { mutableStateOf(RoadState(difficulty = difficulty, bestScoreAtStart = settingsRepository.bestScore())) }
     var hasRecordedThisRun by remember { mutableStateOf(false) }
+    var isLeftHeld by remember { mutableStateOf(false) }
+    var isRightHeld by remember { mutableStateOf(false) }
     val soundEngine = remember { RoadRushSoundEngine() }
     DisposableEffect(Unit) { onDispose { soundEngine.release() } }
     fun playSound(cue: RoadSoundCue) {
@@ -64,8 +65,9 @@ fun RoadRushScreen() {
     LaunchedEffect(isRunning) {
         while (isRunning) {
             delay(TICK_MS)
+            val steerDirection = (if (isRightHeld) 1f else 0f) - (if (isLeftHeld) 1f else 0f)
             val previousLives = roadState.lives
-            val next = RoadGameLoop.tick(roadState, TICK_MS / 1000f)
+            val next = RoadGameLoop.tick(roadState, TICK_MS / 1000f, steerDirection)
             if (next.lives < previousLives) playSound(RoadSoundCue.CRASH)
             if (next.carsDodgedThisTick > 0) playSound(RoadSoundCue.DODGE)
             roadState = next
@@ -126,27 +128,6 @@ fun RoadRushScreen() {
             modifier = Modifier
                 .weight(1f)
                 .fillMaxSize()
-                .pointerInput(Unit) {
-                    var dragAccumulator = 0f
-                    val thresholdPx = 56.dp.toPx()
-                    detectHorizontalDragGestures(
-                        onDragEnd = { dragAccumulator = 0f },
-                        onDragCancel = { dragAccumulator = 0f }
-                    ) { change, dragAmount ->
-                        change.consume()
-                        dragAccumulator += dragAmount
-                        while (dragAccumulator > thresholdPx) {
-                            roadState = RoadGameLoop.moveRight(roadState)
-                            playSound(RoadSoundCue.SWERVE)
-                            dragAccumulator -= thresholdPx
-                        }
-                        while (dragAccumulator < -thresholdPx) {
-                            roadState = RoadGameLoop.moveLeft(roadState)
-                            playSound(RoadSoundCue.SWERVE)
-                            dragAccumulator += thresholdPx
-                        }
-                    }
-                }
         ) {
             RoadRenderer(
                 state = roadState,
@@ -175,13 +156,13 @@ fun RoadRushScreen() {
         }
 
         SteeringControls(
-            onLeft = {
-                roadState = RoadGameLoop.moveLeft(roadState)
-                playSound(RoadSoundCue.SWERVE)
+            onLeftHeldChanged = { held ->
+                isLeftHeld = held
+                if (held) playSound(RoadSoundCue.SWERVE)
             },
-            onRight = {
-                roadState = RoadGameLoop.moveRight(roadState)
-                playSound(RoadSoundCue.SWERVE)
+            onRightHeldChanged = { held ->
+                isRightHeld = held
+                if (held) playSound(RoadSoundCue.SWERVE)
             }
         )
     }
