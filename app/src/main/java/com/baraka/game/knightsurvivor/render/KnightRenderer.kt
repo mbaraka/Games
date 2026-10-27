@@ -9,6 +9,9 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import com.baraka.game.knightsurvivor.model.KnightDesign
+import com.baraka.game.ui.icons.drawAxe
+import com.baraka.game.ui.icons.drawBlade
+import com.baraka.game.ui.icons.drawShield
 
 /** The Sworn Blade's default shield tint — used whenever a caller doesn't need to override it (e.g. an invulnerability flash). */
 val KNIGHT_DEFAULT_BODY_COLOR = Color(0xFF42A5F5)
@@ -26,7 +29,7 @@ private const val BLADE_ANGLE_DEGREES = -69.2f
  * Draws the knight's visual identity for whichever [KnightDesign] is selected — a purely
  * cosmetic dispatch, same shape as [drawVectorIcon]'s `when`, but kept in its own file
  * since each knight design is a small hand-built scene (multiple shapes) rather than one
- * [com.baraka.game.knightsurvivor.model.VectorIcon]. [bodyColor] only affects Sworn Blade
+ * [com.baraka.game.ui.icons.VectorIcon]. [bodyColor] only affects Sworn Blade
  * (its shield tints with invulnerability-flash/knight-preview color); the other designs
  * have their own fixed palettes since a shield-tint doesn't make sense on a robe or a vest.
  */

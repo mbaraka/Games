@@ -1,4 +1,4 @@
-package com.baraka.game.knightsurvivor.model
+package com.baraka.game.ui.icons
 
 /**
  * A data-driven silhouette descriptor — pure data, no drawing logic (see

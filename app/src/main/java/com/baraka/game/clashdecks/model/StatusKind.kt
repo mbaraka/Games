@@ -1,6 +1,6 @@
 package com.baraka.game.clashdecks.model
 
-import com.baraka.game.knightsurvivor.model.VectorIcon
+import com.baraka.game.ui.icons.VectorIcon
 
 /**
  * A status that sits on a [Duelist] for a number of *turns* (not milliseconds — this game

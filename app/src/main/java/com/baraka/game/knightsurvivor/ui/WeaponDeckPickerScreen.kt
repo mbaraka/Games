@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baraka.game.knightsurvivor.balance.GameTunables
 import com.baraka.game.knightsurvivor.model.WeaponKind
-import com.baraka.game.knightsurvivor.render.drawVectorIcon
+import com.baraka.game.ui.icons.drawVectorIcon
 import com.baraka.game.ui.theme.GameColors
 
 /**

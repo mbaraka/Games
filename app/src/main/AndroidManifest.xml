@@ -86,19 +86,9 @@
 
         <!-- Road Rush's activity entry lives in its own module now (games/roadrush/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
-        <activity
-            android:name=".breakout.BreakoutActivity"
-            android:exported="false"
-            android:label="Brick Blitz"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.Game" />
+        <!-- Brick Blitz's (Breakout) activity entry lives in its own module now (games/breakout/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
-        <activity
-            android:name=".spaceinvaders.SpaceInvadersActivity"
-            android:exported="false"
-            android:label="Star Invasion"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.Game" />
+        <!-- Star Invasion's (Space Invaders) activity entry lives in its own module now (games/spaceinvaders/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
         <!-- Missile Command's activity entry lives in its own module now (games/missilecommand/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 

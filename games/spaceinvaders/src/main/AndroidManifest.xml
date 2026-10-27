@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <activity
+            android:name=".SpaceInvadersActivity"
+            android:exported="false"
+            android:label="Star Invasion"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Game" />
+    </application>
+</manifest>

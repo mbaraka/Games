@@ -2,7 +2,7 @@ package com.baraka.game.clashdecks.model
 
 import com.baraka.game.clashdecks.model.EffectTarget.OPPONENT
 import com.baraka.game.clashdecks.model.EffectTarget.SELF
-import com.baraka.game.knightsurvivor.model.VectorIcon
+import com.baraka.game.ui.icons.VectorIcon
 import kotlin.random.Random
 
 /**

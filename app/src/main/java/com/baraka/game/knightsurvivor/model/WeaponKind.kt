@@ -1,5 +1,7 @@
 package com.baraka.game.knightsurvivor.model
 
+import com.baraka.game.ui.icons.VectorIcon
+
 /**
  * Stat table for every weapon archetype in the game.
  *

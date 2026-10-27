@@ -12,7 +12,7 @@ import com.baraka.game.knightsurvivor.model.Projectile
 import com.baraka.game.knightsurvivor.model.UpgradeDisplay
 import com.baraka.game.knightsurvivor.model.UpgradeOption
 import com.baraka.game.knightsurvivor.model.Vec2
-import com.baraka.game.knightsurvivor.model.VectorIcon
+import com.baraka.game.ui.icons.VectorIcon
 import com.baraka.game.knightsurvivor.model.WeaponInstance
 import com.baraka.game.knightsurvivor.model.WeaponKind
 import java.io.DataInputStream

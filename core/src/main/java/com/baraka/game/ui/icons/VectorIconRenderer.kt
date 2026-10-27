@@ -1,9 +1,8 @@
-package com.baraka.game.knightsurvivor.render
+package com.baraka.game.ui.icons
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import com.baraka.game.knightsurvivor.model.VectorIcon
 
 /** The one place a [VectorIcon] descriptor turns into an actual draw call. */
 fun DrawScope.drawVectorIcon(

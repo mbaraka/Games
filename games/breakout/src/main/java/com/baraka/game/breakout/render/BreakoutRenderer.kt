@@ -14,8 +14,8 @@ import com.baraka.game.breakout.model.BreakoutState
 import com.baraka.game.breakout.model.FallingPowerUp
 import com.baraka.game.breakout.model.PowerUpKind
 import com.baraka.game.breakout.model.brickRect
-import com.baraka.game.knightsurvivor.model.VectorIcon
-import com.baraka.game.knightsurvivor.render.drawVectorIcon
+import com.baraka.game.ui.icons.VectorIcon
+import com.baraka.game.ui.icons.drawVectorIcon
 
 private val BALL_COLOR = Color(0xFFECEFF1)
 private val PADDLE_COLOR = Color(0xFF4FC3F7)

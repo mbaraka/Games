@@ -1,6 +1,6 @@
 package com.baraka.game.clashdecks.model
 
-import com.baraka.game.knightsurvivor.model.VectorIcon
+import com.baraka.game.ui.icons.VectorIcon
 
 /**
  * A card definition. Immutable data — the same [Card] object is shared between the deck,

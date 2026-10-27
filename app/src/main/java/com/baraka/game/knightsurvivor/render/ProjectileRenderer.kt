@@ -5,11 +5,12 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
 import com.baraka.game.knightsurvivor.balance.GameTunables
 import com.baraka.game.knightsurvivor.model.Projectile
+import com.baraka.game.ui.icons.drawVectorIcon
 import kotlin.math.atan2
 
 private const val PROJECTILE_RADIUS = 11f
 
-/** Draws every travelling projectile using its source weapon's own [com.baraka.game.knightsurvivor.model.VectorIcon], oriented along its direction of travel. */
+/** Draws every travelling projectile using its source weapon's own [com.baraka.game.ui.icons.VectorIcon], oriented along its direction of travel. */
 fun DrawScope.drawProjectiles(projectiles: List<Projectile>) {
     projectiles.forEach { projectile ->
         val color = Color(projectile.sourceWeapon.colorArgb)
