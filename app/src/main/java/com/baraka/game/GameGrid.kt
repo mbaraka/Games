@@ -113,7 +113,8 @@ private fun GameTile(
             tint = iconTint,
             modifier = Modifier
                 .align(Alignment.Center)
-                .fillMaxSize(0.55f)
+                .padding(bottom = 16.dp)
+                .fillMaxSize(0.38f)
         )
 
         if (entry.multiplayer) {
