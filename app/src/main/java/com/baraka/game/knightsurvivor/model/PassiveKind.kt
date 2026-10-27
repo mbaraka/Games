@@ -11,27 +11,32 @@ package com.baraka.game.knightsurvivor.model
 enum class PassiveKind(
     val displayName: String,
     val description: String,
-    val maxStacks: Int
+    val maxStacks: Int,
+    val icon: VectorIcon
 ) {
     MOVE_SPEED(
         displayName = "Swift Boots",
         description = "Move speed +8% per stack.",
-        maxStacks = 5
+        maxStacks = 5,
+        icon = VectorIcon.Bolt
     ),
     MAX_HP(
         displayName = "Vitality",
         description = "Max HP +20 per stack (also heals for the amount gained).",
-        maxStacks = 5
+        maxStacks = 5,
+        icon = VectorIcon.Heart
     ),
     PICKUP_RADIUS(
         displayName = "Magnet Charm",
         description = "XP pickup radius +15% per stack.",
-        maxStacks = 5
+        maxStacks = 5,
+        icon = VectorIcon.Magnet
     ),
     COOLDOWN_REDUCTION(
         displayName = "Battle Focus",
         description = "All weapon cooldowns -5% per stack.",
-        maxStacks = 5
+        maxStacks = 5,
+        icon = VectorIcon.Star(points = 4)
     );
 
     /**

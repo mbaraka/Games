@@ -47,6 +47,7 @@ import com.baraka.game.knightsurvivor.model.Difficulty
 import com.baraka.game.knightsurvivor.model.GamePhase
 import com.baraka.game.knightsurvivor.model.GameState
 import com.baraka.game.knightsurvivor.model.KnightDesign
+import com.baraka.game.knightsurvivor.model.PassiveKind
 import com.baraka.game.knightsurvivor.model.PlayerState
 import com.baraka.game.knightsurvivor.model.Vec2
 import com.baraka.game.knightsurvivor.model.WeaponInstance
@@ -90,6 +91,12 @@ fun KnightSurvivorScreen() {
     var knightDesign by remember { mutableStateOf(settingsRepository.knightDesign()) }
     var showDeckPicker by remember { mutableStateOf(true) }
     var gameState by remember { mutableStateOf(createInitialGameState(statsRepository.bestSurvivalTimeMs(), difficulty = difficulty, weaponDeck = weaponDeck)) }
+    // Kept separate from gameState so a drag gesture's many pointer-move events (far more
+    // frequent than the tick rate below) don't each trigger a full copy+recompose of the
+    // whole simulation (enemies/projectiles/particles) - that was starving the tick loop of
+    // main-thread time while the player was actively touching the joystick, reading as the
+    // knight briefly slowing down mid-swipe. The tick loop folds this in once per tick instead.
+    var liveJoystickInput by remember { mutableStateOf(Vec2.ZERO) }
     var hasRecordedThisRun by remember { mutableStateOf(false) }
     var unlockedAchievements by remember { mutableStateOf(achievementRepository.unlockedAchievements()) }
     var showSettings by remember { mutableStateOf(false) }
@@ -134,7 +141,7 @@ fun KnightSurvivorScreen() {
     LaunchedEffect(isRunning) {
         while (isRunning) {
             delay(GameTunables.TICK_MS)
-            val received = hostSession?.receive(gameState) ?: gameState
+            val received = (hostSession?.receive(gameState) ?: gameState).copy(joystickInput = liveJoystickInput)
             val ticked = GameLoopOrchestrator.tick(received)
             if (soundEnabled) {
                 ticked.pendingSoundCues.forEach(soundEngine::play)
@@ -265,9 +272,8 @@ fun KnightSurvivorScreen() {
 
             VirtualJoystick(
                 onDirectionChanged = { direction ->
-                    if (isGuest) guestSession?.sendInput(direction) else gameState = gameState.copy(joystickInput = direction)
-                },
-                modifier = Modifier.align(Alignment.BottomStart).padding(20.dp)
+                    if (isGuest) guestSession?.sendInput(direction) else liveJoystickInput = direction
+                }
             )
 
             Row(
@@ -307,6 +313,8 @@ fun KnightSurvivorScreen() {
             if (!isGuest && displayState.phase == GamePhase.LEVEL_UP_PAUSE) {
                 LevelUpOverlay(
                     choices = displayState.pendingUpgradeChoices,
+                    currentWeapons = currentWeaponsOf(displayState.player),
+                    currentPassives = currentPassivesOf(displayState.player),
                     onChoiceSelected = { choice ->
                         gameState = GameLoopOrchestrator.applyUpgradeChoiceAndResume(gameState, choice)
                     }
@@ -316,6 +324,8 @@ fun KnightSurvivorScreen() {
             if (isGuest && guestChoices.isNotEmpty()) {
                 LevelUpOverlay(
                     choices = guestChoices,
+                    currentWeapons = currentWeaponsOf(displayState.player),
+                    currentPassives = currentPassivesOf(displayState.player),
                     onChoiceSelected = { choice ->
                         guestSession?.selectChoice(guestChoices.indexOf(choice))
                         guestChoices = emptyList()
@@ -365,6 +375,17 @@ private fun createPlayer(arenaSize: ArenaSize, difficulty: Difficulty, weaponDec
         weapons = listOf(WeaponInstance(kind = startingWeapon, level = 1))
     )
 }
+
+/** The player's current weapons, for the "Weapons" strip on the level-up screen. */
+private fun currentWeaponsOf(player: PlayerState): List<LoadoutEntry> =
+    player.weapons.map { LoadoutEntry(it.kind.icon, it.kind.colorArgb, "Lv.${it.level}") }
+
+/** The player's current passive stacks, for the "Passives" strip on the level-up screen. */
+private fun currentPassivesOf(player: PlayerState): List<LoadoutEntry> =
+    PassiveKind.entries.mapNotNull { kind ->
+        val stacks = player.passiveStackCount(kind)
+        if (stacks > 0) LoadoutEntry(kind.icon, 0xFF9E9E9EL, "$stacks/${kind.maxStacks}") else null
+    }
 
 private fun createInitialGameState(
     bestSurvivalTimeMs: Long,

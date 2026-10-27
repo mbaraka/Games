@@ -21,6 +21,12 @@ object GameTunables {
     /** Fixed tick length, matching the ~60fps `delay(16)` loop every other game in this app uses. */
     const val TICK_MS = 16L
 
+    // --- Visuals --------------------------------------------------------------------------
+    /** Draw everything (knight, enemies, projectiles, pickups, gems) this much bigger than
+     *  their actual collision radius - visibility only, never read by systems/, so hitboxes
+     *  and balance stay exactly as tuned. Applied at the DrawScope boundary in render/. */
+    const val VISUAL_SCALE = 2f
+
     // --- Player ---------------------------------------------------------------------------
     const val PLAYER_BASE_MAX_HP = 100
     const val PLAYER_BASE_SPEED_PX_PER_SEC = 150f

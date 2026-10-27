@@ -83,9 +83,14 @@ useful as a changelog of what shipped.
 
 ## Knight Survivor
 
-- [ ] **F9 - Level-up screen.** Concrete instance of F2/F3: "Swift Boots (1/5)" /
-  "New: Firecracker String" / "New: Egg Toss" cards are sometimes stacked, sometimes
-  side-by-side, and are text-heavy. Redo per F3.
+- [x] **F9 - Level-up screen.** Done: cards are now equal height (same
+  `Row(IntrinsicSize.Min)` + `fillMaxHeight` pattern as F7) and each shows an icon -
+  extended the game's existing `VectorIcon` system to `PassiveKind` (it already
+  covered `WeaponKind`) so every upgrade type gets one. Title/description are clamped
+  to fixed line counts so uneven text doesn't vary card height. `UpgradeDisplay.icon`
+  is nullable since the co-op DTO doesn't send it over the wire - a guest's view of the
+  partner's choices just shows no icon. Verified live - played through two level-ups
+  on-device, confirmed rendering and that picking an upgrade still works.
 - [ ] **F10 - Polish pass inspired by a genre reference.** Tester attached a video of a
   Vampire-Survivors-style game (`feedback/1.mp4`, shared alongside the level-up and
   overhead-map screenshots) as the target level of detail/juice: large legible enemy

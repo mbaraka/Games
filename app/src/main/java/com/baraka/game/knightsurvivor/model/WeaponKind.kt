@@ -61,8 +61,8 @@ enum class WeaponKind(
         fireSoundHz = 320.0, // low, broad — a heavy swing
         fireSoundWaveform = Waveform.SAWTOOTH,
         fireSoundStyle = WeaponFireSoundStyle.METALLIC,
-        baseRadius = 70f,
-        radiusGrowthPerLevel = 10f
+        baseRadius = 130f,
+        radiusGrowthPerLevel = 18f
     ),
     DAGGER_THROW(
         displayName = "Dagger Throw",
@@ -78,15 +78,15 @@ enum class WeaponKind(
     ),
     ORBIT_SHIELD(
         displayName = "Orbit Shield",
-        description = "Shields spin around the knight, damaging anything they touch.",
+        description = "Shields spin around the knight, damaging anything they touch and blocking enemy shots.",
         targeting = WeaponTargeting.ORBIT,
         colorArgb = 0xFF66BB6A,
         icon = VectorIcon.TurtleShell,
         fireSoundHz = 540.0, // soft, sustained — a magical hum (not currently triggered; ORBIT ticks too often to sound a fire cue without spamming, see WeaponFiringSystem)
         fireSoundWaveform = Waveform.SINE,
         fireSoundStyle = WeaponFireSoundStyle.METALLIC,
-        baseRadius = 60f,
-        radiusGrowthPerLevel = 4f
+        baseRadius = 100f,
+        radiusGrowthPerLevel = 8f
     ),
     THROWING_AXE(
         displayName = "Throwing Axe",
@@ -107,8 +107,8 @@ enum class WeaponKind(
         fireSoundHz = 700.0,
         fireSoundWaveform = Waveform.SINE,
         fireSoundStyle = WeaponFireSoundStyle.CHIME,
-        baseRadius = 50f,
-        radiusGrowthPerLevel = 8f
+        baseRadius = 110f,
+        radiusGrowthPerLevel = 16f
     ),
     RUBBER_DUCK(
         displayName = "Rubber Duck Toss",
@@ -132,8 +132,8 @@ enum class WeaponKind(
         fireSoundWaveform = Waveform.SQUARE,
         fireSoundStyle = WeaponFireSoundStyle.METALLIC_IMPACT,
         fireSoundDurationMs = 220,
-        baseRadius = 55f,
-        radiusGrowthPerLevel = 6f,
+        baseRadius = 105f,
+        radiusGrowthPerLevel = 12f,
         stunChance = 0.25f,
         stunDurationMs = 700L
     ),
@@ -159,8 +159,8 @@ enum class WeaponKind(
         fireSoundWaveform = Waveform.SINE,
         fireSoundStyle = WeaponFireSoundStyle.PULSE,
         fireSoundDurationMs = 160,
-        baseRadius = 90f,
-        radiusGrowthPerLevel = 10f,
+        baseRadius = 150f,
+        radiusGrowthPerLevel = 16f,
         pullStrengthPx = 26f
     ),
     FIRECRACKER_STRING(

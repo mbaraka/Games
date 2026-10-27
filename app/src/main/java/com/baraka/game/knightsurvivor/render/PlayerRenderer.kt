@@ -10,6 +10,7 @@ import com.baraka.game.knightsurvivor.balance.GameTunables
 import com.baraka.game.knightsurvivor.model.KnightDesign
 import com.baraka.game.knightsurvivor.model.PlayerState
 import com.baraka.game.knightsurvivor.model.WeaponActivationEvent
+import com.baraka.game.knightsurvivor.model.WeaponKind
 import com.baraka.game.knightsurvivor.model.WeaponTargeting
 import com.baraka.game.knightsurvivor.systems.WeaponFiringSystem
 
@@ -28,7 +29,7 @@ fun DrawScope.drawPlayer(player: PlayerState, design: KnightDesign, nowMs: Long,
     val defaultColor = if (isPartner) PARTNER_DEFAULT_BODY_COLOR else KNIGHT_DEFAULT_BODY_COLOR
     val bodyColor = if (flashOn) INVULNERABLE_FLASH_COLOR else defaultColor
 
-    drawKnightIcon(center = player.position.toOffset(), radius = player.radius, design = design, bodyColor = bodyColor)
+    drawKnightIcon(center = player.position.toOffset(), radius = player.radius * GameTunables.VISUAL_SCALE, design = design, bodyColor = bodyColor)
 
     drawOrbitWeapons(player)
     drawPlayerHpBar(player)
@@ -47,18 +48,22 @@ private fun DrawScope.drawOrbitWeapons(player: PlayerState) {
             val orbCount = weapon.kind.orbCountAtLevel(weapon.level)
             val radius = weapon.kind.radiusAtLevel(weapon.level)
             val orbColor = Color(weapon.kind.colorArgb)
+            // Grows with level too, not just the orbit distance/count - a maxed-out shield
+            // should visibly read as a bigger shield, not just a farther-out small one.
+            val orbIconRadius = (10f + (weapon.level - 1) * 3f) * GameTunables.VISUAL_SCALE
 
             WeaponFiringSystem.orbitPositions(player.position, radius, weapon.orbitAngleRadians, orbCount)
                 .forEach { orbPosition ->
-                    drawVectorIcon(icon = weapon.kind.icon, center = orbPosition.toOffset(), radius = 8f, color = orbColor)
+                    drawVectorIcon(icon = weapon.kind.icon, center = orbPosition.toOffset(), radius = orbIconRadius, color = orbColor)
                 }
         }
 }
 
 private fun DrawScope.drawPlayerHpBar(player: PlayerState) {
-    val barWidth = player.radius * 2.2f
+    val visualRadius = player.radius * GameTunables.VISUAL_SCALE
+    val barWidth = visualRadius * 2.2f
     val barHeight = 5f
-    val topLeft = Offset(player.position.x - barWidth / 2f, player.position.y - player.radius - 14f)
+    val topLeft = Offset(player.position.x - barWidth / 2f, player.position.y - visualRadius - 14f)
     val hpFraction = (player.hp.toFloat() / player.effectiveMaxHp.toFloat()).coerceIn(0f, 1f)
 
     drawRect(color = Color.DarkGray, topLeft = topLeft, size = Size(barWidth, barHeight))
@@ -66,9 +71,12 @@ private fun DrawScope.drawPlayerHpBar(player: PlayerState) {
 }
 
 /**
- * Draws an actual swinging slash arc for each AREA_AROUND_PLAYER weapon's most recent
- * activation(s) — the arc rotates through the effect's whole lifetime, reading as a sword
- * swing instead of a static fading ring.
+ * Draws each AREA_AROUND_PLAYER weapon's most recent activation(s). Most weapons get a
+ * swinging slash arc that rotates through the effect's whole lifetime, reading as a weapon
+ * swing. Sunburst gets its own expanding radiant-pulse instead - a field weapon scorching
+ * everything in range should read as a burst of light, not another blade swing, so it stays
+ * visually distinct from Sword Slash/Frying Pan even though all four share the same
+ * AREA_AROUND_PLAYER targeting (see model/WeaponKind.kt's "unique effect" rule).
  */
 fun DrawScope.drawWeaponActivationEffects(activations: List<WeaponActivationEvent>, nowMs: Long) {
     activations.forEach { event ->
@@ -76,19 +84,42 @@ fun DrawScope.drawWeaponActivationEffects(activations: List<WeaponActivationEven
         val lifeFraction = (1f - ageMs.toFloat() / GameTunables.WEAPON_EFFECT_VISIBLE_MS).coerceIn(0f, 1f)
         if (lifeFraction <= 0f) return@forEach
 
-        val swingProgress = 1f - lifeFraction
-        val startAngleDegrees = SLASH_START_ANGLE_DEGREES + swingProgress * SLASH_TOTAL_ROTATION_DEGREES
-
-        drawArc(
-            color = Color(event.kind.colorArgb).copy(alpha = lifeFraction * 0.9f),
-            startAngle = startAngleDegrees,
-            sweepAngle = SLASH_SWEEP_DEGREES,
-            useCenter = false,
-            topLeft = Offset(event.position.x - event.radius, event.position.y - event.radius),
-            size = Size(event.radius * 2f, event.radius * 2f),
-            style = Stroke(width = 6f, cap = StrokeCap.Round)
-        )
+        if (event.kind == WeaponKind.SUNBURST) {
+            drawSunburstPulse(event, lifeFraction)
+        } else {
+            drawSlashArc(event, lifeFraction)
+        }
     }
+}
+
+private fun DrawScope.drawSlashArc(event: WeaponActivationEvent, lifeFraction: Float) {
+    val swingProgress = 1f - lifeFraction
+    val startAngleDegrees = SLASH_START_ANGLE_DEGREES + swingProgress * SLASH_TOTAL_ROTATION_DEGREES
+
+    drawArc(
+        color = Color(event.kind.colorArgb).copy(alpha = lifeFraction * 0.9f),
+        startAngle = startAngleDegrees,
+        sweepAngle = SLASH_SWEEP_DEGREES,
+        useCenter = false,
+        topLeft = Offset(event.position.x - event.radius, event.position.y - event.radius),
+        size = Size(event.radius * 2f, event.radius * 2f),
+        style = Stroke(width = 6f, cap = StrokeCap.Round)
+    )
+}
+
+/** An expanding, fading ring of sunlight plus a faint filled glow - grows from the knight out to [WeaponActivationEvent.radius] over the effect's lifetime. */
+private fun DrawScope.drawSunburstPulse(event: WeaponActivationEvent, lifeFraction: Float) {
+    val pulseProgress = 1f - lifeFraction
+    val pulseRadius = event.radius * (0.25f + 0.75f * pulseProgress)
+    val color = Color(event.kind.colorArgb)
+
+    drawCircle(color = color.copy(alpha = lifeFraction * 0.18f), radius = pulseRadius, center = event.position.toOffset())
+    drawCircle(
+        color = color.copy(alpha = lifeFraction * 0.85f),
+        radius = pulseRadius,
+        center = event.position.toOffset(),
+        style = Stroke(width = 4f)
+    )
 }
 
 private const val SLASH_START_ANGLE_DEGREES = -50f

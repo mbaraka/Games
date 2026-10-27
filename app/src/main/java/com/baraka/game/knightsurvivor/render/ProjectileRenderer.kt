@@ -3,6 +3,7 @@ package com.baraka.game.knightsurvivor.render
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
+import com.baraka.game.knightsurvivor.balance.GameTunables
 import com.baraka.game.knightsurvivor.model.Projectile
 import kotlin.math.atan2
 
@@ -18,7 +19,7 @@ fun DrawScope.drawProjectiles(projectiles: List<Projectile>) {
         ).toFloat() + 90f
 
         rotate(degrees = headingDegrees, pivot = center) {
-            drawVectorIcon(icon = projectile.sourceWeapon.icon, center = center, radius = PROJECTILE_RADIUS, color = color)
+            drawVectorIcon(icon = projectile.sourceWeapon.icon, center = center, radius = PROJECTILE_RADIUS * GameTunables.VISUAL_SCALE, color = color)
         }
     }
 }

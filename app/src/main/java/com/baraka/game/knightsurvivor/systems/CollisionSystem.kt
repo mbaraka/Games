@@ -12,6 +12,7 @@ import com.baraka.game.knightsurvivor.model.HitFeedback
 import com.baraka.game.knightsurvivor.model.PlayerState
 import com.baraka.game.knightsurvivor.model.Projectile
 import com.baraka.game.knightsurvivor.model.Vec2
+import com.baraka.game.knightsurvivor.model.WeaponTargeting
 import com.baraka.game.knightsurvivor.model.XpGem
 import kotlin.random.Random
 
@@ -243,6 +244,11 @@ object CollisionSystem {
      * respects that player's own invulnerability window. Call once per player in a co-op
      * run, threading [enemies] and [enemyProjectiles] from one call to the next (see this
      * object's class-level KDoc).
+     *
+     * Any ORBIT weapon (today, just Orbit Shield) physically blocks an enemy projectile that
+     * touches one of its orbiting instances before it ever gets a chance to hit the player -
+     * the shield is a real obstacle, not just a melee weapon, which is also what makes it
+     * mechanically distinct from the AREA_AROUND_PLAYER weapons (see model/WeaponKind.kt).
      */
     fun resolvePlayerDamage(
         player: PlayerState,
@@ -250,11 +256,20 @@ object CollisionSystem {
         enemyProjectiles: List<EnemyProjectile>,
         nowMs: Long
     ): Pair<PlayerState, List<EnemyProjectile>> {
+        val shieldPositions = orbitWeaponPositions(player)
+        val projectilesPastShield = if (shieldPositions.isEmpty()) {
+            enemyProjectiles
+        } else {
+            enemyProjectiles.filterNot { projectile ->
+                shieldPositions.any { shieldPosition -> projectile.position.distanceTo(shieldPosition) <= ORBIT_SHIELD_BLOCK_RADIUS }
+            }
+        }
+
         val touchingEnemy = enemies
             .filter { enemy -> !enemy.disguisedAsPickup && enemy.position.distanceTo(player.position) <= enemy.radius + player.radius }
             .maxByOrNull { enemy -> enemy.damage }
 
-        val (hittingProjectiles, survivingProjectiles) = enemyProjectiles.partition { projectile ->
+        val (hittingProjectiles, survivingProjectiles) = projectilesPastShield.partition { projectile ->
             projectile.position.distanceTo(player.position) <= player.radius + ENEMY_PROJECTILE_HIT_RADIUS
         }
         val hardestProjectileHit = hittingProjectiles.maxByOrNull { it.damage }
@@ -279,7 +294,22 @@ object CollisionSystem {
         return updatedPlayer to survivingProjectiles
     }
 
+    /** Live positions of every instance of every ORBIT-targeting weapon the player owns (see [resolvePlayerDamage]'s KDoc). */
+    private fun orbitWeaponPositions(player: PlayerState): List<Vec2> =
+        player.weapons
+            .filter { weapon -> weapon.kind.targeting == WeaponTargeting.ORBIT }
+            .flatMap { weapon ->
+                WeaponFiringSystem.orbitPositions(
+                    center = player.position,
+                    radius = weapon.kind.radiusAtLevel(weapon.level),
+                    angleRadians = weapon.orbitAngleRadians,
+                    count = weapon.kind.orbCountAtLevel(weapon.level)
+                )
+            }
+
     private const val PROJECTILE_HIT_RADIUS = 6f
     private const val ENEMY_PROJECTILE_HIT_RADIUS = 6f
+    /** How close an enemy projectile must get to an orbiting shield instance to be blocked by it. */
+    private const val ORBIT_SHIELD_BLOCK_RADIUS = 20f
     private const val HIT_FLASH_MS = 120L
 }

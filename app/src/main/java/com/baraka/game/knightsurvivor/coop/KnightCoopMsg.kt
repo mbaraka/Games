@@ -12,6 +12,7 @@ import com.baraka.game.knightsurvivor.model.Projectile
 import com.baraka.game.knightsurvivor.model.UpgradeDisplay
 import com.baraka.game.knightsurvivor.model.UpgradeOption
 import com.baraka.game.knightsurvivor.model.Vec2
+import com.baraka.game.knightsurvivor.model.VectorIcon
 import com.baraka.game.knightsurvivor.model.WeaponInstance
 import com.baraka.game.knightsurvivor.model.WeaponKind
 import java.io.DataInputStream
@@ -82,7 +83,9 @@ data class UpgradeOptionDto(
     override val title: String,
     override val description: String,
     override val colorArgb: Long
-) : UpgradeDisplay
+) : UpgradeDisplay {
+    override val icon: VectorIcon? = null
+}
 
 fun UpgradeOption.toDto(): UpgradeOptionDto = UpgradeOptionDto(title, description, colorArgb)
 
