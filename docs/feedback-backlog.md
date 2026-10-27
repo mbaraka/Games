@@ -42,11 +42,14 @@ useful as a changelog of what shipped.
   Train Survivor, Knight Survivor) were left as-is - a later pass could move them onto
   the same shared component for visual consistency, but their back navigation already
   works.
-- [ ] **F5 - Difficulty/mode pickers are too busy.** Screens with 3-4 radio-button-style
-  options (e.g. difficulty select) should be simplified - tester's reference used one
-  slider instead of four separate buttons, plus bigger buttons/icons and fewer visible
-  choices at once. Applies to Battleship's mode picker and any other difficulty/mode
-  select screen.
+- [x] **F5 - Difficulty/mode pickers are too busy.** Battleship's mode picker done via
+  F13. Memory Match's 4-way difficulty picker (its clearest match for the tester's "4
+  radio selections" complaint) redone as one slider with a big current-difficulty
+  label and a single Play button, replacing 4 stacked buttons. Verified live - dragged
+  through all 4 levels, started Expert, got the correct 6x6/18-pair board. The
+  Atari-style games' 3-way Easy/Normal/Hard chip row (Snake, Road Rush, Breakout,
+  etc.) was left as-is: already a single compact row, not the "4 radio buttons" shape
+  the feedback called out.
 - [ ] **F6 - General "skeleton" feel / movement polish.** Several games read as
   mechanically there but visually and tactilely unfinished - movement in particular
   feels slow/stiff on some (named: Knight Survivor). No single fix; track this as an

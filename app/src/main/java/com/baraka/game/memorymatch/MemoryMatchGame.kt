@@ -69,39 +69,57 @@ fun MemoryMatchGameScreen() {
 
 @Composable
 fun DifficultySelectScreen(onSelect: (Difficulty) -> Unit) {
+    val entries = Difficulty.entries
+    var index by remember { mutableFloatStateOf(0f) }
+    val selected = entries[index.toInt()]
+
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "Memory Match",
-            color = GameColors.TextPrimary,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        Text(
-            text = "Choose a difficulty",
-            color = GameColors.TextSecondary,
-            fontSize = 16.sp,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
-        Difficulty.entries.forEach { diff ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "Memory Match",
+                color = GameColors.TextPrimary,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 32.dp)
+            )
+            Text(
+                text = selected.label,
+                color = GameColors.TextPrimary,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "${selected.pairs} pairs  -  ${selected.columns} columns",
+                color = GameColors.TextSecondary,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+            Slider(
+                value = index,
+                onValueChange = { index = it },
+                valueRange = 0f..(entries.size - 1).toFloat(),
+                steps = entries.size - 2,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                entries.forEach { diff ->
+                    Text(diff.label, color = GameColors.TextMuted, fontSize = 11.sp)
+                }
+            }
+            Spacer(modifier = Modifier.height(32.dp))
             Button(
-                onClick = { onSelect(diff) },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp)
+                onClick = { onSelect(selected) },
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text("${diff.label} (${diff.pairs} pairs)", fontSize = 18.sp, color = GameColors.TextPrimary)
+                Text("Play", fontSize = 18.sp)
             }
         }
-    }
         HubBackButton(modifier = Modifier.align(Alignment.TopStart).padding(16.dp))
     }
 }
