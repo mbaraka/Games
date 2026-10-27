@@ -296,7 +296,7 @@ val GAME_CATALOG: List<GameCatalogEntry> = listOf(
         activityClass = KeyReaderActivity::class.java,
         genres = setOf(GameGenre.UTILITY)
     )
-)
+).filter { entry -> entry.id != "key_reader" || BuildConfig.DEBUG }
 
 private const val MOST_PLAYED_COUNT = 5
 

@@ -31,6 +31,10 @@ class KeyReaderActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!BuildConfig.DEBUG) {
+            finish()
+            return
+        }
         setContent {
             GameTheme {
                 val uiState by viewModel.uiState.collectAsState()
