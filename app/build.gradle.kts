@@ -185,6 +185,8 @@ dependencies {
     implementation(project(":games:numbercruncher"))
     implementation(project(":games:cratecrew"))
     implementation(project(":games:missilecommand"))
+    implementation(project(":games:spaceinvaders"))
+    implementation(project(":games:breakout"))
 
     // Core Android dependencies
     implementation(libs.androidx.core.ktx)

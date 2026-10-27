@@ -230,19 +230,23 @@ instead - it still builds as part of the same app, but compiles and can be reaso
 its own, and another game's half-finished code can't block it. Train Survivor is the first
 one done this way (`games/trainsurvivor/`); Battleship, Dreadnought, Base Defender, Key
 Reader, Memory Match, Snake, Snakes & Ladders, Road Rush, Arc Shot, Minesweeper, Tunnel
-Crew, Number Cruncher, Crate Crew and Missile Command followed (`games/battleship/`,
-`games/dreadnought/`, `games/basedefender/`, `games/keyreader/`, `games/memorymatch/`,
-`games/snake/`, `games/snakeladder/`, `games/roadrush/`, `games/arcshot/`,
-`games/minesweeper/`, `games/tunnelcrew/`, `games/numbercruncher/`, `games/cratecrew/`,
-`games/missilecommand/`) - follow the same shape for the next one.
+Crew, Number Cruncher, Crate Crew, Missile Command, Space Invaders and Breakout followed
+(`games/battleship/`, `games/dreadnought/`, `games/basedefender/`, `games/keyreader/`,
+`games/memorymatch/`, `games/snake/`, `games/snakeladder/`, `games/roadrush/`,
+`games/arcshot/`, `games/minesweeper/`, `games/tunnelcrew/`, `games/numbercruncher/`,
+`games/cratecrew/`, `games/missilecommand/`, `games/spaceinvaders/`, `games/breakout/`) -
+follow the same shape for the next one.
 
 Clash Decks is **not yet split** even though it would benefit (it's one of the larger games):
-it imports `VectorIcon`/`KnightDesign`/`drawVectorIcon`/`drawKnightIcon` from Knight Survivor,
-still a package inside `:app`. (`SoundToggleRow`, the other blocker, is no longer one - it moved
-to `:core`'s `com.baraka.game.ui.components` when Road Rush and Snake were split into their own
-modules, since both needed it and a game module can't depend on another game module.) Moving
-Clash Decks still needs the icon helpers lifted into `:core` too (they're generic icon-drawing
-UI, not really Knight Survivor-specific) - or Knight Survivor split into its own module instead.
+it imports `KnightDesign`/`drawKnightIcon` from Knight Survivor, still a package inside
+`:app`. (Its other two blockers are gone: `SoundToggleRow` moved to `:core`'s
+`com.baraka.game.ui.components` when Road Rush and Snake split, and `VectorIcon`/
+`drawVectorIcon` moved to `:core`'s `com.baraka.game.ui.icons` when Space Invaders and
+Breakout split, both needed by more than one game and a game module can't depend on
+another game module.) Moving Clash Decks still needs `KnightDesign`/`drawKnightIcon` lifted
+out too, or Knight Survivor split into its own module instead - `drawKnightIcon` is the
+knight's own look, arguably more Knight-Survivor-specific than the generic shapes in
+`ui.icons`, so splitting Knight Survivor may be the better call there.
 
 **The shape:**
 
