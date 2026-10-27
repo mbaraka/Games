@@ -50,11 +50,11 @@ fun gameBuild(vararg paths: String): Int =
 // own version there, the same way - see AGENTS.md's "Splitting a game into its own module".
 val coopPaths = arrayOf("core/src/main/java/com/baraka/game/coop", "app/src/main/java/com/baraka/game/coop")
 val knightSurvivorBuild = gameBuild(*arrayOf("app/src/main/java/com/baraka/game/knightsurvivor") + coopPaths)
-val minesweeperBuild = gameBuild(*arrayOf("app/src/main/java/com/baraka/game/minesweeper") + coopPaths)
 val clashDecksBuild = gameBuild(*arrayOf("app/src/main/java/com/baraka/game/clashdecks") + coopPaths)
-// Battleship, Dreadnought and Base Defender moved to their own modules (games/battleship,
-// games/dreadnought, games/basedefender) and compute their own versions there, the same way
-// - see AGENTS.md's "Splitting a game into its own module".
+// Battleship, Dreadnought, Base Defender, Minesweeper, Arc Shot and Tunnel Crew moved to their
+// own modules (games/battleship, games/dreadnought, games/basedefender, games/minesweeper,
+// games/arcshot, games/tunnelcrew) and compute their own versions there, the same way - see
+// AGENTS.md's "Splitting a game into its own module".
 
 android {
     namespace = "com.baraka.game"
@@ -68,8 +68,6 @@ android {
         versionName = appVersionName
         buildConfigField("int", "KNIGHT_SURVIVOR_BUILD", "$knightSurvivorBuild")
         buildConfigField("String", "KNIGHT_SURVIVOR_VERSION", "\"1.$knightSurvivorBuild\"")
-        buildConfigField("int", "MINESWEEPER_BUILD", "$minesweeperBuild")
-        buildConfigField("String", "MINESWEEPER_VERSION", "\"1.$minesweeperBuild\"")
         buildConfigField("int", "CLASH_DECKS_BUILD", "$clashDecksBuild")
         buildConfigField("String", "CLASH_DECKS_VERSION", "\"1.$clashDecksBuild\"")
 
@@ -181,6 +179,9 @@ dependencies {
     implementation(project(":games:snake"))
     implementation(project(":games:snakeladder"))
     implementation(project(":games:roadrush"))
+    implementation(project(":games:arcshot"))
+    implementation(project(":games:minesweeper"))
+    implementation(project(":games:tunnelcrew"))
 
     // Core Android dependencies
     implementation(libs.androidx.core.ktx)

@@ -36,7 +36,7 @@ private enum class MineScreen { MENU, SETTINGS, LOBBY, GAME }
 
 @Composable
 private fun MinesweeperRoot(vm: MineViewModel, onExit: () -> Unit) {
-    val versionName = com.baraka.game.BuildConfig.MINESWEEPER_VERSION
+    val versionName = com.baraka.game.minesweeper.BuildConfig.MINESWEEPER_VERSION
     // Survive an Activity recreation mid-game: if the view model still has a board, go straight back to it.
     var screen by remember { mutableStateOf(if (vm.snap != null) MineScreen.GAME else MineScreen.MENU) }
 

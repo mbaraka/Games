@@ -13,7 +13,7 @@ import java.util.UUID
 import kotlin.random.Random
 
 /** The game build number (automatic, see AGENTS.md): phones on different builds warn instead of silently misbehaving. */
-const val MINE_PROTOCOL = com.baraka.game.BuildConfig.MINESWEEPER_BUILD
+const val MINE_PROTOCOL = com.baraka.game.minesweeper.BuildConfig.MINESWEEPER_BUILD
 
 /** Everything two phones say to each other. The host owns the board; the guest only asks and watches. */
 sealed class MineMsg {

@@ -79,12 +79,7 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
 
-        <activity
-            android:name=".minesweeper.MinesweeperActivity"
-            android:exported="false"
-            android:label="Minesweeper"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.Game" />
+        <!-- Minesweeper's activity entry lives in its own module now (games/minesweeper/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
         <activity
             android:name=".numbercorridor.NumberCorridorActivity"
@@ -125,13 +120,7 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
 
-        <activity
-            android:name=".tunnelcrew.TunnelCrewActivity"
-            android:exported="false"
-            android:label="Tunnel Crew"
-            android:configChanges="orientation|screenSize|keyboardHidden"
-            android:screenOrientation="sensorLandscape"
-            android:theme="@style/Theme.Game" />
+        <!-- Tunnel Crew's activity entry lives in its own module now (games/tunnelcrew/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
 
         <activity
             android:name=".cratecrew.CrateCrewActivity"
@@ -140,13 +129,7 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
 
-        <activity
-            android:name=".arcshot.ArcShotActivity"
-            android:exported="false"
-            android:label="Arc Shot"
-            android:configChanges="orientation|screenSize|keyboardHidden"
-            android:screenOrientation="sensorLandscape"
-            android:theme="@style/Theme.Game" />
+        <!-- Arc Shot's activity entry lives in its own module now (games/arcshot/src/main/AndroidManifest.xml); manifest merging pulls it in automatically. -->
     </application>
 
 </manifest>
