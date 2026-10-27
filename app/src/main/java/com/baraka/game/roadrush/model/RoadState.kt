@@ -5,7 +5,12 @@ enum class GamePhase {
     GAME_OVER
 }
 
-/** One rival car on the road. [progress] is normalized depth: 0 = just spawned at the horizon, 1 = at the player's line. */
+/**
+ * One rival car on the road. [progress] is normalized depth: 0 = just spawned at the
+ * horizon, 1 = at the player's line. Rival cars still spawn into one of [PlayerCarState.LANE_COUNT]
+ * fixed slots (see systems/ObstacleSpawnSystem.kt) so traffic stays readable and a spawn can
+ * never wall off the whole road — only the player moves freely, via [PlayerCarState.x].
+ */
 data class ObstacleCar(
     val id: Long,
     val lane: Int,
@@ -13,15 +18,27 @@ data class ObstacleCar(
     /** True once this car has either hit the player or been safely dodged, so it can't score/damage twice. */
     val resolved: Boolean = false,
     val colorSeed: Int = 0
-)
+) {
+    /** This car's horizontal position, as a fraction of the road's width (0 = left edge, 1 = right edge) — same space as [PlayerCarState.x]. */
+    val x: Float get() = (lane + 0.5f) / PlayerCarState.LANE_COUNT
+}
 
-/** The player's car: which lane it's in, and a brief post-crash invincibility/flash window. */
+/**
+ * The player's car: [x] is a continuous fraction of the road's width (0 = left edge, 1 =
+ * right edge) rather than a lane index — see systems/RoadGameLoop.kt.tick's `steerDirection`
+ * parameter for how it moves. Earlier versions snapped between 3 fixed lanes; player feedback
+ * (F12 in docs/feedback-backlog.md) was that the lane lock felt restrictive compared to a
+ * reference racer with free left/right movement, so only the *player* was loosened — rival
+ * cars keep spawning in fixed lanes (see [ObstacleCar]'s KDoc) so traffic stays predictable.
+ */
 data class PlayerCarState(
-    val lane: Int,
+    val x: Float,
     val invincibleSeconds: Float = 0f
 ) {
     companion object {
-        fun initial(): PlayerCarState = PlayerCarState(lane = (LANE_COUNT - 1) / 2)
+        fun initial(): PlayerCarState = PlayerCarState(x = 0.5f)
+
+        /** Rival-car spawn slots and lane-marking visuals only — the player is no longer confined to these, see this class's KDoc. */
         const val LANE_COUNT = 3
     }
 }
@@ -56,9 +73,15 @@ data class RoadState(
         const val MAX_SPEED = 1.6f
         const val SPAWN_INTERVAL_SECONDS = 1.1f
         const val MIN_SPAWN_INTERVAL_SECONDS = 0.55f
-        /** Collision band around the player's line: a car in the player's lane inside this range hits on contact. */
+        /** Collision band around the player's line: a car overlapping the player's [PlayerCarState.x] inside this range hits on contact. */
         const val COLLISION_BAND_START = 0.86f
         const val COLLISION_BAND_END = 1.0f
         const val INVINCIBILITY_SECONDS = 1.2f
+        /** Half-width of the player's car, in the same 0..1 road-fraction space as [PlayerCarState.x]. */
+        const val PLAYER_HALF_WIDTH = 0.105f
+        /** Half-width of a rival car, same space as [PLAYER_HALF_WIDTH]. */
+        const val CAR_HALF_WIDTH = 0.095f
+        /** How fast the player's car crosses the road while a steering button is held, in road-fractions/second. */
+        const val STEER_SPEED = 1.1f
     }
 }

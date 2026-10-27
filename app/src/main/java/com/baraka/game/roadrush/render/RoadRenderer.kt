@@ -156,15 +156,16 @@ private fun DrawScope.drawTree(x: Float, y: Float, treeSize: Float) {
 private fun DrawScope.drawRivalCar(car: ObstacleCar) {
     if (car.progress <= 0f || car.progress >= 1.15f) return
     val geometry = depthGeometry(car.progress)
-    val cx = geometry.roadLeft + geometry.laneWidth * (car.lane + 0.5f)
+    val cx = geometry.roadLeft + geometry.laneWidth * PlayerCarState.LANE_COUNT * car.x
     val cy = geometry.screenY - geometry.laneWidth * 0.35f
     val color = Color(RIVAL_CAR_COLORS[car.colorSeed % RIVAL_CAR_COLORS.size])
     drawCartoonCar(cx, cy, geometry.laneWidth * 0.33f, color, facingUp = false)
 }
 
+/** [PlayerCarState.x] is continuous (not lane-locked, see that class's KDoc), so the car's screen x is just road width times that fraction. */
 private fun DrawScope.drawPlayerCar(player: PlayerCarState, carDesign: CarDesign) {
     val geometry = depthGeometry(1f)
-    val cx = geometry.roadLeft + geometry.laneWidth * (player.lane + 0.5f)
+    val cx = geometry.roadLeft + geometry.laneWidth * PlayerCarState.LANE_COUNT * player.x
     val cy = geometry.screenY - geometry.laneWidth * 0.4f
     val flashing = player.invincibleSeconds > 0f && (player.invincibleSeconds * 10).toInt() % 2 == 0
     val color = if (flashing) Color.White else Color(carDesign.colorArgb)
