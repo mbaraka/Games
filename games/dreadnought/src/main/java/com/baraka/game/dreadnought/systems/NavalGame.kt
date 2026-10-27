@@ -116,7 +116,10 @@ class NavalGame(permanentLevels: List<Int>, startWave: Int = 1, heroClass: ShipC
 
     // --- ships ---
     val ships = ArrayList<Ship>(24)
-    val player: Ship = Ship(heroClass, 0)
+    // Faces "up" the screen rather than Ship's default (right) - the whole game is
+    // portrait now (see AndroidManifest.xml), and the tester's own suggestion for going
+    // portrait was to have the ship travel up instead of sideways.
+    val player: Ship = Ship(heroClass, 0).apply { heading = -PI_F / 2f; orderHeading = -PI_F / 2f }
 
     // --- sortie state ---
     var time = 0f

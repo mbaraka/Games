@@ -69,17 +69,27 @@ useful as a changelog of what shipped.
   via the Harbor upgrade shop (same `Refit.stat` code path); didn't reach the in-run
   refit-overlay screen itself live (needs a full wave sunk) so its card-layout/icon
   changes are compile-verified but not eyeballed in that exact screen.
-- [ ] **F8 - Forced landscape.** Tester dislikes being forced into landscape
-  specifically because it's a context switch mid-session; they'd prefer every game
-  stay vertical for a consistent "pick up and play on the go" feel. Tester's own
-  suggestion for this game: rotate the layout 90 degrees and have the ship travel
-  "up" the screen instead of sideways, keeping the same simulation. Investigate
-  feasibility; Train Survivor (also landscape, see F8b) may not have an easy
-  equivalent since its whole track is horizontal.
-- [ ] **F8b - Train Survivor is also landscape-only.** Same complaint as F8, tester
-  flagged they're unsure whether it can be made vertical. Decide per-game whether a
-  vertical layout is feasible before changing anything; if not, leave as-is but note
-  the decision here.
+- [ ] **F8 - Forced landscape.** Investigated and implemented, not yet verified live
+  (no device connected this session). Dreadnought's simulation already used free
+  `(x, y)` + `heading` (not a landscape-specific "forward = right" assumption) and the
+  renderer already scales its camera from the real canvas size each frame, so this
+  turned out feasible: manifest flipped to `portrait`
+  (`games/dreadnought/src/main/AndroidManifest.xml`), the ship now starts facing up
+  (`-90°`) instead of right, the Harbor screen's side-by-side ship/tabs layout became a
+  stacked column (`HarborScreen.kt`), the refit-overlay cards use `weight(1f)` instead
+  of a fixed `190.dp` so they no longer assume landscape width
+  (`DreadnoughtScreen.kt`'s `RefitOverlay`), and the in-run action-button cluster
+  (dive/launch/torp/repair/fire) was shrunk and made horizontally scrollable since in
+  the worst case (a ship with several of those at once) the old sizes could overflow a
+  portrait-width screen. All compiles clean; **needs an on-device pass** to confirm the
+  HUD/Harbor/refit layouts actually read well in portrait, especially that
+  worst-case action-button cluster.
+- [x] **F8b - Train Survivor is also landscape-only.** Investigated and decided: stays
+  landscape. Per its own architecture (see AGENTS.md's Train Survivor section), the
+  engine is built around a horizontal train with cars laid out left-to-right
+  (`carLeft`/`gunX`/`locoLeft` all derive from `TrainShape`) - this is the core data
+  model, not a camera-orientation setting like Dreadnought's, so going portrait would
+  mean redesigning the train-shape system itself. Not attempted.
 
 ## Knight Survivor
 

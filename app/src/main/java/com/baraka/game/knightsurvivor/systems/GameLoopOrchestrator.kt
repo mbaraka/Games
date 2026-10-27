@@ -187,7 +187,8 @@ object GameLoopOrchestrator {
                 EnemyDebuff(
                     stunUntilMs = maxOf(existing.stunUntilMs, debuff.stunUntilMs),
                     slowUntilMs = maxOf(existing.slowUntilMs, debuff.slowUntilMs),
-                    slowMultiplier = if (debuff.slowUntilMs >= existing.slowUntilMs) debuff.slowMultiplier else existing.slowMultiplier
+                    slowMultiplier = if (debuff.slowUntilMs >= existing.slowUntilMs) debuff.slowMultiplier else existing.slowMultiplier,
+                    orbitHitUntilMs = maxOf(existing.orbitHitUntilMs, debuff.orbitHitUntilMs)
                 )
             }
         }
@@ -202,6 +203,7 @@ object GameLoopOrchestrator {
             if (debuff.slowUntilMs > updated.slowUntilMs) {
                 updated = updated.copy(slowUntilMs = debuff.slowUntilMs, slowMultiplier = debuff.slowMultiplier)
             }
+            if (debuff.orbitHitUntilMs > updated.orbitHitUntilMs) updated = updated.copy(orbitHitUntilMs = debuff.orbitHitUntilMs)
         }
         return updated
     }

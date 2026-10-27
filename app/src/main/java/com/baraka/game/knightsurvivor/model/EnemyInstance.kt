@@ -22,7 +22,13 @@ data class EnemyInstance(
     /** Disguised as a health pickup until the player wanders close (Mimic only) — see EnemyMovementSystem. Doesn't move or deal contact damage while true. */
     val disguisedAsPickup: Boolean = false,
     /** Ticks down independently of weapon cooldowns; an enemy with [EnemyKind.hasRangedAttack] fires at 0 (Imp) — see systems/EnemyRangedAttackSystem.kt. */
-    val rangedAttackCooldownMs: Long = 0L
+    val rangedAttackCooldownMs: Long = 0L,
+    /** While > nowMs, an ORBIT weapon (Orbit Shield) won't damage this enemy again even while
+     *  touching it - per-enemy, not a shared weapon cooldown, so the shield still damages
+     *  every *different* enemy that touches it rather than only whichever enemy happens to be
+     *  touching at the rare instant a single shared cooldown ticks over. See
+     *  systems/WeaponFiringSystem.kt's ORBIT case. */
+    val orbitHitUntilMs: Long = 0L
 ) {
     val radius: Float get() = kind.radius
     val isBoss: Boolean get() = kind.isBoss

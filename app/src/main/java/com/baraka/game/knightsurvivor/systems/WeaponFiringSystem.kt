@@ -26,18 +26,22 @@ data class WeaponFiringResult(
     val firedWeaponKinds: List<WeaponKind> = emptyList(),
     /** Enemy id -> its new position after Magnet Pulse yanks it closer. Applied by GameLoopOrchestrator once collision has resolved survivors. */
     val enemyPulls: Map<Long, Vec2> = emptyMap(),
-    /** Enemy id -> stun/slow to apply — currently just Frying Pan's stun chance. */
+    /** Enemy id -> stun/slow/orbit-hit-cooldown to apply — Frying Pan's stun chance, Egg
+     *  Toss's splash slow, and Orbit Shield's per-enemy hit cooldown (see
+     *  [EnemyInstance.orbitHitUntilMs]'s KDoc). */
     val enemyDebuffs: Map<Long, EnemyDebuff> = emptyMap()
 )
 
 /**
  * Ticks every owned weapon's cooldown and resolves what happens when it hits zero.
  *
- * All three [WeaponTargeting] shapes share one activation clock (see WeaponInstance's
- * KDoc). This system only decides *who gets hit*: for AREA_AROUND_PLAYER/ORBIT weapons
- * that means emitting [DamageEvent]s directly (there's no projectile to collide), while
- * NEAREST_ENEMY weapons emit a [Projectile] and let systems/CollisionSystem.kt resolve the
- * hit once it travels there. Either way damage is always *applied* — enemy HP reduced,
+ * NEAREST_ENEMY and AREA_AROUND_PLAYER share one activation clock (see WeaponInstance's
+ * KDoc): [DamageEvent]s for AREA_AROUND_PLAYER are emitted directly (there's no projectile
+ * to collide), while NEAREST_ENEMY emits a [Projectile] and lets systems/CollisionSystem.kt
+ * resolve the hit once it travels there. ORBIT is different on purpose: its hit check runs
+ * every tick (the shield is always physically there) and is rate-limited per enemy instead
+ * via [EnemyInstance.orbitHitUntilMs], not gated by the weapon's own shared cooldown - see
+ * that field's KDoc for why. Either way damage is always *applied* — enemy HP reduced,
  * deaths handled, XP dropped — in exactly one place: CollisionSystem.
  */
 object WeaponFiringSystem {
@@ -63,6 +67,26 @@ object WeaponFiringSystem {
                 weapon.copy(orbitAngleRadians = weapon.orbitAngleRadians + ORBIT_ANGULAR_SPEED * (dtMs / 1000f))
             } else {
                 weapon
+            }
+
+            if (spinningWeapon.kind.targeting == WeaponTargeting.ORBIT) {
+                val radius = spinningWeapon.kind.radiusAtLevel(spinningWeapon.level)
+                val damage = spinningWeapon.kind.damageAtLevel(spinningWeapon.level)
+                val orbCount = spinningWeapon.kind.orbCountAtLevel(spinningWeapon.level)
+                val orbPositions = orbitPositions(player.position, radius, spinningWeapon.orbitAngleRadians, orbCount)
+                val hitCooldownMs = (spinningWeapon.kind.cooldownMsAtLevel(spinningWeapon.level) * player.cooldownMultiplier)
+                    .toLong().coerceAtLeast(1L)
+                enemies.forEach { enemy ->
+                    if (nowMs < enemy.orbitHitUntilMs) return@forEach
+                    val isHit = orbPositions.any { orb -> orb.distanceTo(enemy.position) <= ORBIT_HIT_RADIUS + enemy.radius }
+                    if (isHit) {
+                        damageEvents += DamageEvent(enemy.id, damage, spinningWeapon.kind)
+                        val existing = enemyDebuffs[enemy.id]
+                        enemyDebuffs[enemy.id] = (existing ?: EnemyDebuff()).copy(orbitHitUntilMs = nowMs + hitCooldownMs)
+                    }
+                }
+                updatedWeapons += spinningWeapon
+                continue
             }
 
             val remainingCooldownMs = spinningWeapon.cooldownRemainingMs - dtMs

@@ -7,7 +7,7 @@
             android:exported="false"
             android:label="Dreadnought"
             android:configChanges="orientation|screenSize|keyboardHidden"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="portrait"
             android:theme="@style/Theme.Game" />
     </application>
 </manifest>

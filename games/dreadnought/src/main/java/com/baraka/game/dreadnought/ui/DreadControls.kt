@@ -5,8 +5,10 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,6 +20,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -86,16 +89,21 @@ fun CourseStick(state: StickState, onOrder: (vx: Float, vy: Float) -> Unit, modi
 
 /**
  * A round button with a progress ring. [fill] 0..1 is how ready it is; [onPress] fires on touch-down and
- * [onRelease] on lift, so the same widget does a tap (repair) and a hold (fire).
+ * [onRelease] on lift, so the same widget does a tap (repair) and a hold (fire). Shows [icon] rather than a
+ * text label so it reads at a glance in the small portrait-width cluster these sit in - see
+ * AGENTS.md feedback requesting icons over words for the in-run action buttons. [caption], when given, is a
+ * tiny label under the icon for an action no icon alone reads clearly enough (e.g. "TORP").
  */
 @Composable
 fun RingButton(
-    label: String,
+    icon: ImageVector,
+    contentDescription: String,
     fill: Float,
     onPress: () -> Unit,
     modifier: Modifier = Modifier,
     onRelease: () -> Unit = {},
-    diameter: Dp = 92.dp
+    diameter: Dp = 92.dp,
+    caption: String? = null
 ) {
     val ready = fill >= 0.999f
     Box(
@@ -126,11 +134,17 @@ fun RingButton(
                 style = Stroke(w, cap = StrokeCap.Butt)
             )
         }
-        Text(
-            label,
-            color = if (ready) Color(0xFFFFB74D) else Color(0xFF93A9BA),
-            fontSize = (diameter.value * 0.19f).sp,
-            fontWeight = FontWeight.ExtraBold
-        )
+        val tint = if (ready) Color(0xFFFFB74D) else Color(0xFF93A9BA)
+        // Capped rather than pure diameter*ratio - otherwise the bigger FIRE ring (meant to
+        // stand out by its ring size alone) also got a visibly bigger icon than the smaller
+        // secondary buttons, reading as "too big" rather than just "the important one".
+        if (caption == null) {
+            Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(minOf(diameter * 0.32f, 20.dp)))
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(minOf(diameter * 0.26f, 16.dp)))
+                Text(caption, color = tint, fontSize = (diameter.value * 0.12f).sp, fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }

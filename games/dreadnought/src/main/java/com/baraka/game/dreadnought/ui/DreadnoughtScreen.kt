@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +27,11 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Anchor
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.FlightTakeoff
+import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material.icons.filled.Rocket
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -382,25 +389,54 @@ private fun RunScreen(
                     }
                 )
             }
-            Row(
+            // Secondary buttons stack ABOVE fire/launch instead of beside it, two per row,
+            // so the cluster never needs to scroll (an earlier version did, and could default
+            // to showing a button cut off at the screen edge) and never needs to grow wider
+            // than ~110dp regardless of how many of dive/launch/torp/repair a ship carries.
+            // The steering stick (bottom-start) and this cluster (bottom-end) are two
+            // independent corner anchors in the same Box - Compose doesn't push them apart
+            // from each other, so a wide cluster here could silently overlap the steering
+            // stick on a narrow portrait screen (see AGENTS.md feedback F8 - this happened).
+            Column(
                 Modifier.align(Alignment.BottomEnd),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.Bottom
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (game.canDive) {
-                    RingButton(if (hud.diving) "SURFACE" else "DIVE", hud.dive, onPress = { game.setDive(!game.diving) }, diameter = 76.dp)
+                val secondaryButtons = buildList<@Composable () -> Unit> {
+                    if (game.canDive) {
+                        add {
+                            RingButton(
+                                Icons.Default.Anchor,
+                                if (hud.diving) "Surface" else "Dive",
+                                hud.dive, onPress = { game.setDive(!game.diving) }, diameter = 52.dp
+                            )
+                        }
+                    }
+                    if (game.hasPlanes && game.player.cls.mainCount > 0) {
+                        add { RingButton(Icons.Default.FlightTakeoff, "Launch planes", hud.planes, onPress = { game.launchPlanes() }, diameter = 52.dp) }
+                    }
+                    if (game.hasTubes) {
+                        add {
+                            RingButton(
+                                Icons.Default.Rocket, "Fire torpedoes", hud.torp, onPress = { game.fireTorpedoes() }, diameter = 52.dp,
+                                caption = "TORP"
+                            )
+                        }
+                    }
+                    add { RingButton(Icons.Default.Build, "Repair", hud.repair, onPress = { game.requestRepair() }, diameter = 52.dp) }
                 }
-                if (game.hasPlanes && game.player.cls.mainCount > 0) {
-                    RingButton("LAUNCH", hud.planes, onPress = { game.launchPlanes() }, diameter = 76.dp)
+                secondaryButtons.chunked(2).forEach { rowButtons ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        rowButtons.forEach { button -> button() }
+                    }
                 }
-                if (game.hasTubes) {
-                    RingButton("TORP", hud.torp, onPress = { game.fireTorpedoes() }, diameter = 76.dp)
-                }
-                RingButton("REPAIR", hud.repair, onPress = { game.requestRepair() }, diameter = 76.dp)
                 if (game.hasPlanes && game.player.cls.mainCount == 0) {
-                    RingButton("LAUNCH", hud.planes, onPress = { game.launchPlanes() }, diameter = 104.dp)
+                    RingButton(Icons.Default.FlightTakeoff, "Launch planes", hud.planes, onPress = { game.launchPlanes() }, diameter = 84.dp)
                 } else {
-                    RingButton("FIRE", hud.fireReady, onPress = { game.firing = true }, onRelease = { game.firing = false }, diameter = 104.dp)
+                    RingButton(
+                        Icons.Default.GpsFixed, "Fire", hud.fireReady,
+                        onPress = { game.firing = true }, onRelease = { game.firing = false }, diameter = 84.dp
+                    )
                 }
             }
             Column(Modifier.align(Alignment.TopEnd), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -479,11 +515,14 @@ private fun RefitOverlay(game: NavalGame) {
     Scrim {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             NavyLabel("WAVE ${game.wave} CLEARED - CHOOSE A REFIT", size = 18.sp, bold = true, color = NavyColors.Accent)
-            Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 for (i in 0 until 3) {
                     val r = Refit.entries[game.refitOffer[i]]
                     Column(
-                        Modifier.width(190.dp)
+                        Modifier.weight(1f)
                             .fillMaxHeight()
                             .background(NavyColors.Card, RoundedCornerShape(14.dp))
                             .clickable { game.pickRefit(i) }

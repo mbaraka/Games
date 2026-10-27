@@ -79,94 +79,83 @@ fun HarborScreen(
         }
     }
 
-    Row(
+    Column(
         Modifier.fillMaxSize().background(NavyColors.Bg).windowInsetsPadding(WindowInsets.safeDrawing).padding(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // left: the ship and the sortie controls
-        Column(
-            Modifier.weight(0.45f).fillMaxSize().verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    NavyLabel("DREADNOUGHT", size = 24.sp, bold = true, color = NavyColors.Accent)
-                    NavyLabel("Command a battleship. Sink the fleet.", size = 12.sp, color = NavyColors.Muted)
-                }
-                NavyButton("Exit", onExit, fontSize = 12.sp)
+        // top: the ship and the sortie controls - portrait-width, so this stacks above the
+        // tabs instead of sitting beside them (see AGENTS.md feedback F8: Dreadnought is
+        // portrait now, the ship/sortie panel used to assume a landscape-wide left column).
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                NavyLabel("DREADNOUGHT", size = 22.sp, bold = true, color = NavyColors.Accent)
+                NavyLabel("Command a battleship. Sink the fleet.", size = 11.sp, color = NavyColors.Muted)
             }
+            NavyButton("Exit", onExit, fontSize = 12.sp)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Canvas(
-                Modifier.fillMaxWidth().height(96.dp).clip(RoundedCornerShape(12.dp)).background(NavyColors.Water)
+                Modifier.weight(1f).height(72.dp).clip(RoundedCornerShape(12.dp)).background(NavyColors.Water)
             ) { drawShipPortrait(player, false, clock) }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                NavyButton(if (owned) "SORTIE" else "LOCKED", onSortie, Modifier.weight(1f).height(52.dp), enabled = owned, accent = owned, fontSize = 18.sp)
-                NavyButton("Settings", onSettings, Modifier.height(52.dp), fontSize = 13.sp)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                NavyButton(if (owned) "SORTIE" else "LOCKED", onSortie, Modifier.width(110.dp).height(44.dp), enabled = owned, accent = owned, fontSize = 15.sp)
+                NavyButton("Settings", onSettings, Modifier.width(110.dp).height(36.dp), fontSize = 12.sp)
             }
-            NavyLabel(
-                "Coins ${save.coins}   |   Best wave ${save.bestWave}   |   Best score ${save.bestScore}",
-                size = 12.sp, color = NavyColors.Text
-            )
-            NavyLabel("Ships sunk ${save.kills}   |   Flagships ${save.flagships}", size = 12.sp, color = NavyColors.Muted)
+        }
+        NavyLabel(
+            "Coins ${save.coins}   |   Best wave ${save.bestWave}   |   Best score ${save.bestScore}",
+            size = 11.sp, color = NavyColors.Text
+        )
+        NavyLabel(
+            "Ship: ${cls.label}" + if (owned) " (change in SHIPS tab)" else " - locked, unlock in SHIPS tab",
+            size = 11.sp, color = NavyColors.Accent, bold = true
+        )
 
-            NavyLabel(
-                "Ship: ${cls.label}" + if (owned) "   (change it in the SHIPS tab)" else "   - locked, unlock it in the SHIPS tab",
-                size = 12.sp, color = NavyColors.Accent, bold = true
-            )
-            NavyLabel(loadout(cls), size = 11.sp, color = NavyColors.Muted)
-
-            NavyLabel("SEA", size = 11.sp, color = NavyColors.Muted, bold = true)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                for (t in Theatre.entries) {
-                    NavyButton(
-                        t.label.substringAfterLast(' '),
-                        { onTheatre(t.ordinal) },
-                        Modifier.weight(1f),
-                        enabled = save.theatreUnlocked(t),
-                        accent = save.theatre == t.ordinal,
-                        fontSize = 12.sp,
-                        compact = true
-                    )
+        // bottom: tabs for refits, ships and the recognition guide, filling the rest of the screen
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            val tabs = arrayOf("REFITS", "SHIPS", "GUIDE")
+            for (i in tabs.indices) {
+                NavyButton(tabs[i], { onTab(i) }, Modifier.weight(1f), accent = tab == i, fontSize = 13.sp, compact = true)
+            }
+        }
+        LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            when (tab) {
+                0 -> {
+                    item { NavyLabel("Permanent upgrades, bought with coins. They apply to whichever ship you sail.", size = 12.sp, color = NavyColors.Muted) }
+                    items(Refit.entries) { r -> RefitRow(r, save, onBuy) }
                 }
-            }
-            val sel = Theatre.entries[save.theatre]
-            NavyLabel(sel.blurb, size = 12.sp, color = NavyColors.Muted)
-            for (t in Theatre.entries) {
-                if (!save.theatreUnlocked(t)) NavyLabel("${t.label}: reach wave ${t.unlockWave} to unlock", size = 11.sp, color = NavyColors.Muted)
+                1 -> {
+                    item { NavyLabel("Choose the ship to sail. Tap a card to select it.", size = 12.sp, color = NavyColors.Muted) }
+                    itemsIndexed(ShipClass.PLAYABLE) { i, c ->
+                        val di = i - ShipClass.BUILTIN_PLAYABLE_COUNT
+                        ShipCard(c, save.ship == i, save.owns(i), save.coins, { onShip(i) }, { onBuyShip(i) }, if (di >= 0) ({ onEditDesign(di) }) else null)
+                    }
+                    item {
+                        NavyButton(
+                            if (designs.size < ShipDesign.MAX_DESIGNS) "+ Design your own ship" else "Ship slots full (delete one to add)",
+                            onNewDesign, Modifier.fillMaxWidth().height(48.dp), enabled = designs.size < ShipDesign.MAX_DESIGNS, accent = true, fontSize = 14.sp
+                        )
+                    }
+                }
+                else -> {
+                    item { NavyLabel("Every ship in the game, so you can learn to recognise them.", size = 12.sp, color = NavyColors.Muted) }
+                    items(ShipClass.entries) { c -> GuideRow(c) }
+                }
             }
         }
 
-        // right: tabs for refits, ships and the recognition guide
-        Column(Modifier.weight(0.55f).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                val tabs = arrayOf("REFITS", "SHIPS", "GUIDE")
-                for (i in tabs.indices) {
-                    NavyButton(tabs[i], { onTab(i) }, Modifier.weight(1f), accent = tab == i, fontSize = 13.sp, compact = true)
-                }
-            }
-            LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                when (tab) {
-                    0 -> {
-                        item { NavyLabel("Permanent upgrades, bought with coins. They apply to whichever ship you sail.", size = 12.sp, color = NavyColors.Muted) }
-                        items(Refit.entries) { r -> RefitRow(r, save, onBuy) }
-                    }
-                    1 -> {
-                        item { NavyLabel("Choose the ship to sail. Tap a card to select it.", size = 12.sp, color = NavyColors.Muted) }
-                        itemsIndexed(ShipClass.PLAYABLE) { i, c ->
-                            val di = i - ShipClass.BUILTIN_PLAYABLE_COUNT
-                            ShipCard(c, save.ship == i, save.owns(i), save.coins, { onShip(i) }, { onBuyShip(i) }, if (di >= 0) ({ onEditDesign(di) }) else null)
-                        }
-                        item {
-                            NavyButton(
-                                if (designs.size < ShipDesign.MAX_DESIGNS) "+ Design your own ship" else "Ship slots full (delete one to add)",
-                                onNewDesign, Modifier.fillMaxWidth().height(48.dp), enabled = designs.size < ShipDesign.MAX_DESIGNS, accent = true, fontSize = 14.sp
-                            )
-                        }
-                    }
-                    else -> {
-                        item { NavyLabel("Every ship in the game, so you can learn to recognise them.", size = 12.sp, color = NavyColors.Muted) }
-                        items(ShipClass.entries) { c -> GuideRow(c) }
-                    }
-                }
+        NavyLabel("SEA", size = 11.sp, color = NavyColors.Muted, bold = true)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            for (t in Theatre.entries) {
+                NavyButton(
+                    t.label.substringAfterLast(' '),
+                    { onTheatre(t.ordinal) },
+                    Modifier.weight(1f),
+                    enabled = save.theatreUnlocked(t),
+                    accent = save.theatre == t.ordinal,
+                    fontSize = 12.sp,
+                    compact = true
+                )
             }
         }
     }
